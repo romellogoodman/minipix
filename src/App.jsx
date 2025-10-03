@@ -1,48 +1,52 @@
 import { useRef, useState } from "react";
 import "./App.scss";
 import Canvas from "./Canvas";
+import { renderImage } from "./renderers";
+import { Upload } from "feather-icons-react";
 
 function App() {
   const fileInputRef = useRef(null);
-  const [image, setImage] = useState(null);
+  const [allImages, setAllImages] = useState([]);
+  const [availableImages, setAvailableImages] = useState([]);
 
   const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file && file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          setImage(img);
+    const files = Array.from(event.target.files);
+
+    files.forEach((file) => {
+      if (file.type === "image/png" || file.type === "image/jpeg") {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            setAllImages((prev) => [...prev, img]);
+            setAvailableImages((prev) => [...prev, img]);
+          };
+          img.src = e.target.result;
         };
-        img.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
+        reader.readAsDataURL(file);
+      }
+    });
   };
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  const renderImage = (canvas) => {
-    if (!image) return;
+  const toggleImageAvailability = (img) => {
+    setAvailableImages((prev) => {
+      const isAvailable = prev.includes(img);
+      if (isAvailable) {
+        return prev.filter((i) => i !== img);
+      } else {
+        return [...prev, img];
+      }
+    });
+  };
 
-    const ctx = canvas.getContext("2d");
-    const parent = canvas.parentElement;
+  const getRandomImage = () => {
+    if (availableImages.length === 0) return null;
 
-    canvas.width = parent.clientWidth;
-    canvas.height = parent.clientHeight;
-
-    const scale = Math.min(
-      canvas.width / image.width,
-      canvas.height / image.height
-    );
-    const x = (canvas.width - image.width * scale) / 2;
-    const y = (canvas.height - image.height * scale) / 2;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(image, x, y, image.width * scale, image.height * scale);
+    return availableImages[Math.floor(Math.random() * availableImages.length)];
   };
 
   return (
@@ -55,24 +59,44 @@ function App() {
               ref={fileInputRef}
               type="file"
               className="nav__input"
-              accept="image/*"
+              accept="image/png, image/jpeg"
+              multiple
               onChange={handleFileChange}
               style={{ display: "none" }}
             />
             <button onClick={handleUploadClick} className="nav__button">
-              Upload Image
+              <Upload size={20} />
             </button>
+            {allImages.length > 0 && (
+              <div className="nav__thumbnails">
+                {allImages.map((img, index) => (
+                  <img
+                    key={index}
+                    src={img.src}
+                    alt={`Upload ${index + 1}`}
+                    className={`nav__thumbnail ${
+                      availableImages.includes(img)
+                        ? "nav__thumbnail--active"
+                        : "nav__thumbnail--inactive"
+                    }`}
+                    onClick={() => toggleImageAvailability(img)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </nav>
 
-      <div className="canvas-grid">
-        {Array.from({ length: 12 }).map((_, index) => (
-          <div key={index} className="canvas-grid__item">
-            <Canvas renderFn={renderImage} />
-          </div>
-        ))}
-      </div>
+      {availableImages.length > 0 && (
+        <div className="canvas-grid">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <div key={index} className="canvas-grid__item">
+              <Canvas renderFn={renderImage(getRandomImage())} />
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
