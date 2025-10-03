@@ -11,15 +11,26 @@ function App() {
 
   const handleFileChange = (event) => {
     const files = Array.from(event.target.files);
+    const newImages = [];
+    let loadedCount = 0;
 
     files.forEach((file) => {
       if (file.type === "image/png" || file.type === "image/jpeg") {
         const reader = new FileReader();
         reader.onload = (e) => {
           const img = new Image();
+
           img.onload = () => {
-            setAllImages((prev) => [...prev, img]);
-            setAvailableImages((prev) => [...prev, img]);
+            img.filename = file.name;
+            console.log("Loaded image:", file.name);
+            newImages.push(img);
+            loadedCount++;
+
+            if (loadedCount === files.length) {
+              console.log("All images loaded:", newImages.map(i => i.filename));
+              setAllImages((prev) => [...prev, ...newImages]);
+              setAvailableImages((prev) => [...prev, ...newImages]);
+            }
           };
           img.src = e.target.result;
         };
@@ -53,7 +64,6 @@ function App() {
     <>
       <nav className="nav">
         <div className="nav__container">
-          <h1 className="nav__title">minicut</h1>
           <div className="nav__controls">
             <input
               ref={fileInputRef}
@@ -90,11 +100,26 @@ function App() {
 
       {availableImages.length > 0 && (
         <div className="canvas-grid">
-          {Array.from({ length: 12 }).map((_, index) => (
-            <div key={index} className="canvas-grid__item">
-              <Canvas renderFn={renderImage(getRandomImage())} />
-            </div>
-          ))}
+          {Array.from({ length: 12 }).map((_, index) => {
+            const img = getRandomImage();
+            return (
+              <div key={index} className="canvas-grid__item">
+                <Canvas
+                  renderFn={renderImage(img)}
+                  onClick={(canvas) => {
+                    const link = document.createElement("a");
+                    const dataUrl = canvas.toDataURL("image/png");
+                    link.href = dataUrl;
+                    const filename = img?.filename
+                      ? `minicut-${img.filename}`
+                      : `minicut-canvas-${index + 1}.png`;
+                    link.download = filename;
+                    link.click();
+                  }}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
     </>

@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 
-function Canvas({ renderFn }) {
+function Canvas({ renderFn, onClick }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -9,7 +9,13 @@ function Canvas({ renderFn }) {
     }
   }, [renderFn]);
 
-  return <canvas ref={canvasRef} className="canvas" />;
+  const handleClick = () => {
+    if (onClick && canvasRef.current) {
+      onClick(canvasRef.current);
+    }
+  };
+
+  return <canvas ref={canvasRef} className="canvas" onClick={handleClick} />;
 }
 
 export default Canvas;
