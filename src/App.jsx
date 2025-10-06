@@ -1,13 +1,15 @@
 import { useRef, useState } from "react";
 import "./App.scss";
 import Canvas from "./Canvas";
-import { renderImage } from "./renderers";
+import * as renderers from "./renderers";
 import { Upload } from "feather-icons-react";
 
 function App() {
   const fileInputRef = useRef(null);
   const [allImages, setAllImages] = useState([]);
   const [availableImages, setAvailableImages] = useState([]);
+
+  const rendererFunctions = Object.values(renderers);
 
   const handleFileChange = (event) => {
     const files = Array.from(event.target.files);
@@ -27,7 +29,10 @@ function App() {
             loadedCount++;
 
             if (loadedCount === files.length) {
-              console.log("All images loaded:", newImages.map(i => i.filename));
+              console.log(
+                "All images loaded:",
+                newImages.map((i) => i.filename)
+              );
               setAllImages((prev) => [...prev, ...newImages]);
               setAvailableImages((prev) => [...prev, ...newImages]);
             }
@@ -58,6 +63,12 @@ function App() {
     if (availableImages.length === 0) return null;
 
     return availableImages[Math.floor(Math.random() * availableImages.length)];
+  };
+
+  const getRandomRenderer = () => {
+    return rendererFunctions[
+      Math.floor(Math.random() * rendererFunctions.length)
+    ];
   };
 
   return (
@@ -102,17 +113,19 @@ function App() {
         <div className="canvas-grid">
           {Array.from({ length: 12 }).map((_, index) => {
             const img = getRandomImage();
+            const renderer = getRandomRenderer();
             return (
               <div key={index} className="canvas-grid__item">
                 <Canvas
-                  renderFn={renderImage(img)}
+                  image={img}
+                  renderFn={renderer}
                   onClick={(canvas) => {
                     const link = document.createElement("a");
                     const dataUrl = canvas.toDataURL("image/png");
                     link.href = dataUrl;
                     const filename = img?.filename
-                      ? `minicut-${img.filename}`
-                      : `minicut-canvas-${index + 1}.png`;
+                      ? `minipix-${img.filename}`
+                      : `minipix-canvas-${index + 1}.png`;
                     link.download = filename;
                     link.click();
                   }}
