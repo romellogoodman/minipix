@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./App.scss";
 import Canvas from "./Canvas";
 import * as renderers from "./renderers";
@@ -6,13 +6,15 @@ import { Upload } from "feather-icons-react";
 
 function App() {
   const fileInputRef = useRef(null);
+  const sentinelRef = useRef(null);
   const [allImages, setAllImages] = useState([]);
   const [availableImages, setAvailableImages] = useState([]);
+  const [visibleCanvasCount, setVisibleCanvasCount] = useState(12);
+  const [isDragging, setIsDragging] = useState(false);
 
   const rendererFunctions = Object.values(renderers);
 
-  const handleFileChange = (event) => {
-    const files = Array.from(event.target.files);
+  const loadFiles = (files) => {
     const newImages = [];
     let loadedCount = 0;
 
@@ -44,6 +46,11 @@ function App() {
     });
   };
 
+  const handleFileChange = (event) => {
+    const files = Array.from(event.target.files);
+    loadFiles(files);
+  };
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
@@ -71,8 +78,68 @@ function App() {
     ];
   };
 
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && availableImages.length > 0) {
+          setVisibleCanvasCount((prev) => prev + 12);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (sentinelRef.current) {
+      observer.observe(sentinelRef.current);
+    }
+
+    return () => {
+      if (sentinelRef.current) {
+        observer.unobserve(sentinelRef.current);
+      }
+    };
+  }, [availableImages.length]);
+
+  useEffect(() => {
+    const handleDragOver = (e) => {
+      e.preventDefault();
+      setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+      e.preventDefault();
+      if (e.target === document.body) {
+        setIsDragging(false);
+      }
+    };
+
+    const handleDrop = (e) => {
+      e.preventDefault();
+      setIsDragging(false);
+
+      const files = Array.from(e.dataTransfer.files);
+      loadFiles(files);
+    };
+
+    document.body.addEventListener("dragover", handleDragOver);
+    document.body.addEventListener("dragleave", handleDragLeave);
+    document.body.addEventListener("drop", handleDrop);
+
+    return () => {
+      document.body.removeEventListener("dragover", handleDragOver);
+      document.body.removeEventListener("dragleave", handleDragLeave);
+      document.body.removeEventListener("drop", handleDrop);
+    };
+  }, []);
+
   return (
     <>
+      {isDragging && (
+        <div className="dropzone-overlay">
+          <div className="dropzone-overlay__border">
+            <div className="dropzone-overlay__content">Drop images here</div>
+          </div>
+        </div>
+      )}
       <nav className="nav">
         <div className="nav__container">
           <div className="nav__controls">
@@ -110,30 +177,33 @@ function App() {
       </nav>
 
       {availableImages.length > 0 && (
-        <div className="canvas-grid">
-          {Array.from({ length: 12 }).map((_, index) => {
-            const img = getRandomImage();
-            const renderer = getRandomRenderer();
-            return (
-              <div key={index} className="canvas-grid__item">
-                <Canvas
-                  image={img}
-                  renderFn={renderer}
-                  onClick={(canvas) => {
-                    const link = document.createElement("a");
-                    const dataUrl = canvas.toDataURL("image/png");
-                    link.href = dataUrl;
-                    const filename = img?.filename
-                      ? `minipix-${img.filename}`
-                      : `minipix-canvas-${index + 1}.png`;
-                    link.download = filename;
-                    link.click();
-                  }}
-                />
-              </div>
-            );
-          })}
-        </div>
+        <>
+          <div className="canvas-grid">
+            {Array.from({ length: visibleCanvasCount }).map((_, index) => {
+              const img = getRandomImage();
+              const renderer = getRandomRenderer();
+              return (
+                <div key={index} className="canvas-grid__item">
+                  <Canvas
+                    image={img}
+                    renderFn={renderer}
+                    onClick={(canvas) => {
+                      const link = document.createElement("a");
+                      const dataUrl = canvas.toDataURL("image/png");
+                      link.href = dataUrl;
+                      const filename = img?.filename
+                        ? `minipix-${img.filename}`
+                        : `minipix-canvas-${index + 1}.png`;
+                      link.download = filename;
+                      link.click();
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div ref={sentinelRef} style={{ height: "1px" }} />
+        </>
       )}
     </>
   );
