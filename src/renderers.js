@@ -1,5 +1,24 @@
 import { map, randomNumber } from "./utils";
 
+// Helper function to apply random flipping
+const applyRandomFlip = (ctx, width, height) => {
+  const flipX = Math.random() < 0.5;
+  const flipY = Math.random() < 0.5;
+
+  if (flipX || flipY) {
+    ctx.translate(
+      flipX ? width : 0,
+      flipY ? height : 0
+    );
+    ctx.scale(
+      flipX ? -1 : 1,
+      flipY ? -1 : 1
+    );
+  }
+
+  return { flipX, flipY };
+};
+
 export const renderImage = ({ canvas, image }) => {
   if (!image) return;
 
@@ -10,7 +29,11 @@ export const renderImage = ({ canvas, image }) => {
   canvas.height = image.height;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height);
   ctx.drawImage(image, 0, 0, image.width, image.height);
+  ctx.restore();
 };
 
 export const renderImageStacked = ({ canvas, image }) => {
@@ -23,6 +46,9 @@ export const renderImageStacked = ({ canvas, image }) => {
   canvas.height = image.height;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height);
 
   // Random number of stacks between 4 and 12
   const numStacks = randomNumber(4, 12);
@@ -37,6 +63,8 @@ export const renderImageStacked = ({ canvas, image }) => {
 
     ctx.drawImage(image, x, y, width, height);
   });
+
+  ctx.restore();
 };
 
 export const renderImageStackedCircle = ({ canvas, image }) => {
@@ -49,6 +77,9 @@ export const renderImageStackedCircle = ({ canvas, image }) => {
   canvas.height = image.height;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height);
 
   // Random number of stacks between 4 and 12
   const numStacks = randomNumber(4, 12);
@@ -102,4 +133,6 @@ export const renderImageStackedCircle = ({ canvas, image }) => {
 
     ctx.restore();
   });
+
+  ctx.restore();
 };
