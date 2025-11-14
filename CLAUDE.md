@@ -30,9 +30,14 @@ Main application component that manages:
 
 - Image upload and state (`allImages`, `availableImages`)
 - Image availability toggling via thumbnail interface
-- Random image and renderer selection
+- Random image and renderer selection (or hardcoded via query parameter)
 - 12-canvas grid rendering
 - Canvas download functionality with filename preservation
+
+**Query Parameters:**
+- `renderer`: Specify a renderer by name to use for all canvases (e.g., `?renderer=renderImageStacked`)
+  - Available renderer names: `renderImage`, `renderImageStacked`, `renderImageStackedCircle`
+  - If invalid or not provided, random selection is used
 
 ### Canvas.jsx
 

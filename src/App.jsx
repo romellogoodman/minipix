@@ -14,6 +14,11 @@ function App() {
 
   const rendererFunctions = Object.values(renderers);
 
+  // Parse query parameter for hardcoded renderer
+  const queryParams = new URLSearchParams(window.location.search);
+  const rendererName = queryParams.get('renderer');
+  const hardcodedRenderer = rendererName && renderers[rendererName] ? renderers[rendererName] : null;
+
   const loadFiles = (files) => {
     const newImages = [];
     let loadedCount = 0;
@@ -74,6 +79,10 @@ function App() {
   };
 
   const getRandomRenderer = () => {
+    // Use hardcoded renderer if specified via query param
+    if (hardcodedRenderer) {
+      return hardcodedRenderer;
+    }
     return rendererFunctions[
       Math.floor(Math.random() * rendererFunctions.length)
     ];
