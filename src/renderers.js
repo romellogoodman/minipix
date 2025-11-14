@@ -7,24 +7,7 @@ import {
   shuffleArray,
 } from "./utils";
 
-export const renderImage = ({ canvas, image }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-
-  // Set canvas to original image dimensions
-  canvas.width = image.width;
-  canvas.height = image.height;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height);
-  ctx.drawImage(image, 0, 0, image.width, image.height);
-  ctx.restore();
-};
-
-export const renderImageBarSwap = ({ canvas, image }) => {
+export const renderBarSwap = ({ canvas, image }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -93,7 +76,7 @@ export const renderImageBarSwap = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderImageGridSwap = ({ canvas, image }) => {
+export const renderGridSwap = ({ canvas, image }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -167,7 +150,7 @@ export const renderImageGridSwap = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderImagePixelated = ({ canvas, image }) => {
+export const renderPixelated = ({ canvas, image }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -209,7 +192,7 @@ export const renderImagePixelated = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderImageScooch = ({ canvas, image }) => {
+export const renderScooch = ({ canvas, image }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -291,7 +274,7 @@ export const renderImageScooch = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderImageStacked = ({ canvas, image }) => {
+export const renderStacked = ({ canvas, image }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -322,7 +305,7 @@ export const renderImageStacked = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderImageStackedCircle = ({ canvas, image }) => {
+export const renderStackedCircle = ({ canvas, image }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -392,7 +375,7 @@ export const renderImageStackedCircle = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderImageSubdivision = ({ canvas, image }) => {
+export const renderSubdivision = ({ canvas, image }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -454,7 +437,7 @@ export const renderImageSubdivision = ({ canvas, image }) => {
   ctx.restore();
 };
 
-// export const renderImageChromaticShift = ({ canvas, image }) => {
+// export const renderChromaticShift = ({ canvas, image }) => {
 //   if (!image) return;
 
 //   const ctx = canvas.getContext("2d");
@@ -531,7 +514,7 @@ export const renderImageSubdivision = ({ canvas, image }) => {
 //   ctx.restore();
 // };
 
-// export const renderImageKaleidoscope = ({ canvas, image }) => {
+// export const renderKaleidoscope = ({ canvas, image }) => {
 //   if (!image) return;
 
 //   const ctx = canvas.getContext("2d");

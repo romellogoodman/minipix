@@ -35,8 +35,8 @@ Main application component that manages:
 - Canvas download functionality with filename preservation
 
 **Query Parameters:**
-- `renderer`: Specify a renderer by name to use for all canvases (e.g., `?renderer=renderImageStacked`)
-  - Available renderer names: `renderImage`, `renderImageStacked`, `renderImageStackedCircle`
+- `renderer`: Specify a renderer by name to use for all canvases (e.g., `?renderer=renderStacked`)
+  - Available renderer names: `renderBarSwap`, `renderGridSwap`, `renderPixelated`, `renderScooch`, `renderStacked`, `renderStackedCircle`, `renderSubdivision`
   - If invalid or not provided, random selection is used
 
 ### Canvas.jsx
@@ -51,9 +51,13 @@ Reusable canvas component that:
 
 Collection of rendering algorithms exported as named functions:
 
-- `renderImage`: Standard image rendering at original resolution
-- `renderImageStacked`: Creates layered effect with 4-12 stacks at varying scales (100%-25%)
-- `renderImageStackedCircle`: Circular clipped stacks with optional rotation
+- `renderBarSwap`: Shuffles horizontal or vertical bars
+- `renderGridSwap`: Shuffles grid tiles with aspect-ratio adaptation
+- `renderPixelated`: Adaptive block-based pixelation effect
+- `renderScooch`: Wraps edge slice to opposite side
+- `renderStacked`: Creates layered effect with 4-12 stacks at varying scales (100%-25%)
+- `renderStackedCircle`: Circular clipped stacks with optional rotation
+- `renderSubdivision`: Recursive fragmentation with binary space partitioning
 - Each renderer function signature: `({ canvas, image }) => void`
 - Canvas dimensions are set to original image dimensions (preserves aspect ratio and resolution)
 - Includes utility functions like `map()` and `randomNumber()`
