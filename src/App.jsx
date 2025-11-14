@@ -26,6 +26,7 @@ function App() {
 
           img.onload = () => {
             img.filename = file.name;
+            img.mimeType = file.type;
             console.log("Loaded image:", file.name);
             newImages.push(img);
             loadedCount++;
@@ -189,11 +190,26 @@ function App() {
                     renderFn={renderer}
                     onClick={(canvas) => {
                       const link = document.createElement("a");
-                      const dataUrl = canvas.toDataURL("image/png");
+
+                      // Use original image format
+                      const mimeType = img?.mimeType || "image/png";
+                      const quality = mimeType === "image/jpeg" ? 0.95 : undefined;
+                      const dataUrl = canvas.toDataURL(mimeType, quality);
+
                       link.href = dataUrl;
-                      const filename = img?.filename
-                        ? `minipix-${img.filename}`
-                        : `minipix-canvas-${index + 1}.png`;
+
+                      // Get file extension from mime type
+                      const extension = mimeType === "image/jpeg" ? "jpg" : "png";
+
+                      let filename;
+                      if (img?.filename) {
+                        // Replace original extension with correct one
+                        const nameWithoutExt = img.filename.replace(/\.(jpe?g|png)$/i, "");
+                        filename = `minipix-${nameWithoutExt}.${extension}`;
+                      } else {
+                        filename = `minipix-canvas-${index + 1}.${extension}`;
+                      }
+
                       link.download = filename;
                       link.click();
                     }}
