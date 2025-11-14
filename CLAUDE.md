@@ -72,4 +72,5 @@ To add a new rendering algorithm:
 1. Export a new function in `renderers.js`
 2. Function signature: `export const rendererName = ({ canvas, image }) => { /* rendering logic */ }`
 3. Set canvas dimensions: `canvas.width = image.width; canvas.height = image.height`
-4. The function will automatically be included in the random selection pool
+4. Keep renderers in alphabetical order by function name for easier navigation and maintenance
+5. The function will automatically be included in the random selection pool
