@@ -1,4 +1,13 @@
-// Utility function to remap a number from one range to another
+/**
+ * Remaps a number from one range to another range.
+ * @param {number} value - The value to remap
+ * @param {number} start1 - The lower bound of the input range
+ * @param {number} stop1 - The upper bound of the input range
+ * @param {number} start2 - The lower bound of the output range
+ * @param {number} stop2 - The upper bound of the output range
+ * @param {boolean} [withinBounds=false] - Whether to constrain the result within the output range
+ * @returns {number} The remapped value
+ */
 export const map = (value, start1, stop1, start2, stop2, withinBounds = false) => {
   const mapped = start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
 
@@ -13,12 +22,23 @@ export const map = (value, start1, stop1, start2, stop2, withinBounds = false) =
   }
 };
 
-// Utility function to generate a random integer between min and max (inclusive)
+/**
+ * Generates a random integer between min and max (inclusive).
+ * @param {number} min - The minimum value (inclusive)
+ * @param {number} max - The maximum value (inclusive)
+ * @returns {number} A random integer between min and max
+ */
 export const randomNumber = (min, max) => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
-// Helper function to apply random flipping
+/**
+ * Applies random horizontal and/or vertical flipping to a canvas context.
+ * @param {CanvasRenderingContext2D} ctx - The canvas rendering context to transform
+ * @param {number} width - The width of the canvas
+ * @param {number} height - The height of the canvas
+ * @returns {{flipX: boolean, flipY: boolean}} Object indicating which axes were flipped
+ */
 export const applyRandomFlip = (ctx, width, height) => {
   const flipX = Math.random() < 0.5;
   const flipY = Math.random() < 0.5;
@@ -31,7 +51,13 @@ export const applyRandomFlip = (ctx, width, height) => {
   return { flipX, flipY };
 };
 
-// Helper function to calculate adaptive pixel block size based on image dimensions
+/**
+ * Calculates an adaptive pixel block size based on image dimensions.
+ * Returns a value between 0.8% and 10% of the smaller dimension, clamped to 4-150px.
+ * @param {number} width - The width of the image
+ * @param {number} height - The height of the image
+ * @returns {number} The calculated pixel block size
+ */
 export const calculateAdaptivePixelSize = (width, height) => {
   const baseDimension = Math.min(width, height);
 
@@ -48,7 +74,16 @@ export const calculateAdaptivePixelSize = (width, height) => {
   return Math.max(4, Math.min(150, pixelSize));
 };
 
-// Helper function to calculate average color of all pixels in a block
+/**
+ * Calculates the average color of all pixels in a block region.
+ * @param {ImageData} imageData - The ImageData object containing pixel data
+ * @param {number} startX - The starting X coordinate of the block
+ * @param {number} startY - The starting Y coordinate of the block
+ * @param {number} blockSize - The size of the block in pixels
+ * @param {number} imageWidth - The width of the image
+ * @param {number} imageHeight - The height of the image
+ * @returns {{r: number, g: number, b: number}} Object containing the averaged RGB values
+ */
 export const getAverageColorInBlock = (
   imageData,
   startX,
@@ -85,7 +120,11 @@ export const getAverageColorInBlock = (
   };
 };
 
-// Helper function to shuffle an array using Fisher-Yates algorithm
+/**
+ * Shuffles an array using the Fisher-Yates algorithm.
+ * @param {Array} array - The array to shuffle
+ * @returns {Array} A new shuffled array (does not modify the original)
+ */
 export const shuffleArray = (array) => {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -95,12 +134,24 @@ export const shuffleArray = (array) => {
   return shuffled;
 };
 
-// Calculate perceptual luminance/brightness from RGB (0-1)
+/**
+ * Calculates the perceptual luminance/brightness from RGB values.
+ * Uses the standard RGB to luminance conversion formula.
+ * @param {number} r - Red value (0-255)
+ * @param {number} g - Green value (0-255)
+ * @param {number} b - Blue value (0-255)
+ * @returns {number} Luminance value between 0 and 1
+ */
 export const getLuminance = (r, g, b) => {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 };
 
-// Calculate Euclidean distance between two colors in RGB space
+/**
+ * Calculates the Euclidean distance between two colors in RGB space.
+ * @param {{r: number, g: number, b: number}} color1 - First color with r, g, b properties
+ * @param {{r: number, g: number, b: number}} color2 - Second color with r, g, b properties
+ * @returns {number} The Euclidean distance between the two colors
+ */
 export const colorDistance = (color1, color2) => {
   const dr = color1.r - color2.r;
   const dg = color1.g - color2.g;
@@ -108,7 +159,12 @@ export const colorDistance = (color1, color2) => {
   return Math.sqrt(dr * dr + dg * dg + db * db);
 };
 
-// Find nearest color from a palette
+/**
+ * Finds the nearest color from a palette to a given color.
+ * @param {{r: number, g: number, b: number}} color - The target color to match
+ * @param {Array<{r: number, g: number, b: number}>} palette - Array of available colors
+ * @returns {{r: number, g: number, b: number}} The nearest color from the palette
+ */
 export const findNearestColor = (color, palette) => {
   let minDist = Infinity;
   let nearest = palette[0];
@@ -124,7 +180,13 @@ export const findNearestColor = (color, palette) => {
   return nearest;
 };
 
-// Extract dominant colors using median cut algorithm
+/**
+ * Extracts dominant colors from an image using the median cut algorithm.
+ * @param {ImageData} imageData - The ImageData object containing pixel data
+ * @param {number} numColors - Number of dominant colors to extract
+ * @param {number} [sampleRate=10] - Pixel sampling rate (higher = faster but less accurate)
+ * @returns {Array<{r: number, g: number, b: number}>} Array of dominant colors
+ */
 export const extractDominantColors = (imageData, numColors, sampleRate = 10) => {
   // Sample pixels to build initial bucket
   const pixels = [];
@@ -215,7 +277,10 @@ export const extractDominantColors = (imageData, numColors, sampleRate = 10) => 
   });
 };
 
-// Bayer 4x4 dithering matrix
+/**
+ * Bayer 4x4 dithering matrix for ordered dithering.
+ * @type {number[][]}
+ */
 export const BAYER_4X4 = [
   [0, 8, 2, 10],
   [12, 4, 14, 6],
@@ -223,7 +288,15 @@ export const BAYER_4X4 = [
   [15, 7, 13, 5]
 ];
 
-// Draw a halftone dot with various shapes
+/**
+ * Draws a halftone dot with various shape options.
+ * @param {CanvasRenderingContext2D} ctx - The canvas rendering context
+ * @param {number} x - The X coordinate of the dot center
+ * @param {number} y - The Y coordinate of the dot center
+ * @param {number} radius - The radius of the dot
+ * @param {string} shape - The shape type: 'circle', 'square', or 'diamond'
+ * @param {{r: number, g: number, b: number}} color - The color to fill the dot
+ */
 export const drawHalftoneDot = (ctx, x, y, radius, shape, color) => {
   if (radius <= 0) return;
 
@@ -258,7 +331,12 @@ export const drawHalftoneDot = (ctx, x, y, radius, shape, color) => {
   }
 };
 
-// Apply Bayer matrix dithering
+/**
+ * Applies Bayer matrix ordered dithering to an image with a color palette.
+ * @param {ImageData} imageData - The ImageData object to dither
+ * @param {Array<{r: number, g: number, b: number}>} palette - Array of colors to use for dithering
+ * @returns {ImageData} New ImageData with dithering applied
+ */
 export const applyBayerDithering = (imageData, palette) => {
   const { width, height, data } = imageData;
   const output = new ImageData(width, height);
@@ -298,7 +376,12 @@ export const applyBayerDithering = (imageData, palette) => {
   return output;
 };
 
-// Apply Floyd-Steinberg error diffusion dithering
+/**
+ * Applies Floyd-Steinberg error diffusion dithering to an image with a color palette.
+ * @param {ImageData} imageData - The ImageData object to dither
+ * @param {Array<{r: number, g: number, b: number}>} palette - Array of colors to use for dithering
+ * @returns {ImageData} New ImageData with dithering applied
+ */
 export const applyFloydSteinbergDithering = (imageData, palette) => {
   const { width, height, data } = imageData;
   const output = new ImageData(width, height);
@@ -359,7 +442,15 @@ export const applyFloydSteinbergDithering = (imageData, palette) => {
   return output;
 };
 
-// Generate Poisson disk sampling points for even distribution
+/**
+ * Generates evenly distributed points using Poisson disk sampling algorithm.
+ * Ensures minimum distance between points for natural-looking distributions.
+ * @param {number} width - Width of the sampling area
+ * @param {number} height - Height of the sampling area
+ * @param {number} minDist - Minimum distance between points
+ * @param {number} [maxAttempts=30] - Maximum attempts to place a new point around each existing point
+ * @returns {Array<{x: number, y: number}>} Array of point coordinates
+ */
 export const generatePoissonDiskPoints = (width, height, minDist, maxAttempts = 30) => {
   const points = [];
   const grid = [];
