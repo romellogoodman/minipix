@@ -5,6 +5,13 @@ import {
   calculateAdaptivePixelSize,
   getAverageColorInBlock,
   shuffleArray,
+  extractDominantColors,
+  getLuminance,
+  findNearestColor,
+  drawHalftoneDot,
+  applyBayerDithering,
+  applyFloydSteinbergDithering,
+  generatePoissonDiskPoints,
 } from "./utils";
 
 export const renderBarSwap = ({ canvas, image }) => {
@@ -571,3 +578,125 @@ export const renderSubdivision = ({ canvas, image }) => {
 
 //   ctx.restore();
 // };
+
+export const renderHalftone = ({ canvas, image }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+
+  // Set canvas to original image dimensions
+  canvas.width = image.width;
+  canvas.height = image.height;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height);
+
+  // Draw image to get imageData
+  ctx.drawImage(image, 0, 0, image.width, image.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Random number of colors (2-6)
+  const numColors = randomNumber(2, 6);
+
+  // Extract dominant colors from the image
+  const palette = extractDominantColors(imageData, numColors, 10);
+
+  // Randomly select halftone mode
+  const modes = ["bayer", "floydSteinberg", "classicDots", "lines"];
+  const mode = modes[randomNumber(0, modes.length - 1)];
+
+  // Clear canvas for rendering
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  switch (mode) {
+    case "bayer": {
+      // Bayer matrix dithering
+      const dithered = applyBayerDithering(imageData, palette);
+      ctx.putImageData(dithered, 0, 0);
+      break;
+    }
+
+    case "floydSteinberg": {
+      // Floyd-Steinberg error diffusion dithering
+      const dithered = applyFloydSteinbergDithering(imageData, palette);
+      ctx.putImageData(dithered, 0, 0);
+      break;
+    }
+
+    case "classicDots": {
+      // Classic halftone dots
+      const blockSize = Math.max(
+        6,
+        calculateAdaptivePixelSize(image.width, image.height) * 0.5
+      );
+      const shape = ["circle", "square", "diamond"][randomNumber(0, 2)];
+
+      for (let y = 0; y < canvas.height; y += blockSize) {
+        for (let x = 0; x < canvas.width; x += blockSize) {
+          const avgColor = getAverageColorInBlock(
+            imageData,
+            x,
+            y,
+            blockSize,
+            canvas.width,
+            canvas.height
+          );
+          const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
+          const nearestColor = findNearestColor(avgColor, palette);
+
+          const dotRadius = (1 - luminance) * blockSize * 0.45;
+          drawHalftoneDot(
+            ctx,
+            x + blockSize / 2,
+            y + blockSize / 2,
+            dotRadius,
+            shape,
+            nearestColor
+          );
+        }
+      }
+
+      break;
+    }
+
+    case "lines": {
+      // Line-based halftone
+      const blockSize = calculateAdaptivePixelSize(image.width, image.height);
+      const orientation = ["horizontal", "vertical"][randomNumber(0, 1)];
+
+      for (let y = 0; y < canvas.height; y += blockSize) {
+        for (let x = 0; x < canvas.width; x += blockSize) {
+          const avgColor = getAverageColorInBlock(
+            imageData,
+            x,
+            y,
+            blockSize,
+            canvas.width,
+            canvas.height
+          );
+          const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
+          const nearestColor = findNearestColor(avgColor, palette);
+
+          ctx.fillStyle = `rgb(${nearestColor.r}, ${nearestColor.g}, ${nearestColor.b})`;
+
+          const lineWeight = (1 - luminance) * blockSize * 0.9;
+
+          if (orientation === "horizontal") {
+            const lineY = y + (blockSize - lineWeight) / 2;
+            ctx.fillRect(x, lineY, blockSize, lineWeight);
+          } else {
+            // Vertical
+            const lineX = x + (blockSize - lineWeight) / 2;
+            ctx.fillRect(lineX, y, lineWeight, blockSize);
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  ctx.restore();
+};
