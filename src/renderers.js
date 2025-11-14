@@ -6,14 +6,8 @@ const applyRandomFlip = (ctx, width, height) => {
   const flipY = Math.random() < 0.5;
 
   if (flipX || flipY) {
-    ctx.translate(
-      flipX ? width : 0,
-      flipY ? height : 0
-    );
-    ctx.scale(
-      flipX ? -1 : 1,
-      flipY ? -1 : 1
-    );
+    ctx.translate(flipX ? width : 0, flipY ? height : 0);
+    ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
   }
 
   return { flipX, flipY };
@@ -136,3 +130,100 @@ export const renderImageStackedCircle = ({ canvas, image }) => {
 
   ctx.restore();
 };
+
+// Helper function to calculate adaptive pixel block size based on image dimensions
+const calculateAdaptivePixelSize = (width, height) => {
+  const baseDimension = Math.min(width, height);
+
+  // Calculate percentage-based range (0.8% to 10% of smaller dimension)
+  const minPercent = 0.008;
+  const maxPercent = 0.1;
+
+  const minSize = Math.floor(baseDimension * minPercent);
+  const maxSize = Math.floor(baseDimension * maxPercent);
+
+  const pixelSize = randomNumber(minSize, maxSize);
+
+  // Clamp to reasonable absolute bounds (4-150px)
+  return Math.max(4, Math.min(150, pixelSize));
+};
+
+// Helper function to calculate average color of all pixels in a block
+const getAverageColorInBlock = (
+  imageData,
+  startX,
+  startY,
+  blockSize,
+  imageWidth,
+  imageHeight
+) => {
+  let r = 0,
+    g = 0,
+    b = 0,
+    count = 0;
+
+  // Calculate actual block boundaries (handle edge cases)
+  const endX = Math.min(startX + blockSize, imageWidth);
+  const endY = Math.min(startY + blockSize, imageHeight);
+
+  // Sum all pixel values in the block
+  for (let y = startY; y < endY; y++) {
+    for (let x = startX; x < endX; x++) {
+      const index = (y * imageWidth + x) * 4;
+      r += imageData.data[index];
+      g += imageData.data[index + 1];
+      b += imageData.data[index + 2];
+      count++;
+    }
+  }
+
+  // Return average color
+  return {
+    r: Math.round(r / count),
+    g: Math.round(g / count),
+    b: Math.round(b / count),
+  };
+};
+
+export const renderImagePixelated = ({ canvas, image }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+
+  // Set canvas to original image dimensions
+  canvas.width = image.width;
+  canvas.height = image.height;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height);
+
+  // Draw original image to canvas so we can read pixel data
+  ctx.drawImage(image, 0, 0, image.width, image.height);
+
+  // Get image data for color sampling
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Calculate adaptive block size based on image dimensions
+  const blockSize = calculateAdaptivePixelSize(image.width, image.height);
+
+  // Process each block in the grid
+  for (let y = 0; y < canvas.height; y += blockSize) {
+    for (let x = 0; x < canvas.width; x += blockSize) {
+      const avgColor = getAverageColorInBlock(
+        imageData,
+        x,
+        y,
+        blockSize,
+        canvas.width,
+        canvas.height
+      );
+      ctx.fillStyle = `rgb(${avgColor.r}, ${avgColor.g}, ${avgColor.b})`;
+      ctx.fillRect(x, y, blockSize, blockSize);
+    }
+  }
+
+  ctx.restore();
+};
+
