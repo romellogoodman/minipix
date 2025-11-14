@@ -11,7 +11,6 @@ import {
   drawHalftoneDot,
   applyBayerDithering,
   applyFloydSteinbergDithering,
-  generatePoissonDiskPoints,
 } from "./utils";
 
 export const renderBarSwap = ({ canvas, image }) => {
@@ -79,6 +78,83 @@ export const renderBarSwap = ({ canvas, image }) => {
       );
     });
   }
+
+  ctx.restore();
+};
+
+export const renderChromaticShift = ({ canvas, image }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+
+  // Set canvas to original image dimensions
+  canvas.width = image.width;
+  canvas.height = image.height;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height);
+
+  // Draw original image to get pixel data
+  ctx.drawImage(image, 0, 0, image.width, image.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Random offset amounts for each channel (5-20 pixels)
+  const rOffsetX = randomNumber(-20, 20);
+  const rOffsetY = randomNumber(-20, 20);
+  const gOffsetX = randomNumber(-20, 20);
+  const gOffsetY = randomNumber(-20, 20);
+  const bOffsetX = randomNumber(-20, 20);
+  const bOffsetY = randomNumber(-20, 20);
+
+  // Create separate channel image data
+  const rData = ctx.createImageData(canvas.width, canvas.height);
+  const gData = ctx.createImageData(canvas.width, canvas.height);
+  const bData = ctx.createImageData(canvas.width, canvas.height);
+
+  // Separate channels
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const i = (y * canvas.width + x) * 4;
+
+      // Red channel
+      rData.data[i] = imageData.data[i];
+      rData.data[i + 1] = 0;
+      rData.data[i + 2] = 0;
+      rData.data[i + 3] = imageData.data[i + 3];
+
+      // Green channel
+      gData.data[i] = 0;
+      gData.data[i + 1] = imageData.data[i + 1];
+      gData.data[i + 2] = 0;
+      gData.data[i + 3] = imageData.data[i + 3];
+
+      // Blue channel
+      bData.data[i] = 0;
+      bData.data[i + 1] = 0;
+      bData.data[i + 2] = imageData.data[i + 2];
+      bData.data[i + 3] = imageData.data[i + 3];
+    }
+  }
+
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Set blend mode for color addition
+  ctx.globalCompositeOperation = "lighter";
+
+  // Draw red channel with offset
+  ctx.putImageData(rData, rOffsetX, rOffsetY);
+
+  // Draw green channel with offset
+  ctx.putImageData(gData, gOffsetX, gOffsetY);
+
+  // Draw blue channel with offset
+  ctx.putImageData(bData, bOffsetX, bOffsetY);
+
+  // Reset blend mode
+  ctx.globalCompositeOperation = "source-over";
 
   ctx.restore();
 };
@@ -152,6 +228,186 @@ export const renderGridSwap = ({ canvas, image }) => {
       cellWidth,
       cellHeight
     );
+  }
+
+  ctx.restore();
+};
+
+export const renderHalftone = ({ canvas, image }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+
+  // Set canvas to original image dimensions
+  canvas.width = image.width;
+  canvas.height = image.height;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height);
+
+  // Draw image to get imageData
+  ctx.drawImage(image, 0, 0, image.width, image.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Random number of colors (2-6)
+  const numColors = randomNumber(2, 6);
+
+  // Extract dominant colors from the image
+  const palette = extractDominantColors(imageData, numColors, 10);
+
+  // Randomly select halftone mode
+  const modes = ["bayer", "floydSteinberg", "classicDots", "lines"];
+  const mode = modes[randomNumber(0, modes.length - 1)];
+
+  // Clear canvas for rendering
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  switch (mode) {
+    case "bayer": {
+      // Bayer matrix dithering
+      const dithered = applyBayerDithering(imageData, palette);
+      ctx.putImageData(dithered, 0, 0);
+      break;
+    }
+
+    case "floydSteinberg": {
+      // Floyd-Steinberg error diffusion dithering
+      const dithered = applyFloydSteinbergDithering(imageData, palette);
+      ctx.putImageData(dithered, 0, 0);
+      break;
+    }
+
+    case "classicDots": {
+      // Classic halftone dots
+      const blockSize = Math.max(
+        6,
+        calculateAdaptivePixelSize(image.width, image.height) * 0.5
+      );
+      const shape = ["circle", "square", "diamond"][randomNumber(0, 2)];
+
+      for (let y = 0; y < canvas.height; y += blockSize) {
+        for (let x = 0; x < canvas.width; x += blockSize) {
+          const avgColor = getAverageColorInBlock(
+            imageData,
+            x,
+            y,
+            blockSize,
+            canvas.width,
+            canvas.height
+          );
+          const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
+          const nearestColor = findNearestColor(avgColor, palette);
+
+          const dotRadius = (1 - luminance) * blockSize * 0.45;
+          drawHalftoneDot(
+            ctx,
+            x + blockSize / 2,
+            y + blockSize / 2,
+            dotRadius,
+            shape,
+            nearestColor
+          );
+        }
+      }
+
+      break;
+    }
+
+    case "lines": {
+      // Line-based halftone
+      const blockSize = calculateAdaptivePixelSize(image.width, image.height);
+      const orientation = ["horizontal", "vertical"][randomNumber(0, 1)];
+
+      for (let y = 0; y < canvas.height; y += blockSize) {
+        for (let x = 0; x < canvas.width; x += blockSize) {
+          const avgColor = getAverageColorInBlock(
+            imageData,
+            x,
+            y,
+            blockSize,
+            canvas.width,
+            canvas.height
+          );
+          const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
+          const nearestColor = findNearestColor(avgColor, palette);
+
+          ctx.fillStyle = `rgb(${nearestColor.r}, ${nearestColor.g}, ${nearestColor.b})`;
+
+          const lineWeight = (1 - luminance) * blockSize * 0.9;
+
+          if (orientation === "horizontal") {
+            const lineY = y + (blockSize - lineWeight) / 2;
+            ctx.fillRect(x, lineY, blockSize, lineWeight);
+          } else {
+            // Vertical
+            const lineX = x + (blockSize - lineWeight) / 2;
+            ctx.fillRect(lineX, y, lineWeight, blockSize);
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  ctx.restore();
+};
+
+export const renderKaleidoscope = ({ canvas, image }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+
+  // Set canvas to original image dimensions
+  canvas.width = image.width;
+  canvas.height = image.height;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height);
+
+  // Random number of wedges (4-8)
+  const numWedges = randomNumber(4, 8);
+  const wedgeAngle = (Math.PI * 2) / numWedges;
+
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+
+  // Draw each wedge
+  for (let i = 0; i < numWedges; i++) {
+    ctx.save();
+
+    // Translate to center
+    ctx.translate(centerX, centerY);
+
+    // Rotate to wedge position
+    ctx.rotate(i * wedgeAngle);
+
+    // Random flip for variation
+    if (Math.random() < 0.5) {
+      ctx.scale(-1, 1);
+    }
+
+    // Clip to wedge shape
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, Math.max(canvas.width, canvas.height), 0, wedgeAngle);
+    ctx.lineTo(0, 0);
+    ctx.clip();
+
+    // Draw image centered
+    ctx.drawImage(
+      image,
+      -canvas.width / 2,
+      -canvas.height / 2,
+      canvas.width,
+      canvas.height
+    );
+
+    ctx.restore();
   }
 
   ctx.restore();
@@ -440,263 +696,6 @@ export const renderSubdivision = ({ canvas, image }) => {
 
   // Start subdivision from full canvas
   subdivide(0, 0, canvas.width, canvas.height, 0);
-
-  ctx.restore();
-};
-
-// export const renderChromaticShift = ({ canvas, image }) => {
-//   if (!image) return;
-
-//   const ctx = canvas.getContext("2d");
-
-//   // Set canvas to original image dimensions
-//   canvas.width = image.width;
-//   canvas.height = image.height;
-
-//   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-//   ctx.save();
-//   applyRandomFlip(ctx, canvas.width, canvas.height);
-
-//   // Draw original image to get pixel data
-//   ctx.drawImage(image, 0, 0, image.width, image.height);
-//   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-//   // Random offset amounts for each channel (5-20 pixels)
-//   const rOffsetX = randomNumber(-20, 20);
-//   const rOffsetY = randomNumber(-20, 20);
-//   const gOffsetX = randomNumber(-20, 20);
-//   const gOffsetY = randomNumber(-20, 20);
-//   const bOffsetX = randomNumber(-20, 20);
-//   const bOffsetY = randomNumber(-20, 20);
-
-//   // Create separate channel image data
-//   const rData = ctx.createImageData(canvas.width, canvas.height);
-//   const gData = ctx.createImageData(canvas.width, canvas.height);
-//   const bData = ctx.createImageData(canvas.width, canvas.height);
-
-//   // Separate channels
-//   for (let y = 0; y < canvas.height; y++) {
-//     for (let x = 0; x < canvas.width; x++) {
-//       const i = (y * canvas.width + x) * 4;
-
-//       // Red channel
-//       rData.data[i] = imageData.data[i];
-//       rData.data[i + 1] = 0;
-//       rData.data[i + 2] = 0;
-//       rData.data[i + 3] = imageData.data[i + 3];
-
-//       // Green channel
-//       gData.data[i] = 0;
-//       gData.data[i + 1] = imageData.data[i + 1];
-//       gData.data[i + 2] = 0;
-//       gData.data[i + 3] = imageData.data[i + 3];
-
-//       // Blue channel
-//       bData.data[i] = 0;
-//       bData.data[i + 1] = 0;
-//       bData.data[i + 2] = imageData.data[i + 2];
-//       bData.data[i + 3] = imageData.data[i + 3];
-//     }
-//   }
-
-//   // Clear canvas
-//   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-//   // Set blend mode for color addition
-//   ctx.globalCompositeOperation = "lighter";
-
-//   // Draw red channel with offset
-//   ctx.putImageData(rData, rOffsetX, rOffsetY);
-
-//   // Draw green channel with offset
-//   ctx.putImageData(gData, gOffsetX, gOffsetY);
-
-//   // Draw blue channel with offset
-//   ctx.putImageData(bData, bOffsetX, bOffsetY);
-
-//   // Reset blend mode
-//   ctx.globalCompositeOperation = "source-over";
-
-//   ctx.restore();
-// };
-
-// export const renderKaleidoscope = ({ canvas, image }) => {
-//   if (!image) return;
-
-//   const ctx = canvas.getContext("2d");
-
-//   // Set canvas to original image dimensions
-//   canvas.width = image.width;
-//   canvas.height = image.height;
-
-//   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-//   ctx.save();
-//   applyRandomFlip(ctx, canvas.width, canvas.height);
-
-//   // Random number of wedges (4-8)
-//   const numWedges = randomNumber(4, 8);
-//   const wedgeAngle = (Math.PI * 2) / numWedges;
-
-//   const centerX = canvas.width / 2;
-//   const centerY = canvas.height / 2;
-
-//   // Draw each wedge
-//   for (let i = 0; i < numWedges; i++) {
-//     ctx.save();
-
-//     // Translate to center
-//     ctx.translate(centerX, centerY);
-
-//     // Rotate to wedge position
-//     ctx.rotate(i * wedgeAngle);
-
-//     // Random flip for variation
-//     if (Math.random() < 0.5) {
-//       ctx.scale(-1, 1);
-//     }
-
-//     // Clip to wedge shape
-//     ctx.beginPath();
-//     ctx.moveTo(0, 0);
-//     ctx.arc(0, 0, Math.max(canvas.width, canvas.height), 0, wedgeAngle);
-//     ctx.lineTo(0, 0);
-//     ctx.clip();
-
-//     // Draw image centered
-//     ctx.drawImage(
-//       image,
-//       -canvas.width / 2,
-//       -canvas.height / 2,
-//       canvas.width,
-//       canvas.height
-//     );
-
-//     ctx.restore();
-//   }
-
-//   ctx.restore();
-// };
-
-export const renderHalftone = ({ canvas, image }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-
-  // Set canvas to original image dimensions
-  canvas.width = image.width;
-  canvas.height = image.height;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height);
-
-  // Draw image to get imageData
-  ctx.drawImage(image, 0, 0, image.width, image.height);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  // Random number of colors (2-6)
-  const numColors = randomNumber(2, 6);
-
-  // Extract dominant colors from the image
-  const palette = extractDominantColors(imageData, numColors, 10);
-
-  // Randomly select halftone mode
-  const modes = ["bayer", "floydSteinberg", "classicDots", "lines"];
-  const mode = modes[randomNumber(0, modes.length - 1)];
-
-  // Clear canvas for rendering
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  switch (mode) {
-    case "bayer": {
-      // Bayer matrix dithering
-      const dithered = applyBayerDithering(imageData, palette);
-      ctx.putImageData(dithered, 0, 0);
-      break;
-    }
-
-    case "floydSteinberg": {
-      // Floyd-Steinberg error diffusion dithering
-      const dithered = applyFloydSteinbergDithering(imageData, palette);
-      ctx.putImageData(dithered, 0, 0);
-      break;
-    }
-
-    case "classicDots": {
-      // Classic halftone dots
-      const blockSize = Math.max(
-        6,
-        calculateAdaptivePixelSize(image.width, image.height) * 0.5
-      );
-      const shape = ["circle", "square", "diamond"][randomNumber(0, 2)];
-
-      for (let y = 0; y < canvas.height; y += blockSize) {
-        for (let x = 0; x < canvas.width; x += blockSize) {
-          const avgColor = getAverageColorInBlock(
-            imageData,
-            x,
-            y,
-            blockSize,
-            canvas.width,
-            canvas.height
-          );
-          const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
-          const nearestColor = findNearestColor(avgColor, palette);
-
-          const dotRadius = (1 - luminance) * blockSize * 0.45;
-          drawHalftoneDot(
-            ctx,
-            x + blockSize / 2,
-            y + blockSize / 2,
-            dotRadius,
-            shape,
-            nearestColor
-          );
-        }
-      }
-
-      break;
-    }
-
-    case "lines": {
-      // Line-based halftone
-      const blockSize = calculateAdaptivePixelSize(image.width, image.height);
-      const orientation = ["horizontal", "vertical"][randomNumber(0, 1)];
-
-      for (let y = 0; y < canvas.height; y += blockSize) {
-        for (let x = 0; x < canvas.width; x += blockSize) {
-          const avgColor = getAverageColorInBlock(
-            imageData,
-            x,
-            y,
-            blockSize,
-            canvas.width,
-            canvas.height
-          );
-          const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
-          const nearestColor = findNearestColor(avgColor, palette);
-
-          ctx.fillStyle = `rgb(${nearestColor.r}, ${nearestColor.g}, ${nearestColor.b})`;
-
-          const lineWeight = (1 - luminance) * blockSize * 0.9;
-
-          if (orientation === "horizontal") {
-            const lineY = y + (blockSize - lineWeight) / 2;
-            ctx.fillRect(x, lineY, blockSize, lineWeight);
-          } else {
-            // Vertical
-            const lineX = x + (blockSize - lineWeight) / 2;
-            ctx.fillRect(lineX, y, lineWeight, blockSize);
-          }
-        }
-      }
-      break;
-    }
-  }
 
   ctx.restore();
 };
