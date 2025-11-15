@@ -1,3 +1,65 @@
+:root {
+  // OHMG Color Palette
+  --color-ohmg-black: #1b1b1b;
+  --color-ohmg-blue: #94dbff;
+  --color-ohmg-red: #cc4722;
+  --color-ohmg-yellow: #ffbf35;
+  --color-ohmg-lilac: #b0afed;
+  --color-ohmg-pink: #ff94c2;
+
+  // Semantic Colors
+  --text-color: var(--color-ohmg-black);
+  --text-color-secondary: #666;
+  --accent-color: var(--color-ohmg-lilac);
+  --border-color-light: rgba(0, 0, 0, 0.1);
+  --border-color-medium: rgba(0, 0, 0, 0.2);
+  --background-overlay: rgba(255, 255, 255, 0.9);
+  --background-white: #fff;
+
+  // Spacing
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 20px;
+  --spacing-xl: 40px;
+
+  // Border Radius
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  // Typography
+  --font-size-xs: 0.8125rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1.25rem;
+  --font-size-lg: 2rem;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --letter-spacing-tight: -0.01em;
+  --line-height-normal: 1.4;
+
+  // Transitions
+  --transition-fast: 0.2s ease;
+  --transition-medium: 0.3s ease;
+
+  // Shadows
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.1);
+
+  // Effects
+  --blur-md: blur(10px);
+
+  // Z-index
+  --z-nav: 10;
+  --z-overlay: 1000;
+
+  // Layout
+  --nav-max-width: 300px;
+  --grid-max-width: 1400px;
+  --thumbnail-size: 40px;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
@@ -15,74 +77,113 @@ body {
 
 .nav {
   position: fixed;
-  bottom: 20px;
-  left: 20px;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  padding: 12px 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  bottom: var(--spacing-lg);
+  left: var(--spacing-lg);
+  z-index: var(--z-nav);
+  background: var(--background-overlay);
+  backdrop-filter: var(--blur-md);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  box-shadow: var(--shadow-md);
   border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: var(--nav-max-width);
 
   &__container {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    gap: var(--spacing-md);
   }
 
   &__controls {
     display: flex;
     align-items: center;
-    gap: 12px;
-  }
-
-  &__button {
-    background: #007aff;
-    color: white;
-    border: none;
-    padding: 10px;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    aspect-ratio: 1;
-
-    &:hover {
-      background: #0056cc;
-    }
+    gap: var(--spacing-md);
   }
 
   &__thumbnails {
     display: flex;
-    gap: 8px;
+    gap: var(--spacing-sm);
     align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    position: relative;
+    flex: 1;
+
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   &__thumbnail {
-    width: 40px;
-    height: 40px;
+    width: var(--thumbnail-size);
+    height: var(--thumbnail-size);
     object-fit: cover;
-    border-radius: 6px;
-    border: 2px solid rgba(0, 122, 255, 0.3);
-    transition: all 0.2s ease;
+    border-radius: var(--radius-sm);
+    border: 2px solid rgba(255, 148, 194, 0.3);
+    transition: all var(--transition-fast);
     cursor: pointer;
+    flex-shrink: 0;
 
     &:hover {
-      border-color: #007aff;
+      border-color: var(--accent-color);
     }
 
     &--active {
-      border-color: #007aff;
+      border-color: var(--accent-color);
       opacity: 1;
     }
 
     &--inactive {
       opacity: 0.3;
-      border-color: rgba(0, 0, 0, 0.2);
+      border-color: var(--border-color-medium);
+    }
+
+    &--upload {
+      border: 2px dashed var(--accent-color);
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-color);
+      transition: opacity var(--transition-fast);
+
+      &:hover {
+        opacity: 0.7;
+      }
+    }
+  }
+
+  &__caption {
+    border-top: 1px solid var(--border-color-light);
+    padding-top: var(--spacing-md);
+  }
+
+  &__caption-title {
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-bold);
+    color: var(--accent-color);
+    margin: 0 0 var(--spacing-xs) 0;
+    letter-spacing: var(--letter-spacing-tight);
+  }
+
+  &__caption-text {
+    font-size: var(--font-size-xs);
+    color: var(--text-color-secondary);
+    margin: 0;
+    line-height: var(--line-height-normal);
+    text-wrap: balance;
+
+    a {
+      color: var(--accent-color);
+      transition: opacity var(--transition-fast);
+
+      &:hover {
+        opacity: 0.7;
+      }
     }
   }
 }
@@ -90,9 +191,9 @@ body {
 .canvas-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  padding: 20px;
-  max-width: 1400px;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  max-width: var(--grid-max-width);
   margin: 0 auto;
 
   @media (max-width: 768px) {
@@ -105,12 +206,13 @@ body {
 
   &__item {
     background: #f8f9fa;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
     display: flex;
     align-items: center;
     justify-content: center;
+    align-self: center;
   }
 }
 
@@ -130,29 +232,28 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 122, 255, 0.2);
-  z-index: 1000;
+  background: rgba(255, 148, 194, 0.2);
+  z-index: var(--z-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  padding: 20px;
+  padding: var(--spacing-lg);
   box-sizing: border-box;
 
   &__border {
     width: 100%;
     height: 100%;
-    border: 1px dashed rgba(0, 122, 255, 0.8);
+    border: 1px dashed rgba(255, 148, 194, 0.8);
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
   &__content {
-    font-size: 2rem;
-    font-weight: 600;
-    // color: #007aff;
-    color: #fff;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--background-white);
     text-align: center;
   }
 }
