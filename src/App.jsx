@@ -11,7 +11,11 @@ function useImageLoader() {
 
   // Load default images on mount
   useEffect(() => {
-    const imageNames = ["default-1.jpg", "default-2.jpg", "default-3.jpg"];
+    const imageNames = [
+      "Tree-Peony-Kazumasa-Ogawa-1.jpg",
+      "Tree-Peony-Kazumasa-Ogawa-2.jpg",
+      "Tree-Peony-Kazumasa-Ogawa-3.jpg",
+    ];
     const loadedImages = [];
     let loadedCount = 0;
 
@@ -220,19 +224,22 @@ function App() {
               >
                 <Upload size={16} />
               </div>
-              {allImages.slice().reverse().map((img, index) => (
-                <img
-                  key={index}
-                  src={img.src}
-                  alt={img.filename || `Upload ${index + 1}`}
-                  className={`nav__thumbnail ${
-                    availableImages.includes(img)
-                      ? "nav__thumbnail--active"
-                      : "nav__thumbnail--inactive"
-                  }`}
-                  onClick={() => toggleImageAvailability(img)}
-                />
-              ))}
+              {allImages
+                .slice()
+                .reverse()
+                .map((img, index) => (
+                  <img
+                    key={index}
+                    src={img.src}
+                    alt={img.filename || `Upload ${index + 1}`}
+                    className={`nav__thumbnail ${
+                      availableImages.includes(img)
+                        ? "nav__thumbnail--active"
+                        : "nav__thumbnail--inactive"
+                    }`}
+                    onClick={() => toggleImageAvailability(img)}
+                  />
+                ))}
             </div>
           </div>
           <div className="nav__caption">
