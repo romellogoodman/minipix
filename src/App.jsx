@@ -123,14 +123,16 @@ function useDragAndDrop(onFilesDrop) {
 }
 
 // Custom hook for infinite scroll
+const pageSize = 20;
+
 function useInfiniteScroll(sentinelRef, enabled) {
-  const [visibleCount, setVisibleCount] = useState(12);
+  const [visibleCount, setVisibleCount] = useState(pageSize);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && enabled) {
-          setVisibleCount((prev) => prev + 12);
+          setVisibleCount((prev) => prev + pageSize);
         }
       },
       { threshold: 0.1 }
@@ -245,14 +247,25 @@ function App() {
           <div className="nav__caption">
             <h2 className="nav__caption-title">minipix</h2>
             <p className="nav__caption-text">
-              An image manipulation tool by{" "}
+              A photo manipulation tool.
+              <br />
+              By{" "}
               <a
                 href="https://romellogoodman.com/"
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 Romello Goodman
-              </a>
+              </a>{" "}
+              with{" "}
+              <a
+                href="https://www.getty.edu/art/collection/object/108QM6"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Kazumasa Ogawa's
+              </a>{" "}
+              photos
             </p>
           </div>
         </div>
