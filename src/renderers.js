@@ -11,9 +11,62 @@ import {
   drawHalftoneDot,
   applyBayerDithering,
   applyFloydSteinbergDithering,
+  createSeededRandom,
 } from "./utils";
 
-export const renderBarSwap = ({ canvas, image }) => {
+// Renderer configuration
+export const rendererConfig = {
+  renderBarSwap: {
+    enabled: true,
+    numBars: { min: 4, max: 50 },
+  },
+  renderChromaticShift: {
+    enabled: false,
+    offset: { min: -20, max: 20 },
+  },
+  renderGridSwap: {
+    enabled: true,
+    baseGridSize: { min: 2, max: 20 },
+    extraGridCells: { min: 1, max: 3 },
+  },
+  renderHalftone: {
+    enabled: false,
+    numColors: { min: 2, max: 6 },
+    classicDotsBlockSizeMultiplier: 0.5,
+    classicDotsMinBlockSize: 6,
+  },
+  renderKaleidoscope: {
+    enabled: false,
+    numWedges: { min: 4, max: 8 },
+  },
+  renderPixelated: {
+    enabled: false,
+  },
+  renderScooch: {
+    enabled: false,
+    scoochPercent: { min: 0.05, max: 0.3 },
+  },
+  renderStacked: {
+    enabled: false,
+    numStacks: { min: 4, max: 12 },
+    sizeFactor: { min: 0.25, max: 1 },
+  },
+  renderStackedCircle: {
+    enabled: false,
+    numStacks: { min: 4, max: 12 },
+    sizeFactor: { min: 0.25, max: 1 },
+    rotation: { min: -180, max: 180 },
+  },
+  renderSubdivision: {
+    enabled: false,
+    maxDepth: { min: 3, max: 5 },
+    skipProbability: { min: 0.3, max: 0.6 },
+    splitPercent: { min: 0.3, max: 0.7 },
+    minSize: 20,
+  },
+};
+
+export const renderBarSwap = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -24,18 +77,22 @@ export const renderBarSwap = ({ canvas, image }) => {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Create seeded random function
+  const random = createSeededRandom(seed);
+
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height);
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Randomly choose direction: horizontal (0) or vertical (1)
-  const isVertical = Math.random() < 0.5;
+  const isVertical = random() < 0.5;
 
-  // Random number of bars (8-16)
-  const numBars = randomNumber(8, 16);
+  // Random number of bars
+  const config = rendererConfig.renderBarSwap;
+  const numBars = randomNumber(config.numBars.min, config.numBars.max, random);
 
   // Create array of bar indices and shuffle them
   const barIndices = Array.from({ length: numBars }, (_, i) => i);
-  const shuffledIndices = shuffleArray(barIndices);
+  const shuffledIndices = shuffleArray(barIndices, random);
 
   if (isVertical) {
     // Vertical bars
@@ -82,7 +139,7 @@ export const renderBarSwap = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderChromaticShift = ({ canvas, image }) => {
+export const renderChromaticShift = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -93,20 +150,24 @@ export const renderChromaticShift = ({ canvas, image }) => {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Create seeded random function
+  const random = createSeededRandom(seed);
+
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height);
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Draw original image to get pixel data
   ctx.drawImage(image, 0, 0, image.width, image.height);
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-  // Random offset amounts for each channel (5-20 pixels)
-  const rOffsetX = randomNumber(-20, 20);
-  const rOffsetY = randomNumber(-20, 20);
-  const gOffsetX = randomNumber(-20, 20);
-  const gOffsetY = randomNumber(-20, 20);
-  const bOffsetX = randomNumber(-20, 20);
-  const bOffsetY = randomNumber(-20, 20);
+  // Random offset amounts for each channel
+  const config = rendererConfig.renderChromaticShift;
+  const rOffsetX = randomNumber(config.offset.min, config.offset.max, random);
+  const rOffsetY = randomNumber(config.offset.min, config.offset.max, random);
+  const gOffsetX = randomNumber(config.offset.min, config.offset.max, random);
+  const gOffsetY = randomNumber(config.offset.min, config.offset.max, random);
+  const bOffsetX = randomNumber(config.offset.min, config.offset.max, random);
+  const bOffsetY = randomNumber(config.offset.min, config.offset.max, random);
 
   // Create separate channel image data
   const rData = ctx.createImageData(canvas.width, canvas.height);
@@ -159,7 +220,7 @@ export const renderChromaticShift = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderGridSwap = ({ canvas, image }) => {
+export const renderGridSwap = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -170,23 +231,35 @@ export const renderGridSwap = ({ canvas, image }) => {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Create seeded random function
+  const random = createSeededRandom(seed);
+
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height);
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Calculate aspect ratio and adapt grid accordingly
+  const config = rendererConfig.renderGridSwap;
   const aspectRatio = canvas.width / canvas.height;
-  const baseGridSize = randomNumber(3, 6);
+  const baseGridSize = randomNumber(
+    config.baseGridSize.min,
+    config.baseGridSize.max,
+    random
+  );
 
   let columns, rows;
 
   if (aspectRatio > 1.5) {
     // Wide/landscape image - more columns than rows
-    columns = baseGridSize + randomNumber(1, 3);
+    columns =
+      baseGridSize +
+      randomNumber(config.extraGridCells.min, config.extraGridCells.max, random);
     rows = baseGridSize;
   } else if (aspectRatio < 0.67) {
     // Tall/portrait image - more rows than columns
     columns = baseGridSize;
-    rows = baseGridSize + randomNumber(1, 3);
+    rows =
+      baseGridSize +
+      randomNumber(config.extraGridCells.min, config.extraGridCells.max, random);
   } else {
     // Square-ish image - equal or nearly equal
     columns = baseGridSize;
@@ -199,7 +272,7 @@ export const renderGridSwap = ({ canvas, image }) => {
   // Create array of cell indices and shuffle them
   const totalCells = columns * rows;
   const cellIndices = Array.from({ length: totalCells }, (_, i) => i);
-  const shuffledIndices = shuffleArray(cellIndices);
+  const shuffledIndices = shuffleArray(cellIndices, random);
 
   // Draw each cell
   for (let destIndex = 0; destIndex < totalCells; destIndex++) {
@@ -233,7 +306,7 @@ export const renderGridSwap = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderHalftone = ({ canvas, image }) => {
+export const renderHalftone = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -244,22 +317,26 @@ export const renderHalftone = ({ canvas, image }) => {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Create seeded random function
+  const random = createSeededRandom(seed);
+
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height);
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Draw image to get imageData
   ctx.drawImage(image, 0, 0, image.width, image.height);
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-  // Random number of colors (2-6)
-  const numColors = randomNumber(2, 6);
+  // Random number of colors
+  const config = rendererConfig.renderHalftone;
+  const numColors = randomNumber(config.numColors.min, config.numColors.max, random);
 
   // Extract dominant colors from the image
   const palette = extractDominantColors(imageData, numColors, 10);
 
   // Randomly select halftone mode
   const modes = ["bayer", "floydSteinberg", "classicDots", "lines"];
-  const mode = modes[randomNumber(0, modes.length - 1)];
+  const mode = modes[randomNumber(0, modes.length - 1, random)];
 
   // Clear canvas for rendering
   ctx.fillStyle = "white";
@@ -283,10 +360,11 @@ export const renderHalftone = ({ canvas, image }) => {
     case "classicDots": {
       // Classic halftone dots
       const blockSize = Math.max(
-        6,
-        calculateAdaptivePixelSize(image.width, image.height) * 0.5
+        config.classicDotsMinBlockSize,
+        calculateAdaptivePixelSize(image.width, image.height, random) *
+          config.classicDotsBlockSizeMultiplier
       );
-      const shape = ["circle", "square", "diamond"][randomNumber(0, 2)];
+      const shape = ["circle", "square", "diamond"][randomNumber(0, 2, random)];
 
       for (let y = 0; y < canvas.height; y += blockSize) {
         for (let x = 0; x < canvas.width; x += blockSize) {
@@ -318,8 +396,8 @@ export const renderHalftone = ({ canvas, image }) => {
 
     case "lines": {
       // Line-based halftone
-      const blockSize = calculateAdaptivePixelSize(image.width, image.height);
-      const orientation = ["horizontal", "vertical"][randomNumber(0, 1)];
+      const blockSize = calculateAdaptivePixelSize(image.width, image.height, random);
+      const orientation = ["horizontal", "vertical"][randomNumber(0, 1, random)];
 
       for (let y = 0; y < canvas.height; y += blockSize) {
         for (let x = 0; x < canvas.width; x += blockSize) {
@@ -355,7 +433,7 @@ export const renderHalftone = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderKaleidoscope = ({ canvas, image }) => {
+export const renderKaleidoscope = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -366,11 +444,15 @@ export const renderKaleidoscope = ({ canvas, image }) => {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height);
+  // Create seeded random function
+  const random = createSeededRandom(seed);
 
-  // Random number of wedges (4-8)
-  const numWedges = randomNumber(4, 8);
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
+
+  // Random number of wedges
+  const config = rendererConfig.renderKaleidoscope;
+  const numWedges = randomNumber(config.numWedges.min, config.numWedges.max, random);
   const wedgeAngle = (Math.PI * 2) / numWedges;
 
   const centerX = canvas.width / 2;
@@ -387,7 +469,7 @@ export const renderKaleidoscope = ({ canvas, image }) => {
     ctx.rotate(i * wedgeAngle);
 
     // Random flip for variation
-    if (Math.random() < 0.5) {
+    if (random() < 0.5) {
       ctx.scale(-1, 1);
     }
 
@@ -413,7 +495,7 @@ export const renderKaleidoscope = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderPixelated = ({ canvas, image }) => {
+export const renderPixelated = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -424,8 +506,11 @@ export const renderPixelated = ({ canvas, image }) => {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Create seeded random function
+  const random = createSeededRandom(seed);
+
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height);
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Draw original image to canvas so we can read pixel data
   ctx.drawImage(image, 0, 0, image.width, image.height);
@@ -434,7 +519,7 @@ export const renderPixelated = ({ canvas, image }) => {
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
   // Calculate adaptive block size based on image dimensions
-  const blockSize = calculateAdaptivePixelSize(image.width, image.height);
+  const blockSize = calculateAdaptivePixelSize(image.width, image.height, random);
 
   // Process each block in the grid
   for (let y = 0; y < canvas.height; y += blockSize) {
@@ -455,7 +540,7 @@ export const renderPixelated = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderScooch = ({ canvas, image }) => {
+export const renderScooch = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -466,14 +551,24 @@ export const renderScooch = ({ canvas, image }) => {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Create seeded random function
+  const random = createSeededRandom(seed);
+
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height);
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Randomly choose direction: horizontal (0) or vertical (1)
-  const isVertical = Math.random() < 0.5;
+  const isVertical = random() < 0.5;
 
-  // Calculate scooch amount (5-30% of relevant dimension)
-  const scoochPercent = map(Math.random(), 0, 1, 0.05, 0.3);
+  // Calculate scooch amount
+  const config = rendererConfig.renderScooch;
+  const scoochPercent = map(
+    random(),
+    0,
+    1,
+    config.scoochPercent.min,
+    config.scoochPercent.max
+  );
   const scoochAmount = isVertical
     ? Math.floor(canvas.height * scoochPercent)
     : Math.floor(canvas.width * scoochPercent);
@@ -537,7 +632,7 @@ export const renderScooch = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderStacked = ({ canvas, image }) => {
+export const renderStacked = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -548,15 +643,25 @@ export const renderStacked = ({ canvas, image }) => {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Create seeded random function
+  const random = createSeededRandom(seed);
+
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height);
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
-  // Random number of stacks between 4 and 12
-  const numStacks = randomNumber(4, 12);
+  // Random number of stacks
+  const config = rendererConfig.renderStacked;
+  const numStacks = randomNumber(config.numStacks.min, config.numStacks.max, random);
 
-  // Create stacks with sizes mapped from 100% down to 25%
+  // Create stacks with sizes mapped from max to min
   Array.from({ length: numStacks }).forEach((_, i) => {
-    const sizeFactor = map(i, 0, numStacks - 1, 1, 0.25);
+    const sizeFactor = map(
+      i,
+      0,
+      numStacks - 1,
+      config.sizeFactor.max,
+      config.sizeFactor.min
+    );
     const width = image.width * sizeFactor;
     const height = image.height * sizeFactor;
     const x = (canvas.width - width) / 2;
@@ -568,7 +673,7 @@ export const renderStacked = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderStackedCircle = ({ canvas, image }) => {
+export const renderStackedCircle = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -579,19 +684,32 @@ export const renderStackedCircle = ({ canvas, image }) => {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height);
+  // Create seeded random function
+  const random = createSeededRandom(seed);
 
-  // Random number of stacks between 4 and 12
-  const numStacks = randomNumber(4, 12);
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
+
+  // Random number of stacks
+  const config = rendererConfig.renderStackedCircle;
+  const numStacks = randomNumber(config.numStacks.min, config.numStacks.max, random);
 
   // Randomly choose rotation mode: 0 = none, 1 = random, 2 = gradual
-  const rotationMode = Math.floor(Math.random() * 3);
-  const targetRotation = rotationMode === 2 ? randomNumber(-180, 180) : 0;
+  const rotationMode = Math.floor(random() * 3);
+  const targetRotation =
+    rotationMode === 2
+      ? randomNumber(config.rotation.min, config.rotation.max, random)
+      : 0;
 
-  // Create stacks with sizes mapped from 100% down to 25%
+  // Create stacks with sizes mapped from max to min
   Array.from({ length: numStacks }).forEach((_, i) => {
-    const sizeFactor = map(i, 0, numStacks - 1, 1, 0.25);
+    const sizeFactor = map(
+      i,
+      0,
+      numStacks - 1,
+      config.sizeFactor.max,
+      config.sizeFactor.min
+    );
     const width = image.width * sizeFactor;
     const height = image.height * sizeFactor;
     const x = (canvas.width - width) / 2;
@@ -601,7 +719,7 @@ export const renderStackedCircle = ({ canvas, image }) => {
     let rotation = 0;
     if (rotationMode === 1 && i !== 0) {
       // Random rotation for each layer (except first)
-      rotation = randomNumber(-180, 180);
+      rotation = randomNumber(config.rotation.min, config.rotation.max, random);
     } else if (rotationMode === 2) {
       // Gradual rotation mapped from 0 to target
       rotation = map(i, 0, numStacks - 1, 0, targetRotation);
@@ -638,7 +756,7 @@ export const renderStackedCircle = ({ canvas, image }) => {
   ctx.restore();
 };
 
-export const renderSubdivision = ({ canvas, image }) => {
+export const renderSubdivision = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -649,43 +767,68 @@ export const renderSubdivision = ({ canvas, image }) => {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height);
+  // Create seeded random function
+  const random = createSeededRandom(seed);
 
-  // Random max recursion depth (3-5 levels)
-  const maxDepth = randomNumber(3, 5);
-  // Random skip probability (30-60%)
-  const skipProbability = map(Math.random(), 0, 1, 0.3, 0.6);
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
+
+  // Random max recursion depth and skip probability
+  const config = rendererConfig.renderSubdivision;
+  const maxDepth = randomNumber(config.maxDepth.min, config.maxDepth.max, random);
+  const skipProbability = map(
+    random(),
+    0,
+    1,
+    config.skipProbability.min,
+    config.skipProbability.max
+  );
 
   // Recursive subdivision function
   const subdivide = (x, y, width, height, depth) => {
     // Base case: max depth reached or area too small
-    if (depth >= maxDepth || width < 20 || height < 20) {
+    if (
+      depth >= maxDepth ||
+      width < config.minSize ||
+      height < config.minSize
+    ) {
       // Draw this region
       ctx.drawImage(image, x, y, width, height, x, y, width, height);
       return;
     }
 
     // Random chance to skip subdivision and just draw
-    if (Math.random() < skipProbability) {
+    if (random() < skipProbability) {
       ctx.drawImage(image, x, y, width, height, x, y, width, height);
       return;
     }
 
     // Randomly choose split direction
-    const splitHorizontal = Math.random() < 0.5;
+    const splitHorizontal = random() < 0.5;
 
     if (splitHorizontal) {
-      // Split horizontally at random point (30-70%)
-      const splitPercent = map(Math.random(), 0, 1, 0.3, 0.7);
+      // Split horizontally at random point
+      const splitPercent = map(
+        random(),
+        0,
+        1,
+        config.splitPercent.min,
+        config.splitPercent.max
+      );
       const splitHeight = height * splitPercent;
 
       // Recurse on both halves
       subdivide(x, y, width, splitHeight, depth + 1);
       subdivide(x, y + splitHeight, width, height - splitHeight, depth + 1);
     } else {
-      // Split vertically at random point (30-70%)
-      const splitPercent = map(Math.random(), 0, 1, 0.3, 0.7);
+      // Split vertically at random point
+      const splitPercent = map(
+        random(),
+        0,
+        1,
+        config.splitPercent.min,
+        config.splitPercent.max
+      );
       const splitWidth = width * splitPercent;
 
       // Recurse on both halves

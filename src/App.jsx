@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "./App.scss";
 import Canvas from "./Canvas";
 import * as renderers from "./renderers";
+import { rendererConfig } from "./renderers";
 import { Upload } from "feather-icons-react";
 
 // Custom hook for loading images
@@ -164,7 +165,13 @@ function App() {
     availableImages.length > 0
   );
 
-  const rendererFunctions = Object.values(renderers);
+  // Filter enabled renderers from config
+  const enabledRendererFunctions = Object.entries(renderers)
+    .filter(([name, fn]) => {
+      // Keep only functions that have a config entry and are enabled
+      return typeof fn === "function" && rendererConfig[name]?.enabled;
+    })
+    .map(([_, fn]) => fn);
 
   // Parse query parameter for hardcoded renderer
   const queryParams = new URLSearchParams(window.location.search);
@@ -192,8 +199,8 @@ function App() {
     if (hardcodedRenderer) {
       return hardcodedRenderer;
     }
-    return rendererFunctions[
-      Math.floor(Math.random() * rendererFunctions.length)
+    return enabledRendererFunctions[
+      Math.floor(Math.random() * enabledRendererFunctions.length)
     ];
   };
 
@@ -244,7 +251,7 @@ function App() {
                 ))}
             </div>
           </div>
-          <div className="nav__caption">
+          {/* <div className="nav__caption">
             <h2 className="nav__caption-title">minipix</h2>
             <p className="nav__caption-text">
               A photo manipulation tool.
@@ -267,7 +274,7 @@ function App() {
               </a>{" "}
               photos
             </p>
-          </div>
+          </div> */}
         </div>
       </nav>
 
@@ -277,11 +284,20 @@ function App() {
             {Array.from({ length: visibleCanvasCount }).map((_, index) => {
               const img = getRandomImage();
               const renderer = getRandomRenderer();
+              const seed = Math.floor(Math.random() * 0xFFFFFFFF);
+
+              // Get renderer name
+              const rendererName = renderer.name.replace('render', '').toLowerCase();
+
+              // Generate short hash from seed (6 characters)
+              const hash = seed.toString(36).substring(0, 6);
+
               return (
                 <div key={index} className="canvas-grid__item">
                   <Canvas
                     image={img}
                     renderFn={renderer}
+                    seed={seed}
                     onClick={(canvas) => {
                       const link = document.createElement("a");
 
@@ -304,9 +320,9 @@ function App() {
                           /\.(jpe?g|png)$/i,
                           ""
                         );
-                        filename = `minipix-${nameWithoutExt}.${extension}`;
+                        filename = `${nameWithoutExt}-minipix-${rendererName}-${hash}.${extension}`;
                       } else {
-                        filename = `minipix-canvas-${index + 1}.${extension}`;
+                        filename = `canvas-${index + 1}-minipix-${rendererName}-${hash}.${extension}`;
                       }
 
                       link.download = filename;

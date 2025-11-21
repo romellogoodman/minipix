@@ -1,13 +1,13 @@
 import { useRef, useEffect } from "react";
 
-function Canvas({ image, renderFn, onClick }) {
+function Canvas({ image, renderFn, onClick, seed }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
     if (canvasRef.current && renderFn) {
-      renderFn({ canvas: canvasRef.current, image });
+      renderFn({ canvas: canvasRef.current, image, seed });
     }
-  }, [renderFn, image]);
+  }, [renderFn, image, seed]);
 
   const handleClick = () => {
     if (onClick && canvasRef.current) {

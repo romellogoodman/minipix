@@ -1,4 +1,27 @@
 /**
+ * Seeded pseudo-random number generator using Mulberry32 algorithm.
+ * @param {number} seed - The seed value for the generator
+ * @returns {function(): number} A function that returns random numbers between 0 and 1
+ */
+export const mulberry32 = (seed) => {
+  return function() {
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+};
+
+/**
+ * Creates a seeded random function from a seed value.
+ * @param {number} seed - The seed value
+ * @returns {function(): number} A seeded random function
+ */
+export const createSeededRandom = (seed) => {
+  return mulberry32(seed);
+};
+
+/**
  * Remaps a number from one range to another range.
  * @param {number} value - The value to remap
  * @param {number} start1 - The lower bound of the input range
@@ -34,10 +57,11 @@ export const map = (
  * Generates a random integer between min and max (inclusive).
  * @param {number} min - The minimum value (inclusive)
  * @param {number} max - The maximum value (inclusive)
+ * @param {function(): number} [randomFn=Math.random] - Optional random function to use
  * @returns {number} A random integer between min and max
  */
-export const randomNumber = (min, max) => {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+export const randomNumber = (min, max, randomFn = Math.random) => {
+  return Math.floor(randomFn() * (max - min + 1)) + min;
 };
 
 /**
@@ -45,11 +69,12 @@ export const randomNumber = (min, max) => {
  * @param {CanvasRenderingContext2D} ctx - The canvas rendering context to transform
  * @param {number} width - The width of the canvas
  * @param {number} height - The height of the canvas
+ * @param {function(): number} [randomFn=Math.random] - Optional random function to use
  * @returns {{flipX: boolean, flipY: boolean}} Object indicating which axes were flipped
  */
-export const applyRandomFlip = (ctx, width, height) => {
-  const flipX = Math.random() < 0.5;
-  const flipY = Math.random() < 0.5;
+export const applyRandomFlip = (ctx, width, height, randomFn = Math.random) => {
+  const flipX = randomFn() < 0.5;
+  const flipY = randomFn() < 0.5;
 
   if (flipX || flipY) {
     ctx.translate(flipX ? width : 0, flipY ? height : 0);
@@ -64,9 +89,10 @@ export const applyRandomFlip = (ctx, width, height) => {
  * Returns a value between 0.8% and 10% of the smaller dimension, clamped to 4-150px.
  * @param {number} width - The width of the image
  * @param {number} height - The height of the image
+ * @param {function(): number} [randomFn=Math.random] - Optional random function to use
  * @returns {number} The calculated pixel block size
  */
-export const calculateAdaptivePixelSize = (width, height) => {
+export const calculateAdaptivePixelSize = (width, height, randomFn = Math.random) => {
   const baseDimension = Math.min(width, height);
 
   // Calculate percentage-based range (0.8% to 10% of smaller dimension)
@@ -76,7 +102,7 @@ export const calculateAdaptivePixelSize = (width, height) => {
   const minSize = Math.floor(baseDimension * minPercent);
   const maxSize = Math.floor(baseDimension * maxPercent);
 
-  const pixelSize = randomNumber(minSize, maxSize);
+  const pixelSize = randomNumber(minSize, maxSize, randomFn);
 
   // Clamp to reasonable absolute bounds (4-150px)
   return Math.max(4, Math.min(150, pixelSize));
@@ -131,12 +157,13 @@ export const getAverageColorInBlock = (
 /**
  * Shuffles an array using the Fisher-Yates algorithm.
  * @param {Array} array - The array to shuffle
+ * @param {function(): number} [randomFn=Math.random] - Optional random function to use
  * @returns {Array} A new shuffled array (does not modify the original)
  */
-export const shuffleArray = (array) => {
+export const shuffleArray = (array, randomFn = Math.random) => {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(randomFn() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
   return shuffled;
