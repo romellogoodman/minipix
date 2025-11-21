@@ -286,8 +286,8 @@ function App() {
               const renderer = getRandomRenderer();
               const seed = Math.floor(Math.random() * 0xFFFFFFFF);
 
-              // Get renderer name
-              const rendererName = renderer.name.replace('render', '').toLowerCase();
+              // Get renderer name (remove "render" prefix and convert to lowercase)
+              const rendererName = renderer.name.replace(/^render/, '').toLowerCase();
 
               // Generate short hash from seed (6 characters)
               const hash = seed.toString(36).substring(0, 6);
