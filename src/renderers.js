@@ -44,6 +44,7 @@ export const rendererConfig = {
   },
   renderScooch: {
     enabled: true,
+    numScooches: { min: 1, max: 8 },
     scoochPercent: { min: 0.05, max: 0.5 },
   },
   renderStacked: {
@@ -602,77 +603,113 @@ export const renderScooch = ({ canvas, image, seed = Date.now() }) => {
   ctx.save();
   applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
-  // Randomly choose direction: horizontal (0) or vertical (1)
-  const isVertical = random() < 0.5;
-
-  // Calculate scooch amount
   const config = rendererConfig.renderScooch;
-  const scoochPercent = map(
-    random(),
-    0,
-    1,
-    config.scoochPercent.min,
-    config.scoochPercent.max
+
+  // Random number of scooches
+  const numScooches = randomNumber(
+    config.numScooches.min,
+    config.numScooches.max,
+    random
   );
-  const scoochAmount = isVertical
-    ? Math.floor(canvas.height * scoochPercent)
-    : Math.floor(canvas.width * scoochPercent);
 
-  if (isVertical) {
-    // Vertical scooch - move top slice to bottom
-    // Draw the slice from top (moves to bottom)
-    ctx.drawImage(
-      image,
-      0,
-      0, // source x, y
-      image.width,
-      scoochAmount, // source width, height
-      0,
-      canvas.height - scoochAmount, // dest x, y
-      canvas.width,
-      scoochAmount // dest width, height
-    );
+  // Randomly choose starting direction: horizontal (0) or vertical (1)
+  let isVertical = random() < 0.5;
 
-    // Draw the rest of the image (moves to top)
-    ctx.drawImage(
-      image,
-      0,
-      scoochAmount, // source x, y
-      image.width,
-      image.height - scoochAmount, // source width, height
-      0,
-      0, // dest x, y
-      canvas.width,
-      canvas.height - scoochAmount // dest width, height
-    );
-  } else {
-    // Horizontal scooch - move left slice to right
-    // Draw the slice from left (moves to right)
-    ctx.drawImage(
-      image,
-      0,
-      0, // source x, y
-      scoochAmount,
-      image.height, // source width, height
-      canvas.width - scoochAmount,
-      0, // dest x, y
-      scoochAmount,
-      canvas.height // dest width, height
-    );
+  // Create a temporary canvas to work with for multiple scooches
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = canvas.width;
+  tempCanvas.height = canvas.height;
+  const tempCtx = tempCanvas.getContext("2d");
 
-    // Draw the rest of the image (moves to left)
-    ctx.drawImage(
-      image,
-      scoochAmount,
-      0, // source x, y
-      image.width - scoochAmount,
-      image.height, // source width, height
+  // Draw the original image to temp canvas
+  tempCtx.drawImage(image, 0, 0);
+
+  // Perform multiple scooches, alternating direction
+  for (let i = 0; i < numScooches; i++) {
+    // Calculate scooch amount for this iteration
+    const scoochPercent = map(
+      random(),
       0,
-      0, // dest x, y
-      canvas.width - scoochAmount,
-      canvas.height // dest width, height
+      1,
+      config.scoochPercent.min,
+      config.scoochPercent.max
     );
+    const scoochAmount = isVertical
+      ? Math.floor(canvas.height * scoochPercent)
+      : Math.floor(canvas.width * scoochPercent);
+
+    // Create another temp canvas for this scooch operation
+    const nextCanvas = document.createElement("canvas");
+    nextCanvas.width = canvas.width;
+    nextCanvas.height = canvas.height;
+    const nextCtx = nextCanvas.getContext("2d");
+
+    if (isVertical) {
+      // Vertical scooch - move top slice to bottom
+      // Draw the slice from top (moves to bottom)
+      nextCtx.drawImage(
+        tempCanvas,
+        0,
+        0, // source x, y
+        canvas.width,
+        scoochAmount, // source width, height
+        0,
+        canvas.height - scoochAmount, // dest x, y
+        canvas.width,
+        scoochAmount // dest width, height
+      );
+
+      // Draw the rest of the image (moves to top)
+      nextCtx.drawImage(
+        tempCanvas,
+        0,
+        scoochAmount, // source x, y
+        canvas.width,
+        canvas.height - scoochAmount, // source width, height
+        0,
+        0, // dest x, y
+        canvas.width,
+        canvas.height - scoochAmount // dest width, height
+      );
+    } else {
+      // Horizontal scooch - move left slice to right
+      // Draw the slice from left (moves to right)
+      nextCtx.drawImage(
+        tempCanvas,
+        0,
+        0, // source x, y
+        scoochAmount,
+        canvas.height, // source width, height
+        canvas.width - scoochAmount,
+        0, // dest x, y
+        scoochAmount,
+        canvas.height // dest width, height
+      );
+
+      // Draw the rest of the image (moves to left)
+      nextCtx.drawImage(
+        tempCanvas,
+        scoochAmount,
+        0, // source x, y
+        canvas.width - scoochAmount,
+        canvas.height, // source width, height
+        0,
+        0, // dest x, y
+        canvas.width - scoochAmount,
+        canvas.height // dest width, height
+      );
+    }
+
+    // Copy result back to temp canvas for next iteration
+    tempCtx.clearRect(0, 0, canvas.width, canvas.height);
+    tempCtx.drawImage(nextCanvas, 0, 0);
+
+    // Alternate direction for next iteration
+    isVertical = !isVertical;
   }
+
+  // Draw final result to main canvas
+  ctx.drawImage(tempCanvas, 0, 0);
 
   ctx.restore();
 };
@@ -773,7 +810,11 @@ export const renderStackedCircle = ({ canvas, image, seed = Date.now() }) => {
       let rotation = 0;
       if (rotationMode === 1 && i !== 0) {
         // Random rotation for each layer (except first)
-        rotation = randomNumber(config.rotation.min, config.rotation.max, random);
+        rotation = randomNumber(
+          config.rotation.min,
+          config.rotation.max,
+          random
+        );
       } else if (rotationMode === 2) {
         // Gradual rotation mapped from 0 to target
         rotation = map(i, 0, numStacks - 1, 0, targetRotation);
@@ -846,7 +887,11 @@ export const renderStackedCircle = ({ canvas, image, seed = Date.now() }) => {
       let rotation = 0;
       if (rotationMode === 1 && i !== 0) {
         // Random rotation for each layer (except first)
-        rotation = randomNumber(config.rotation.min, config.rotation.max, random);
+        rotation = randomNumber(
+          config.rotation.min,
+          config.rotation.max,
+          random
+        );
       } else if (rotationMode === 2) {
         // Gradual rotation mapped from 0 to target
         rotation = map(i, 0, numStacks - 1, 0, targetRotation);
