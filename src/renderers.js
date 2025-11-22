@@ -17,7 +17,7 @@ import {
 // Renderer configuration
 export const rendererConfig = {
   renderBarSwap: {
-    enabled: false,
+    enabled: true,
     numBars: { min: 4, max: 50 },
   },
   renderChromaticShift: {
@@ -25,7 +25,7 @@ export const rendererConfig = {
     offset: { min: -20, max: 20 },
   },
   renderGridSwap: {
-    enabled: false,
+    enabled: true,
     baseGridSize: { min: 2, max: 20 },
     extraGridCells: { min: 1, max: 3 },
   },
@@ -43,18 +43,18 @@ export const rendererConfig = {
     enabled: true,
   },
   renderScooch: {
-    enabled: false,
-    scoochPercent: { min: 0.05, max: 0.3 },
+    enabled: true,
+    scoochPercent: { min: 0.05, max: 0.5 },
   },
   renderStacked: {
-    enabled: false,
-    numStacks: { min: 4, max: 12 },
-    sizeFactor: { min: 0.25, max: 1 },
+    enabled: true,
+    numStacks: { min: 2, max: 20 },
+    sizeFactor: { min: 0.2, max: 1 },
   },
   renderStackedCircle: {
-    enabled: false,
-    numStacks: { min: 4, max: 12 },
-    sizeFactor: { min: 0.25, max: 1 },
+    enabled: true,
+    numStacks: { min: 4, max: 20 },
+    sizeFactor: { min: 0.2, max: 1 },
     rotation: { min: -180, max: 180 },
   },
   renderSubdivision: {
@@ -739,6 +739,9 @@ export const renderStackedCircle = ({ canvas, image, seed = Date.now() }) => {
   ctx.save();
   applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
+  // Randomly choose between uniform (50%) and scaled (50%) mode
+  const isUniform = random() < 0.5;
+
   // Random number of stacks
   const config = rendererConfig.renderStackedCircle;
   const numStacks = randomNumber(
@@ -754,57 +757,129 @@ export const renderStackedCircle = ({ canvas, image, seed = Date.now() }) => {
       ? randomNumber(config.rotation.min, config.rotation.max, random)
       : 0;
 
-  // Create stacks with sizes mapped from max to min
-  Array.from({ length: numStacks }).forEach((_, i) => {
-    const sizeFactor = map(
-      i,
-      0,
-      numStacks - 1,
-      config.sizeFactor.max,
-      config.sizeFactor.min
-    );
-    const width = image.width * sizeFactor;
-    const height = image.height * sizeFactor;
-    const x = (canvas.width - width) / 2;
-    const y = (canvas.height - height) / 2;
+  if (isUniform) {
+    // UNIFORM MODE: All stacks are the same size with concentric rings
+    const width = image.width;
+    const height = image.height;
+    const x = 0;
+    const y = 0;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const maxRadius = Math.min(width, height) / 2;
 
-    // Calculate rotation based on mode
-    let rotation = 0;
-    if (rotationMode === 1 && i !== 0) {
-      // Random rotation for each layer (except first)
-      rotation = randomNumber(config.rotation.min, config.rotation.max, random);
-    } else if (rotationMode === 2) {
-      // Gradual rotation mapped from 0 to target
-      rotation = map(i, 0, numStacks - 1, 0, targetRotation);
-    }
+    // Render layers from back to front
+    Array.from({ length: numStacks }).forEach((_, i) => {
+      // Calculate rotation based on mode
+      let rotation = 0;
+      if (rotationMode === 1 && i !== 0) {
+        // Random rotation for each layer (except first)
+        rotation = randomNumber(config.rotation.min, config.rotation.max, random);
+      } else if (rotationMode === 2) {
+        // Gradual rotation mapped from 0 to target
+        rotation = map(i, 0, numStacks - 1, 0, targetRotation);
+      }
 
-    ctx.save();
+      ctx.save();
 
-    // Apply rotation if needed
-    if (rotation !== 0) {
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      ctx.translate(centerX, centerY);
-      ctx.rotate((rotation * Math.PI) / 180);
-      ctx.translate(-centerX, -centerY);
-    }
+      // First layer (i=0) is unclipped full image
+      if (i === 0) {
+        // Apply rotation for first layer if needed
+        if (rotation !== 0) {
+          ctx.translate(centerX, centerY);
+          ctx.rotate((rotation * Math.PI) / 180);
+          ctx.translate(-centerX, -centerY);
+        }
+        ctx.drawImage(image, x, y, width, height);
+      } else {
+        // Calculate the radius for this layer (from max to smaller, skipping i=0)
+        const radiusFactor = map(i, 1, numStacks - 1, 1, 0.2);
+        const outerRadius = maxRadius * radiusFactor;
 
-    // First layer is not clipped, rest are circles
-    if (i === 0) {
-      ctx.drawImage(image, x, y, width, height);
-    } else {
-      ctx.beginPath();
-      const radius = Math.min(width, height) / 2;
-      const centerX = x + width / 2;
-      const centerY = y + height / 2;
-      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-      ctx.clip();
+        // For all but the last layer, clip to a ring (donut shape)
+        if (i < numStacks - 1) {
+          // Calculate the inner radius (next layer's radius)
+          const nextRadiusFactor = map(i + 1, 1, numStacks - 1, 1, 0.2);
+          const innerRadius = maxRadius * nextRadiusFactor;
 
-      ctx.drawImage(image, x, y, width, height);
-    }
+          // Create outer circle
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2);
 
-    ctx.restore();
-  });
+          // Cut out inner circle (reverse winding for clipping)
+          ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2, true);
+          ctx.clip();
+        } else {
+          // Last layer is just a filled circle
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, outerRadius, 0, Math.PI * 2);
+          ctx.clip();
+        }
+
+        // Apply rotation to the image content
+        if (rotation !== 0) {
+          ctx.translate(centerX, centerY);
+          ctx.rotate((rotation * Math.PI) / 180);
+          ctx.translate(-centerX, -centerY);
+        }
+
+        ctx.drawImage(image, x, y, width, height);
+      }
+
+      ctx.restore();
+    });
+  } else {
+    // SCALED MODE: Stacks get progressively smaller
+    Array.from({ length: numStacks }).forEach((_, i) => {
+      const sizeFactor = map(
+        i,
+        0,
+        numStacks - 1,
+        config.sizeFactor.max,
+        config.sizeFactor.min
+      );
+      const width = image.width * sizeFactor;
+      const height = image.height * sizeFactor;
+      const x = (canvas.width - width) / 2;
+      const y = (canvas.height - height) / 2;
+
+      // Calculate rotation based on mode
+      let rotation = 0;
+      if (rotationMode === 1 && i !== 0) {
+        // Random rotation for each layer (except first)
+        rotation = randomNumber(config.rotation.min, config.rotation.max, random);
+      } else if (rotationMode === 2) {
+        // Gradual rotation mapped from 0 to target
+        rotation = map(i, 0, numStacks - 1, 0, targetRotation);
+      }
+
+      ctx.save();
+
+      // Apply rotation if needed
+      if (rotation !== 0) {
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        ctx.translate(centerX, centerY);
+        ctx.rotate((rotation * Math.PI) / 180);
+        ctx.translate(-centerX, -centerY);
+      }
+
+      // First layer is not clipped, rest are circles
+      if (i === 0) {
+        ctx.drawImage(image, x, y, width, height);
+      } else {
+        ctx.beginPath();
+        const radius = Math.min(width, height) / 2;
+        const centerX = x + width / 2;
+        const centerY = y + height / 2;
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.clip();
+
+        ctx.drawImage(image, x, y, width, height);
+      }
+
+      ctx.restore();
+    });
+  }
 
   ctx.restore();
 };
