@@ -164,10 +164,8 @@ function App() {
   const { allImages, availableImages, loadFiles, toggleImageAvailability } =
     useImageLoader();
   const { isDragging } = useDragAndDrop(loadFiles);
-  const { visibleCount: visibleCanvasCount, reset: resetScroll } = useInfiniteScroll(
-    sentinelRef,
-    availableImages.length > 0
-  );
+  const { visibleCount: visibleCanvasCount, reset: resetScroll } =
+    useInfiniteScroll(sentinelRef, availableImages.length > 0);
 
   // Filter enabled renderers from config
   const enabledRendererFunctions = Object.entries(renderers)
@@ -195,7 +193,7 @@ function App() {
   const handleToggleImage = (img) => {
     toggleImageAvailability(img);
     resetScroll();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const getRandomImage = () => {
@@ -294,10 +292,12 @@ function App() {
             {Array.from({ length: visibleCanvasCount }).map((_, index) => {
               const img = getRandomImage();
               const renderer = getRandomRenderer();
-              const seed = Math.floor(Math.random() * 0xFFFFFFFF);
+              const seed = Math.floor(Math.random() * 0xffffffff);
 
               // Get renderer name (remove "render" prefix and convert to lowercase)
-              const rendererName = renderer.name.replace(/^render/, '').toLowerCase();
+              const rendererName = renderer.name
+                .replace(/^render/, "")
+                .toLowerCase();
 
               // Generate short hash from seed (6 characters)
               const hash = seed.toString(36).substring(0, 6);
@@ -332,7 +332,9 @@ function App() {
                         );
                         filename = `${nameWithoutExt}-minipix-${rendererName}-${hash}.${extension}`;
                       } else {
-                        filename = `canvas-${index + 1}-minipix-${rendererName}-${hash}.${extension}`;
+                        filename = `canvas-${
+                          index + 1
+                        }-minipix-${rendererName}-${hash}.${extension}`;
                       }
 
                       link.download = filename;
