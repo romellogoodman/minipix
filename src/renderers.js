@@ -17,7 +17,7 @@ import {
 // Renderer configuration
 export const rendererConfig = {
   renderBarSwap: {
-    enabled: true,
+    enabled: false,
     numBars: { min: 4, max: 50 },
   },
   renderChromaticShift: {
@@ -25,7 +25,7 @@ export const rendererConfig = {
     offset: { min: -20, max: 20 },
   },
   renderGridSwap: {
-    enabled: true,
+    enabled: false,
     baseGridSize: { min: 2, max: 20 },
     extraGridCells: { min: 1, max: 3 },
   },
@@ -40,7 +40,7 @@ export const rendererConfig = {
     numWedges: { min: 4, max: 8 },
   },
   renderPixelated: {
-    enabled: false,
+    enabled: true,
   },
   renderScooch: {
     enabled: false,
@@ -252,14 +252,22 @@ export const renderGridSwap = ({ canvas, image, seed = Date.now() }) => {
     // Wide/landscape image - more columns than rows
     columns =
       baseGridSize +
-      randomNumber(config.extraGridCells.min, config.extraGridCells.max, random);
+      randomNumber(
+        config.extraGridCells.min,
+        config.extraGridCells.max,
+        random
+      );
     rows = baseGridSize;
   } else if (aspectRatio < 0.67) {
     // Tall/portrait image - more rows than columns
     columns = baseGridSize;
     rows =
       baseGridSize +
-      randomNumber(config.extraGridCells.min, config.extraGridCells.max, random);
+      randomNumber(
+        config.extraGridCells.min,
+        config.extraGridCells.max,
+        random
+      );
   } else {
     // Square-ish image - equal or nearly equal
     columns = baseGridSize;
@@ -329,7 +337,11 @@ export const renderHalftone = ({ canvas, image, seed = Date.now() }) => {
 
   // Random number of colors
   const config = rendererConfig.renderHalftone;
-  const numColors = randomNumber(config.numColors.min, config.numColors.max, random);
+  const numColors = randomNumber(
+    config.numColors.min,
+    config.numColors.max,
+    random
+  );
 
   // Extract dominant colors from the image
   const palette = extractDominantColors(imageData, numColors, 10);
@@ -396,8 +408,14 @@ export const renderHalftone = ({ canvas, image, seed = Date.now() }) => {
 
     case "lines": {
       // Line-based halftone
-      const blockSize = calculateAdaptivePixelSize(image.width, image.height, random);
-      const orientation = ["horizontal", "vertical"][randomNumber(0, 1, random)];
+      const blockSize = calculateAdaptivePixelSize(
+        image.width,
+        image.height,
+        random
+      );
+      const orientation = ["horizontal", "vertical"][
+        randomNumber(0, 1, random)
+      ];
 
       for (let y = 0; y < canvas.height; y += blockSize) {
         for (let x = 0; x < canvas.width; x += blockSize) {
@@ -452,7 +470,11 @@ export const renderKaleidoscope = ({ canvas, image, seed = Date.now() }) => {
 
   // Random number of wedges
   const config = rendererConfig.renderKaleidoscope;
-  const numWedges = randomNumber(config.numWedges.min, config.numWedges.max, random);
+  const numWedges = randomNumber(
+    config.numWedges.min,
+    config.numWedges.max,
+    random
+  );
   const wedgeAngle = (Math.PI * 2) / numWedges;
 
   const centerX = canvas.width / 2;
@@ -516,26 +538,49 @@ export const renderPixelated = ({ canvas, image, seed = Date.now() }) => {
   ctx.drawImage(image, 0, 0, image.width, image.height);
 
   // Get image data for color sampling
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Create new image data for output
+  const outputData = ctx.createImageData(canvas.width, canvas.height);
 
   // Calculate adaptive block size based on image dimensions
-  const blockSize = calculateAdaptivePixelSize(image.width, image.height, random);
+  const blockSize = calculateAdaptivePixelSize(
+    image.width,
+    image.height,
+    random
+  );
 
   // Process each block in the grid
   for (let y = 0; y < canvas.height; y += blockSize) {
     for (let x = 0; x < canvas.width; x += blockSize) {
       const avgColor = getAverageColorInBlock(
-        imageData,
+        sourceData,
         x,
         y,
         blockSize,
         canvas.width,
         canvas.height
       );
-      ctx.fillStyle = `rgb(${avgColor.r}, ${avgColor.g}, ${avgColor.b})`;
-      ctx.fillRect(x, y, blockSize, blockSize);
+
+      // Calculate block boundaries
+      const endX = Math.min(x + blockSize, canvas.width);
+      const endY = Math.min(y + blockSize, canvas.height);
+
+      // Fill the block in the output data directly
+      for (let by = y; by < endY; by++) {
+        for (let bx = x; bx < endX; bx++) {
+          const index = (by * canvas.width + bx) * 4;
+          outputData.data[index] = avgColor.r;
+          outputData.data[index + 1] = avgColor.g;
+          outputData.data[index + 2] = avgColor.b;
+          outputData.data[index + 3] = 255; // Full opacity
+        }
+      }
     }
   }
+
+  // Single putImageData call instead of many fillRect calls
+  ctx.putImageData(outputData, 0, 0);
 
   ctx.restore();
 };
@@ -651,7 +696,11 @@ export const renderStacked = ({ canvas, image, seed = Date.now() }) => {
 
   // Random number of stacks
   const config = rendererConfig.renderStacked;
-  const numStacks = randomNumber(config.numStacks.min, config.numStacks.max, random);
+  const numStacks = randomNumber(
+    config.numStacks.min,
+    config.numStacks.max,
+    random
+  );
 
   // Create stacks with sizes mapped from max to min
   Array.from({ length: numStacks }).forEach((_, i) => {
@@ -692,7 +741,11 @@ export const renderStackedCircle = ({ canvas, image, seed = Date.now() }) => {
 
   // Random number of stacks
   const config = rendererConfig.renderStackedCircle;
-  const numStacks = randomNumber(config.numStacks.min, config.numStacks.max, random);
+  const numStacks = randomNumber(
+    config.numStacks.min,
+    config.numStacks.max,
+    random
+  );
 
   // Randomly choose rotation mode: 0 = none, 1 = random, 2 = gradual
   const rotationMode = Math.floor(random() * 3);
@@ -775,7 +828,11 @@ export const renderSubdivision = ({ canvas, image, seed = Date.now() }) => {
 
   // Random max recursion depth and skip probability
   const config = rendererConfig.renderSubdivision;
-  const maxDepth = randomNumber(config.maxDepth.min, config.maxDepth.max, random);
+  const maxDepth = randomNumber(
+    config.maxDepth.min,
+    config.maxDepth.max,
+    random
+  );
   const skipProbability = map(
     random(),
     0,

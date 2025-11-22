@@ -150,7 +150,11 @@ function useInfiniteScroll(sentinelRef, enabled) {
     };
   }, [sentinelRef, enabled]);
 
-  return visibleCount;
+  const reset = () => {
+    setVisibleCount(pageSize);
+  };
+
+  return { visibleCount, reset };
 }
 
 function App() {
@@ -160,7 +164,7 @@ function App() {
   const { allImages, availableImages, loadFiles, toggleImageAvailability } =
     useImageLoader();
   const { isDragging } = useDragAndDrop(loadFiles);
-  const visibleCanvasCount = useInfiniteScroll(
+  const { visibleCount: visibleCanvasCount, reset: resetScroll } = useInfiniteScroll(
     sentinelRef,
     availableImages.length > 0
   );
@@ -186,6 +190,12 @@ function App() {
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleToggleImage = (img) => {
+    toggleImageAvailability(img);
+    resetScroll();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const getRandomImage = () => {
@@ -246,7 +256,7 @@ function App() {
                         ? "nav__thumbnail--active"
                         : "nav__thumbnail--inactive"
                     }`}
-                    onClick={() => toggleImageAvailability(img)}
+                    onClick={() => handleToggleImage(img)}
                   />
                 ))}
             </div>
