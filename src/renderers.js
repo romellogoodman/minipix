@@ -16,49 +16,49 @@ import {
 
 // Renderer configuration
 export const rendererConfig = {
-  renderBarSwap: {
+  barSwap: {
     enabled: true,
     numBars: { min: 4, max: 50 },
   },
-  renderChromaticShift: {
+  chromaticShift: {
     enabled: false,
     offset: { min: -20, max: 20 },
   },
-  renderGridSwap: {
+  gridSwap: {
     enabled: true,
     baseGridSize: { min: 2, max: 20 },
     extraGridCells: { min: 1, max: 3 },
   },
-  renderHalftone: {
+  halftone: {
     enabled: false,
     numColors: { min: 2, max: 6 },
     classicDotsBlockSizeMultiplier: 0.5,
     classicDotsMinBlockSize: 6,
   },
-  renderKaleidoscope: {
+  kaleidoscope: {
     enabled: false,
     numWedges: { min: 4, max: 8 },
   },
-  renderPixelated: {
+  pixelated: {
     enabled: true,
   },
-  renderScooch: {
+  scooch: {
     enabled: true,
     numScooches: { min: 1, max: 8 },
     scoochPercent: { min: 0.05, max: 0.5 },
   },
-  renderStacked: {
+  stacked: {
     enabled: true,
     numStacks: { min: 2, max: 20 },
     sizeFactor: { min: 0.2, max: 1 },
   },
-  renderStackedCircle: {
+  stackedCircle: {
     enabled: true,
     numStacks: { min: 4, max: 20 },
     sizeFactor: { min: 0.2, max: 1 },
     rotation: { min: -180, max: 180 },
   },
-  renderSubdivision: {
+  subdivision: {
     enabled: false,
     maxDepth: { min: 3, max: 5 },
     skipProbability: { min: 0.3, max: 0.6 },
@@ -67,7 +67,7 @@ export const rendererConfig = {
   },
 };
 
-export const renderBarSwap = ({ canvas, image, seed = Date.now() }) => {
+export const barSwap = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -88,7 +88,7 @@ export const renderBarSwap = ({ canvas, image, seed = Date.now() }) => {
   const isVertical = random() < 0.5;
 
   // Random number of bars
-  const config = rendererConfig.renderBarSwap;
+  const config = rendererConfig.barSwap;
   const numBars = randomNumber(config.numBars.min, config.numBars.max, random);
 
   // Create array of bar indices and shuffle them
@@ -140,7 +140,7 @@ export const renderBarSwap = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-export const renderChromaticShift = ({ canvas, image, seed = Date.now() }) => {
+export const chromaticShift = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -162,7 +162,7 @@ export const renderChromaticShift = ({ canvas, image, seed = Date.now() }) => {
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
   // Random offset amounts for each channel
-  const config = rendererConfig.renderChromaticShift;
+  const config = rendererConfig.chromaticShift;
   const rOffsetX = randomNumber(config.offset.min, config.offset.max, random);
   const rOffsetY = randomNumber(config.offset.min, config.offset.max, random);
   const gOffsetX = randomNumber(config.offset.min, config.offset.max, random);
@@ -221,7 +221,7 @@ export const renderChromaticShift = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-export const renderGridSwap = ({ canvas, image, seed = Date.now() }) => {
+export const gridSwap = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -239,7 +239,7 @@ export const renderGridSwap = ({ canvas, image, seed = Date.now() }) => {
   applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Calculate aspect ratio and adapt grid accordingly
-  const config = rendererConfig.renderGridSwap;
+  const config = rendererConfig.gridSwap;
   const aspectRatio = canvas.width / canvas.height;
   const baseGridSize = randomNumber(
     config.baseGridSize.min,
@@ -315,7 +315,7 @@ export const renderGridSwap = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-export const renderHalftone = ({ canvas, image, seed = Date.now() }) => {
+export const halftone = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -337,7 +337,7 @@ export const renderHalftone = ({ canvas, image, seed = Date.now() }) => {
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
   // Random number of colors
-  const config = rendererConfig.renderHalftone;
+  const config = rendererConfig.halftone;
   const numColors = randomNumber(
     config.numColors.min,
     config.numColors.max,
@@ -452,7 +452,7 @@ export const renderHalftone = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-export const renderKaleidoscope = ({ canvas, image, seed = Date.now() }) => {
+export const kaleidoscope = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -470,7 +470,7 @@ export const renderKaleidoscope = ({ canvas, image, seed = Date.now() }) => {
   applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Random number of wedges
-  const config = rendererConfig.renderKaleidoscope;
+  const config = rendererConfig.kaleidoscope;
   const numWedges = randomNumber(
     config.numWedges.min,
     config.numWedges.max,
@@ -518,7 +518,7 @@ export const renderKaleidoscope = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-export const renderPixelated = ({ canvas, image, seed = Date.now() }) => {
+export const pixelated = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -586,7 +586,7 @@ export const renderPixelated = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-export const renderScooch = ({ canvas, image, seed = Date.now() }) => {
+export const scooch = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -603,7 +603,7 @@ export const renderScooch = ({ canvas, image, seed = Date.now() }) => {
   ctx.save();
   applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
-  const config = rendererConfig.renderScooch;
+  const config = rendererConfig.scooch;
 
   // Random number of scooches
   const numScooches = randomNumber(
@@ -714,7 +714,7 @@ export const renderScooch = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-export const renderStacked = ({ canvas, image, seed = Date.now() }) => {
+export const stacked = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -732,7 +732,7 @@ export const renderStacked = ({ canvas, image, seed = Date.now() }) => {
   applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Random number of stacks
-  const config = rendererConfig.renderStacked;
+  const config = rendererConfig.stacked;
   const numStacks = randomNumber(
     config.numStacks.min,
     config.numStacks.max,
@@ -759,7 +759,7 @@ export const renderStacked = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-export const renderStackedCircle = ({ canvas, image, seed = Date.now() }) => {
+export const stackedCircle = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -780,7 +780,7 @@ export const renderStackedCircle = ({ canvas, image, seed = Date.now() }) => {
   const isUniform = random() < 0.5;
 
   // Random number of stacks
-  const config = rendererConfig.renderStackedCircle;
+  const config = rendererConfig.stackedCircle;
   const numStacks = randomNumber(
     config.numStacks.min,
     config.numStacks.max,
@@ -929,7 +929,7 @@ export const renderStackedCircle = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-export const renderSubdivision = ({ canvas, image, seed = Date.now() }) => {
+export const subdivision = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -947,7 +947,7 @@ export const renderSubdivision = ({ canvas, image, seed = Date.now() }) => {
   applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Random max recursion depth and skip probability
-  const config = rendererConfig.renderSubdivision;
+  const config = rendererConfig.subdivision;
   const maxDepth = randomNumber(
     config.maxDepth.min,
     config.maxDepth.max,
