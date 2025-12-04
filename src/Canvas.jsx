@@ -9,7 +9,7 @@ const renderQueue = {
   async request(fn) {
     if (this.active >= this.maxConcurrent) {
       // Wait for a slot to open
-      await new Promise(resolve => this.waiting.push(resolve));
+      await new Promise((resolve) => this.waiting.push(resolve));
     }
 
     this.active++;
@@ -23,7 +23,7 @@ const renderQueue = {
         next();
       }
     }
-  }
+  },
 };
 
 function Canvas({ image, renderFn, onClick, seed }) {
@@ -42,7 +42,7 @@ function Canvas({ image, renderFn, onClick, seed }) {
       },
       {
         rootMargin: "100px", // Start rendering slightly before visible
-        threshold: 0.01
+        threshold: 0.01,
       }
     );
 
@@ -72,7 +72,8 @@ function Canvas({ image, renderFn, onClick, seed }) {
 
         // Use requestIdleCallback for non-blocking rendering
         await new Promise((resolve) => {
-          const idleCallback = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
+          const idleCallback =
+            window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
           idleCallback(() => {
             if (!cancelled && canvasRef.current) {
               try {
@@ -121,17 +122,18 @@ function Canvas({ image, renderFn, onClick, seed }) {
     <div
       ref={containerRef}
       style={{
-        position: 'relative',
+        position: "relative",
         width: `${width}px`,
         height: `${height}px`,
-        minHeight: `${height}px`
+        minHeight: `${height}px`,
       }}
     >
+      {!isRendered && <div className="canvas__skeleton" />}
       <canvas
         ref={canvasRef}
         className="canvas"
         onClick={handleClick}
-        style={{ opacity: isRendered ? 1 : 0, transition: 'opacity 0.3s' }}
+        style={{ opacity: isRendered ? 1 : 0, transition: "opacity 0.3s" }}
       />
     </div>
   );
