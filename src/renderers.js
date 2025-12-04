@@ -17,54 +17,49 @@ import {
 // Renderer configuration
 export const rendererConfig = {
   barSwap: {
-    enabled: true,
     numBars: { min: 4, max: 50 },
   },
-  chromaticShift: {
-    enabled: false,
-    offset: { min: -20, max: 20 },
-  },
+  // chromaticShift: {
+  //   offset: { min: -20, max: 20 },
+  // },
   gridSwap: {
-    enabled: true,
     baseGridSize: { min: 2, max: 20 },
     extraGridCells: { min: 1, max: 3 },
   },
   halftone: {
-    enabled: false,
     numColors: { min: 2, max: 6 },
-    classicDotsBlockSizeMultiplier: 0.5,
-    classicDotsMinBlockSize: 6,
+    classicDots: {
+      blockSize: { min: 1, max: 16 },
+    },
+    lines: {
+      blockSize: { min: 1, max: 16 },
+      lineWeightMultiplier: 1,
+    },
+    // bayer and floydSteinberg don't need mode-specific config
   },
-  kaleidoscope: {
-    enabled: false,
-    numWedges: { min: 4, max: 8 },
-  },
-  pixelated: {
-    enabled: true,
-  },
+  // kaleidoscope: {
+  //   numWedges: { min: 4, max: 8 },
+  // },
+  pixelated: {},
   scooch: {
-    enabled: true,
     numScooches: { min: 1, max: 8 },
     scoochPercent: { min: 0.05, max: 0.5 },
   },
   stacked: {
-    enabled: true,
     numStacks: { min: 2, max: 20 },
     sizeFactor: { min: 0.2, max: 1 },
   },
   stackedCircle: {
-    enabled: true,
     numStacks: { min: 4, max: 20 },
     sizeFactor: { min: 0.2, max: 1 },
     rotation: { min: -180, max: 180 },
   },
-  subdivision: {
-    enabled: false,
-    maxDepth: { min: 3, max: 5 },
-    skipProbability: { min: 0.3, max: 0.6 },
-    splitPercent: { min: 0.3, max: 0.7 },
-    minSize: 20,
-  },
+  // subdivision: {
+  //   maxDepth: { min: 3, max: 5 },
+  //   skipProbability: { min: 0.3, max: 0.6 },
+  //   splitPercent: { min: 0.3, max: 0.7 },
+  //   minSize: 20,
+  // },
 };
 
 export const barSwap = ({ canvas, image, seed = Date.now() }) => {
@@ -372,12 +367,16 @@ export const halftone = ({ canvas, image, seed = Date.now() }) => {
 
     case "classicDots": {
       // Classic halftone dots
-      const blockSize = Math.max(
-        config.classicDotsMinBlockSize,
-        calculateAdaptivePixelSize(image.width, image.height, random) *
-          config.classicDotsBlockSizeMultiplier
+      const adaptiveSize = calculateAdaptivePixelSize(
+        image.width,
+        image.height,
+        random
       );
-      const shape = ["circle", "square", "diamond"][randomNumber(0, 2, random)];
+      const blockSize = Math.min(
+        config.classicDots.blockSize.max,
+        Math.max(config.classicDots.blockSize.min, adaptiveSize)
+      );
+      const shape = "circle";
 
       for (let y = 0; y < canvas.height; y += blockSize) {
         for (let x = 0; x < canvas.width; x += blockSize) {
@@ -409,10 +408,14 @@ export const halftone = ({ canvas, image, seed = Date.now() }) => {
 
     case "lines": {
       // Line-based halftone
-      const blockSize = calculateAdaptivePixelSize(
+      const adaptiveSize = calculateAdaptivePixelSize(
         image.width,
         image.height,
         random
+      );
+      const blockSize = Math.min(
+        config.lines.blockSize.max,
+        Math.max(config.lines.blockSize.min, adaptiveSize)
       );
       const orientation = ["horizontal", "vertical"][
         randomNumber(0, 1, random)
@@ -433,7 +436,8 @@ export const halftone = ({ canvas, image, seed = Date.now() }) => {
 
           ctx.fillStyle = `rgb(${nearestColor.r}, ${nearestColor.g}, ${nearestColor.b})`;
 
-          const lineWeight = (1 - luminance) * blockSize * 0.9;
+          const lineWeight =
+            (1 - luminance) * blockSize * config.lines.lineWeightMultiplier;
 
           if (orientation === "horizontal") {
             const lineY = y + (blockSize - lineWeight) / 2;
@@ -446,6 +450,236 @@ export const halftone = ({ canvas, image, seed = Date.now() }) => {
         }
       }
       break;
+    }
+  }
+
+  ctx.restore();
+};
+
+export const halftoneBayer = ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+
+  // Set canvas to original image dimensions
+  canvas.width = image.width;
+  canvas.height = image.height;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Create seeded random function
+  const random = createSeededRandom(seed);
+
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
+
+  // Draw image to get imageData
+  ctx.drawImage(image, 0, 0, image.width, image.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Random number of colors
+  const config = rendererConfig.halftoneBayer;
+  const numColors = randomNumber(
+    config.numColors.min,
+    config.numColors.max,
+    random
+  );
+
+  // Extract dominant colors from the image
+  const palette = extractDominantColors(imageData, numColors, 10);
+
+  // Apply Bayer matrix dithering
+  const dithered = applyBayerDithering(imageData, palette);
+  ctx.putImageData(dithered, 0, 0);
+
+  ctx.restore();
+};
+
+export const halftoneClassicDots = ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+
+  // Set canvas to original image dimensions
+  canvas.width = image.width;
+  canvas.height = image.height;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Create seeded random function
+  const random = createSeededRandom(seed);
+
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
+
+  // Draw image to get imageData
+  ctx.drawImage(image, 0, 0, image.width, image.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Random number of colors
+  const config = rendererConfig.halftoneClassicDots;
+  const numColors = randomNumber(
+    config.numColors.min,
+    config.numColors.max,
+    random
+  );
+
+  // Extract dominant colors from the image
+  const palette = extractDominantColors(imageData, numColors, 10);
+
+  // Clear canvas for rendering
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Classic halftone dots
+  const adaptiveSize = calculateAdaptivePixelSize(image.width, image.height, random);
+  const blockSize = Math.min(
+    config.blockSize.max,
+    Math.max(config.blockSize.min, adaptiveSize)
+  );
+  const shape = "circle";
+
+  for (let y = 0; y < canvas.height; y += blockSize) {
+    for (let x = 0; x < canvas.width; x += blockSize) {
+      const avgColor = getAverageColorInBlock(
+        imageData,
+        x,
+        y,
+        blockSize,
+        canvas.width,
+        canvas.height
+      );
+      const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
+      const nearestColor = findNearestColor(avgColor, palette);
+
+      const dotRadius = (1 - luminance) * blockSize * 0.45;
+      drawHalftoneDot(
+        ctx,
+        x + blockSize / 2,
+        y + blockSize / 2,
+        dotRadius,
+        shape,
+        nearestColor
+      );
+    }
+  }
+
+  ctx.restore();
+};
+
+export const halftoneFloydSteinberg = ({
+  canvas,
+  image,
+  seed = Date.now(),
+}) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+
+  // Set canvas to original image dimensions
+  canvas.width = image.width;
+  canvas.height = image.height;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Create seeded random function
+  const random = createSeededRandom(seed);
+
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
+
+  // Draw image to get imageData
+  ctx.drawImage(image, 0, 0, image.width, image.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Random number of colors
+  const config = rendererConfig.halftoneFloydSteinberg;
+  const numColors = randomNumber(
+    config.numColors.min,
+    config.numColors.max,
+    random
+  );
+
+  // Extract dominant colors from the image
+  const palette = extractDominantColors(imageData, numColors, 10);
+
+  // Apply Floyd-Steinberg error diffusion dithering
+  const dithered = applyFloydSteinbergDithering(imageData, palette);
+  ctx.putImageData(dithered, 0, 0);
+
+  ctx.restore();
+};
+
+export const halftoneLines = ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+
+  // Set canvas to original image dimensions
+  canvas.width = image.width;
+  canvas.height = image.height;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Create seeded random function
+  const random = createSeededRandom(seed);
+
+  ctx.save();
+  applyRandomFlip(ctx, canvas.width, canvas.height, random);
+
+  // Draw image to get imageData
+  ctx.drawImage(image, 0, 0, image.width, image.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Random number of colors
+  const config = rendererConfig.halftoneLines;
+  const numColors = randomNumber(
+    config.numColors.min,
+    config.numColors.max,
+    random
+  );
+
+  // Extract dominant colors from the image
+  const palette = extractDominantColors(imageData, numColors, 10);
+
+  // Clear canvas for rendering
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Line-based halftone
+  const adaptiveSize = calculateAdaptivePixelSize(image.width, image.height, random);
+  const blockSize = Math.min(
+    config.blockSize.max,
+    Math.max(config.blockSize.min, adaptiveSize)
+  );
+  const orientation = ["horizontal", "vertical"][randomNumber(0, 1, random)];
+
+  for (let y = 0; y < canvas.height; y += blockSize) {
+    for (let x = 0; x < canvas.width; x += blockSize) {
+      const avgColor = getAverageColorInBlock(
+        imageData,
+        x,
+        y,
+        blockSize,
+        canvas.width,
+        canvas.height
+      );
+      const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
+      const nearestColor = findNearestColor(avgColor, palette);
+
+      ctx.fillStyle = `rgb(${nearestColor.r}, ${nearestColor.g}, ${nearestColor.b})`;
+
+      const lineWeight =
+        (1 - luminance) * blockSize * config.lineWeightMultiplier;
+
+      if (orientation === "horizontal") {
+        const lineY = y + (blockSize - lineWeight) / 2;
+        ctx.fillRect(x, lineY, blockSize, lineWeight);
+      } else {
+        // Vertical
+        const lineX = x + (blockSize - lineWeight) / 2;
+        ctx.fillRect(lineX, y, lineWeight, blockSize);
+      }
     }
   }
 

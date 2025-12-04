@@ -3,6 +3,7 @@ import "./App.scss";
 import Canvas from "./Canvas";
 import * as renderers from "./renderers";
 import { rendererConfig } from "./renderers";
+import { createSeededRandom } from "./utils";
 import { Upload } from "feather-icons-react";
 
 // Custom hook for loading images
@@ -167,13 +168,10 @@ function App() {
   const { visibleCount: visibleCanvasCount, reset: resetScroll } =
     useInfiniteScroll(sentinelRef, availableImages.length > 0);
 
-  // Filter enabled renderers from config
-  const enabledRendererFunctions = Object.entries(renderers)
-    .filter(([name, fn]) => {
-      // Keep only functions that have a config entry and are enabled
-      return typeof fn === "function" && rendererConfig[name]?.enabled;
-    })
-    .map(([_, fn]) => fn);
+  // Get all enabled renderers from config
+  const enabledRenderers = Object.keys(rendererConfig).map(
+    (name) => renderers[name]
+  );
 
   // Parse query parameter for hardcoded renderer
   const queryParams = new URLSearchParams(window.location.search);
@@ -202,14 +200,20 @@ function App() {
     return availableImages[Math.floor(Math.random() * availableImages.length)];
   };
 
-  const getRandomRenderer = () => {
+  // Select a single renderer using seeded randomness
+  const getRenderer = (seed) => {
     // Use hardcoded renderer if specified via query param
     if (hardcodedRenderer) {
       return hardcodedRenderer;
     }
-    return enabledRendererFunctions[
-      Math.floor(Math.random() * enabledRendererFunctions.length)
-    ];
+
+    if (enabledRenderers.length === 0) {
+      return null;
+    }
+
+    const random = createSeededRandom(seed);
+    const rendererIndex = Math.floor(random() * enabledRenderers.length);
+    return enabledRenderers[rendererIndex];
   };
 
   return (
@@ -291,11 +295,8 @@ function App() {
           <div className="canvas-grid">
             {Array.from({ length: visibleCanvasCount }).map((_, index) => {
               const img = getRandomImage();
-              const renderer = getRandomRenderer();
               const seed = Math.floor(Math.random() * 0xffffffff);
-
-              // Get renderer name
-              const rendererName = renderer.name;
+              const renderer = getRenderer(seed);
 
               // Generate short hash from seed (6 characters)
               const hash = seed.toString(36).substring(0, 6);
@@ -328,11 +329,11 @@ function App() {
                           /\.(jpe?g|png)$/i,
                           ""
                         );
-                        filename = `${nameWithoutExt}-minipix-${rendererName}-${hash}.${extension}`;
+                        filename = `${nameWithoutExt}-minipix-${renderer.name}-${hash}.${extension}`;
                       } else {
                         filename = `canvas-${
                           index + 1
-                        }-minipix-${rendererName}-${hash}.${extension}`;
+                        }-minipix-${renderer.name}-${hash}.${extension}`;
                       }
 
                       link.download = filename;
