@@ -19,9 +19,9 @@ export const rendererConfig = {
   barSwap: {
     numBars: { min: 4, max: 50 },
   },
-  // chromaticShift: {
-  //   offset: { min: -20, max: 20 },
-  // },
+  chromaticShift: {
+    offset: { min: -20, max: 20 },
+  },
   gridSwap: {
     baseGridSize: { min: 2, max: 20 },
     extraGridCells: { min: 1, max: 3 },
@@ -127,87 +127,6 @@ export const barSwap = ({ canvas, image, seed = Date.now() }) => {
       );
     });
   }
-
-  ctx.restore();
-};
-
-export const chromaticShift = ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-
-  // Set canvas to original image dimensions
-  canvas.width = image.width;
-  canvas.height = image.height;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Create seeded random function
-  const random = createSeededRandom(seed);
-
-  ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
-
-  // Draw original image to get pixel data
-  ctx.drawImage(image, 0, 0, image.width, image.height);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  // Random offset amounts for each channel
-  const config = rendererConfig.chromaticShift;
-  const rOffsetX = randomNumber(config.offset.min, config.offset.max, random);
-  const rOffsetY = randomNumber(config.offset.min, config.offset.max, random);
-  const gOffsetX = randomNumber(config.offset.min, config.offset.max, random);
-  const gOffsetY = randomNumber(config.offset.min, config.offset.max, random);
-  const bOffsetX = randomNumber(config.offset.min, config.offset.max, random);
-  const bOffsetY = randomNumber(config.offset.min, config.offset.max, random);
-
-  // Create separate channel image data
-  const rData = ctx.createImageData(canvas.width, canvas.height);
-  const gData = ctx.createImageData(canvas.width, canvas.height);
-  const bData = ctx.createImageData(canvas.width, canvas.height);
-
-  // Separate channels
-  for (let y = 0; y < canvas.height; y++) {
-    for (let x = 0; x < canvas.width; x++) {
-      const i = (y * canvas.width + x) * 4;
-
-      // Red channel
-      rData.data[i] = imageData.data[i];
-      rData.data[i + 1] = 0;
-      rData.data[i + 2] = 0;
-      rData.data[i + 3] = imageData.data[i + 3];
-
-      // Green channel
-      gData.data[i] = 0;
-      gData.data[i + 1] = imageData.data[i + 1];
-      gData.data[i + 2] = 0;
-      gData.data[i + 3] = imageData.data[i + 3];
-
-      // Blue channel
-      bData.data[i] = 0;
-      bData.data[i + 1] = 0;
-      bData.data[i + 2] = imageData.data[i + 2];
-      bData.data[i + 3] = imageData.data[i + 3];
-    }
-  }
-
-  // Clear canvas
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Set blend mode for color addition
-  ctx.globalCompositeOperation = "lighter";
-
-  // Draw red channel with offset
-  ctx.putImageData(rData, rOffsetX, rOffsetY);
-
-  // Draw green channel with offset
-  ctx.putImageData(gData, gOffsetX, gOffsetY);
-
-  // Draw blue channel with offset
-  ctx.putImageData(bData, bOffsetX, bOffsetY);
-
-  // Reset blend mode
-  ctx.globalCompositeOperation = "source-over";
 
   ctx.restore();
 };
