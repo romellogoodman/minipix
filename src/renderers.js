@@ -35,11 +35,7 @@ export const rendererConfig = {
       blockSize: { min: 1, max: 16 },
       lineWeightMultiplier: 1,
     },
-    // bayer and floydSteinberg don't need mode-specific config
   },
-  // kaleidoscope: {
-  //   numWedges: { min: 4, max: 8 },
-  // },
   pixelated: {},
   scooch: {
     numScooches: { min: 1, max: 8 },
@@ -54,12 +50,12 @@ export const rendererConfig = {
     sizeFactor: { min: 0.2, max: 1 },
     rotation: { min: -180, max: 180 },
   },
-  // subdivision: {
-  //   maxDepth: { min: 3, max: 5 },
-  //   skipProbability: { min: 0.3, max: 0.6 },
-  //   splitPercent: { min: 0.3, max: 0.7 },
-  //   minSize: 20,
-  // },
+  subdivision: {
+    maxDepth: { min: 3, max: 5 },
+    skipProbability: { min: 0.3, max: 0.6 },
+    splitPercent: { min: 0.3, max: 0.7 },
+    minSize: 10,
+  },
 };
 
 export const barSwap = ({ canvas, image, seed = Date.now() }) => {
@@ -532,7 +528,11 @@ export const halftoneClassicDots = ({ canvas, image, seed = Date.now() }) => {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Classic halftone dots
-  const adaptiveSize = calculateAdaptivePixelSize(image.width, image.height, random);
+  const adaptiveSize = calculateAdaptivePixelSize(
+    image.width,
+    image.height,
+    random
+  );
   const blockSize = Math.min(
     config.blockSize.max,
     Math.max(config.blockSize.min, adaptiveSize)
@@ -647,7 +647,11 @@ export const halftoneLines = ({ canvas, image, seed = Date.now() }) => {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Line-based halftone
-  const adaptiveSize = calculateAdaptivePixelSize(image.width, image.height, random);
+  const adaptiveSize = calculateAdaptivePixelSize(
+    image.width,
+    image.height,
+    random
+  );
   const blockSize = Math.min(
     config.blockSize.max,
     Math.max(config.blockSize.min, adaptiveSize)
@@ -681,72 +685,6 @@ export const halftoneLines = ({ canvas, image, seed = Date.now() }) => {
         ctx.fillRect(lineX, y, lineWeight, blockSize);
       }
     }
-  }
-
-  ctx.restore();
-};
-
-export const kaleidoscope = ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-
-  // Set canvas to original image dimensions
-  canvas.width = image.width;
-  canvas.height = image.height;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Create seeded random function
-  const random = createSeededRandom(seed);
-
-  ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
-
-  // Random number of wedges
-  const config = rendererConfig.kaleidoscope;
-  const numWedges = randomNumber(
-    config.numWedges.min,
-    config.numWedges.max,
-    random
-  );
-  const wedgeAngle = (Math.PI * 2) / numWedges;
-
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
-
-  // Draw each wedge
-  for (let i = 0; i < numWedges; i++) {
-    ctx.save();
-
-    // Translate to center
-    ctx.translate(centerX, centerY);
-
-    // Rotate to wedge position
-    ctx.rotate(i * wedgeAngle);
-
-    // Random flip for variation
-    if (random() < 0.5) {
-      ctx.scale(-1, 1);
-    }
-
-    // Clip to wedge shape
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.arc(0, 0, Math.max(canvas.width, canvas.height), 0, wedgeAngle);
-    ctx.lineTo(0, 0);
-    ctx.clip();
-
-    // Draw image centered
-    ctx.drawImage(
-      image,
-      -canvas.width / 2,
-      -canvas.height / 2,
-      canvas.width,
-      canvas.height
-    );
-
-    ctx.restore();
   }
 
   ctx.restore();
@@ -1195,7 +1133,10 @@ export const subdivision = ({ canvas, image, seed = Date.now() }) => {
     config.skipProbability.max
   );
 
-  // Recursive subdivision function
+  // Collect all regions from subdivision
+  const regions = [];
+
+  // Recursive subdivision function to collect regions
   const subdivide = (x, y, width, height, depth) => {
     // Base case: max depth reached or area too small
     if (
@@ -1203,14 +1144,13 @@ export const subdivision = ({ canvas, image, seed = Date.now() }) => {
       width < config.minSize ||
       height < config.minSize
     ) {
-      // Draw this region
-      ctx.drawImage(image, x, y, width, height, x, y, width, height);
+      regions.push({ x, y, width, height });
       return;
     }
 
-    // Random chance to skip subdivision and just draw
-    if (random() < skipProbability) {
-      ctx.drawImage(image, x, y, width, height, x, y, width, height);
+    // Random chance to skip subdivision (but not at depth 0 to ensure at least one subdivision)
+    if (depth > 0 && random() < skipProbability) {
+      regions.push({ x, y, width, height });
       return;
     }
 
@@ -1250,6 +1190,42 @@ export const subdivision = ({ canvas, image, seed = Date.now() }) => {
 
   // Start subdivision from full canvas
   subdivide(0, 0, canvas.width, canvas.height, 0);
+
+  // Draw each region with random flips
+  regions.forEach((region) => {
+    const flipH = random() < 0.5;
+    const flipV = random() < 0.5;
+
+    ctx.save();
+    ctx.translate(region.x, region.y);
+
+    // Apply flips if needed
+    if (flipH || flipV) {
+      if (flipH) {
+        ctx.translate(region.width, 0);
+        ctx.scale(-1, 1);
+      }
+      if (flipV) {
+        ctx.translate(0, region.height);
+        ctx.scale(1, -1);
+      }
+    }
+
+    // Draw the region from the same position in the source image
+    ctx.drawImage(
+      image,
+      region.x,
+      region.y,
+      region.width,
+      region.height,
+      0,
+      0,
+      region.width,
+      region.height
+    );
+
+    ctx.restore();
+  });
 
   ctx.restore();
 };
