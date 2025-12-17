@@ -7,9 +7,11 @@
     "dev": "vite --port=8080",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "render": "node scripts/render.js"
   },
   "dependencies": {
+    "canvas": "^3.2.0",
     "feather-icons-react": "^1.0.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"

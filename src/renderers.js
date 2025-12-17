@@ -12,7 +12,7 @@ import {
   applyBayerDithering,
   applyFloydSteinbergDithering,
   createSeededRandom,
-} from "./utils";
+} from "./utils.js";
 
 // Renderer configuration
 export const rendererConfig = {
