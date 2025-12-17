@@ -161,12 +161,18 @@ function useInfiniteScroll(sentinelRef, enabled) {
 function App() {
   const fileInputRef = useRef(null);
   const sentinelRef = useRef(null);
+  const [generation, setGeneration] = useState(0);
 
   const { allImages, availableImages, loadFiles, toggleImageAvailability } =
     useImageLoader();
   const { isDragging } = useDragAndDrop(loadFiles);
   const { visibleCount: visibleCanvasCount, reset: resetScroll } =
     useInfiniteScroll(sentinelRef, availableImages.length > 0);
+
+  // Force regeneration when available images change
+  useEffect(() => {
+    setGeneration((prev) => prev + 1);
+  }, [availableImages]);
 
   // Get all enabled renderers from config
   const enabledRenderers = Object.keys(rendererConfig).map(
@@ -302,7 +308,7 @@ function App() {
               const hash = seed.toString(36).substring(0, 6);
 
               return (
-                <div key={index} className="canvas-grid__item">
+                <div key={`${generation}-${index}`} className="canvas-grid__item">
                   <Canvas
                     image={img}
                     renderFn={renderer}
