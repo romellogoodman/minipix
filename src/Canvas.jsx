@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, memo } from "react";
 
 // Global render queue to limit concurrent renders
 // Use more workers on multi-core machines
@@ -6,6 +6,7 @@ const renderQueue = {
   active: 0,
   maxConcurrent: Math.max(4, navigator.hardwareConcurrency || 4),
   waiting: [],
+  retryCallbacks: [], // Callbacks waiting to retry with a new renderer
 
   async request(fn) {
     if (this.active >= this.maxConcurrent) {
@@ -18,23 +19,41 @@ const renderQueue = {
       await fn();
     } finally {
       this.active--;
-      // Process next in queue
-      if (this.waiting.length > 0) {
+      // Process retry queue first (failed renders get priority)
+      if (this.retryCallbacks.length > 0) {
+        const retry = this.retryCallbacks.shift();
+        retry();
+      } else if (this.waiting.length > 0) {
         const next = this.waiting.shift();
         next();
       }
     }
   },
+
+  // Queue a retry to happen when a slot opens
+  queueRetry(callback) {
+    this.retryCallbacks.push(callback);
+    // If there's capacity, trigger immediately
+    if (this.active < this.maxConcurrent && this.retryCallbacks.length > 0) {
+      const retry = this.retryCallbacks.shift();
+      retry();
+    }
+  },
 };
 
-function Canvas({ image, renderFn, onClick, seed }) {
+function Canvas({ image, renderFn, onClick, seed, onRetryNeeded }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
+  const retryCountRef = useRef(0);
+  const maxRetries = 3;
 
   // IntersectionObserver to detect when canvas is in viewport
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
@@ -47,14 +66,10 @@ function Canvas({ image, renderFn, onClick, seed }) {
       }
     );
 
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
+    observer.observe(container);
 
     return () => {
-      if (containerRef.current) {
-        observer.unobserve(containerRef.current);
-      }
+      observer.unobserve(container);
     };
   }, []);
 
@@ -66,29 +81,62 @@ function Canvas({ image, renderFn, onClick, seed }) {
 
     let cancelled = false;
 
+    const attemptRender = async (currentRenderFn, currentSeed) => {
+      if (cancelled) return false;
+
+      try {
+        // Support both sync and async renderers
+        const result = currentRenderFn({ canvas: canvasRef.current, image, seed: currentSeed });
+        if (result instanceof Promise) {
+          await result;
+        }
+        return true;
+      } catch (error) {
+        console.error("Rendering error:", error);
+        return false;
+      }
+    };
+
     const render = async () => {
       // Add to render queue to limit concurrent renders
       await renderQueue.request(async () => {
         if (cancelled) return;
 
         // Use requestIdleCallback for non-blocking rendering
-        await new Promise(async (resolve) => {
-          const idleCallback =
-            window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
-          idleCallback(async () => {
-            if (!cancelled && canvasRef.current) {
-              try {
-                // Support both sync and async renderers
-                const result = renderFn({ canvas: canvasRef.current, image, seed });
-                if (result instanceof Promise) {
-                  await result;
-                }
-                setIsRendered(true);
-              } catch (error) {
-                console.error("Rendering error:", error);
-              }
+        const idleCallback =
+          window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
+
+        await new Promise((resolve) => {
+          idleCallback(() => {
+            if (cancelled || !canvasRef.current) {
+              resolve();
+              return;
             }
-            resolve();
+
+            // Run the render attempt and handle result
+            attemptRender(renderFn, seed).then((success) => {
+              if (success) {
+                setIsRendered(true);
+              } else if (retryCountRef.current < maxRetries && onRetryNeeded) {
+                // Request a new renderer and retry when queue has space
+                retryCountRef.current++;
+                renderQueue.queueRetry(() => {
+                  if (cancelled) return;
+
+                  const { newRenderFn, newSeed } = onRetryNeeded();
+                  if (newRenderFn && canvasRef.current) {
+                    renderQueue.request(async () => {
+                      if (cancelled) return;
+                      const retrySuccess = await attemptRender(newRenderFn, newSeed);
+                      if (retrySuccess) {
+                        setIsRendered(true);
+                      }
+                    });
+                  }
+                });
+              }
+              resolve();
+            });
           });
         });
       });
@@ -99,11 +147,19 @@ function Canvas({ image, renderFn, onClick, seed }) {
     return () => {
       cancelled = true;
     };
-  }, [isVisible, isRendered, renderFn, image, seed]);
+  }, [isVisible, isRendered, renderFn, image, seed, onRetryNeeded]);
 
   const handleClick = () => {
     if (onClick && canvasRef.current) {
       onClick(canvasRef.current);
+    }
+  };
+
+  // Handle keyboard activation for accessibility
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleClick();
     }
   };
 
@@ -138,10 +194,14 @@ function Canvas({ image, renderFn, onClick, seed }) {
         ref={canvasRef}
         className="canvas"
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="button"
+        aria-label="Click to download rendered image"
         style={{ opacity: isRendered ? 1 : 0, transition: "opacity 0.3s" }}
       />
     </div>
   );
 }
 
-export default Canvas;
+export default memo(Canvas);

@@ -19,9 +19,6 @@ export const rendererConfig = {
   barSwap: {
     numBars: { min: 4, max: 50 },
   },
-  chromaticShift: {
-    offset: { min: -20, max: 20 },
-  },
   crosshatch: {
     numColors: { min: 3, max: 6 },
     lineSpacing: { min: 3, max: 12 },
@@ -871,14 +868,11 @@ export const scooch = ({ canvas, image, seed = Date.now() }) => {
   // Randomly choose starting direction: horizontal (0) or vertical (1)
   let isVertical = random() < 0.5;
 
-  // Create a temporary canvas to work with for multiple scooches
-  const tempCanvas = document.createElement("canvas");
-  tempCanvas.width = canvas.width;
-  tempCanvas.height = canvas.height;
-  const tempCtx = tempCanvas.getContext("2d");
+  // Draw the original image to canvas first
+  ctx.drawImage(image, 0, 0);
 
-  // Draw the original image to temp canvas
-  tempCtx.drawImage(image, 0, 0);
+  // Use ImageData for efficient pixel manipulation (avoids creating temp DOM elements)
+  let currentData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
   // Perform multiple scooches, alternating direction
   for (let i = 0; i < numScooches; i++) {
@@ -894,78 +888,52 @@ export const scooch = ({ canvas, image, seed = Date.now() }) => {
       ? Math.floor(canvas.height * scoochPercent)
       : Math.floor(canvas.width * scoochPercent);
 
-    // Create another temp canvas for this scooch operation
-    const nextCanvas = document.createElement("canvas");
-    nextCanvas.width = canvas.width;
-    nextCanvas.height = canvas.height;
-    const nextCtx = nextCanvas.getContext("2d");
+    const nextData = ctx.createImageData(canvas.width, canvas.height);
+    const src = currentData.data;
+    const dst = nextData.data;
+    const w = canvas.width;
+    const h = canvas.height;
 
     if (isVertical) {
       // Vertical scooch - move top slice to bottom
-      // Draw the slice from top (moves to bottom)
-      nextCtx.drawImage(
-        tempCanvas,
-        0,
-        0, // source x, y
-        canvas.width,
-        scoochAmount, // source width, height
-        0,
-        canvas.height - scoochAmount, // dest x, y
-        canvas.width,
-        scoochAmount // dest width, height
-      );
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          // Calculate source y position (wrap around)
+          const srcY = (y + scoochAmount) % h;
+          const srcIdx = (srcY * w + x) * 4;
+          const dstIdx = (y * w + x) * 4;
 
-      // Draw the rest of the image (moves to top)
-      nextCtx.drawImage(
-        tempCanvas,
-        0,
-        scoochAmount, // source x, y
-        canvas.width,
-        canvas.height - scoochAmount, // source width, height
-        0,
-        0, // dest x, y
-        canvas.width,
-        canvas.height - scoochAmount // dest width, height
-      );
+          dst[dstIdx] = src[srcIdx];
+          dst[dstIdx + 1] = src[srcIdx + 1];
+          dst[dstIdx + 2] = src[srcIdx + 2];
+          dst[dstIdx + 3] = src[srcIdx + 3];
+        }
+      }
     } else {
       // Horizontal scooch - move left slice to right
-      // Draw the slice from left (moves to right)
-      nextCtx.drawImage(
-        tempCanvas,
-        0,
-        0, // source x, y
-        scoochAmount,
-        canvas.height, // source width, height
-        canvas.width - scoochAmount,
-        0, // dest x, y
-        scoochAmount,
-        canvas.height // dest width, height
-      );
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          // Calculate source x position (wrap around)
+          const srcX = (x + scoochAmount) % w;
+          const srcIdx = (y * w + srcX) * 4;
+          const dstIdx = (y * w + x) * 4;
 
-      // Draw the rest of the image (moves to left)
-      nextCtx.drawImage(
-        tempCanvas,
-        scoochAmount,
-        0, // source x, y
-        canvas.width - scoochAmount,
-        canvas.height, // source width, height
-        0,
-        0, // dest x, y
-        canvas.width - scoochAmount,
-        canvas.height // dest width, height
-      );
+          dst[dstIdx] = src[srcIdx];
+          dst[dstIdx + 1] = src[srcIdx + 1];
+          dst[dstIdx + 2] = src[srcIdx + 2];
+          dst[dstIdx + 3] = src[srcIdx + 3];
+        }
+      }
     }
 
-    // Copy result back to temp canvas for next iteration
-    tempCtx.clearRect(0, 0, canvas.width, canvas.height);
-    tempCtx.drawImage(nextCanvas, 0, 0);
+    currentData = nextData;
 
     // Alternate direction for next iteration
     isVertical = !isVertical;
   }
 
   // Draw final result to main canvas
-  ctx.drawImage(tempCanvas, 0, 0);
+  ctx.putImageData(currentData, 0, 0);
 
   ctx.restore();
 };
@@ -1360,9 +1328,16 @@ export const crosshatch = ({ canvas, image, seed = Date.now() }) => {
   ctx.lineWidth = strokeWidth;
   ctx.lineCap = "round";
 
-  // Draw crosshatch strokes based on luminance
-  for (let y = 0; y < canvas.height; y += lineSpacing) {
-    for (let x = 0; x < canvas.width; x += lineSpacing) {
+  // Pre-compute block averages in a grid to avoid redundant calculations
+  const gridCols = Math.ceil(canvas.width / lineSpacing);
+  const gridRows = Math.ceil(canvas.height / lineSpacing);
+  const blockCache = new Array(gridRows);
+
+  for (let row = 0; row < gridRows; row++) {
+    blockCache[row] = new Array(gridCols);
+    for (let col = 0; col < gridCols; col++) {
+      const x = col * lineSpacing;
+      const y = row * lineSpacing;
       const avgColor = getAverageColorInBlock(
         imageData,
         x,
@@ -1373,6 +1348,16 @@ export const crosshatch = ({ canvas, image, seed = Date.now() }) => {
       );
       const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
       const nearestColor = findNearestColor(avgColor, palette);
+      blockCache[row][col] = { avgColor, luminance, nearestColor };
+    }
+  }
+
+  // Draw crosshatch strokes based on cached luminance
+  for (let row = 0; row < gridRows; row++) {
+    for (let col = 0; col < gridCols; col++) {
+      const x = col * lineSpacing;
+      const y = row * lineSpacing;
+      const { luminance, nearestColor } = blockCache[row][col];
 
       ctx.strokeStyle = `rgb(${nearestColor.r}, ${nearestColor.g}, ${nearestColor.b})`;
 

@@ -16,6 +16,15 @@ function useImageLoader() {
     const imageNames = ["Tree-Peony-Kazumasa-Ogawa.jpg"];
     const loadedImages = [];
     let loadedCount = 0;
+    const totalImages = imageNames.length;
+
+    const handleLoadComplete = () => {
+      loadedCount++;
+      if (loadedCount === totalImages && loadedImages.length > 0) {
+        setAllImages(loadedImages);
+        setAvailableImages(loadedImages);
+      }
+    };
 
     imageNames.forEach((name) => {
       const img = new Image();
@@ -23,47 +32,66 @@ function useImageLoader() {
         img.filename = name;
         img.mimeType = "image/jpeg";
         loadedImages.push(img);
-        loadedCount++;
-
-        if (loadedCount === imageNames.length) {
-          setAllImages(loadedImages);
-          setAvailableImages(loadedImages);
-        }
+        handleLoadComplete();
+      };
+      img.onerror = () => {
+        console.error(`Failed to load default image: ${name}`);
+        handleLoadComplete();
       };
       img.src = `/${name}`;
     });
   }, []);
 
   const loadFiles = (files) => {
+    const validFiles = files.filter(
+      (file) => file.type === "image/png" || file.type === "image/jpeg"
+    );
+
+    if (validFiles.length === 0) return;
+
     const newImages = [];
-    let loadedCount = 0;
+    let processedCount = 0;
+    const totalFiles = validFiles.length;
 
-    files.forEach((file) => {
-      if (file.type === "image/png" || file.type === "image/jpeg") {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-
-          img.onload = () => {
-            img.filename = file.name;
-            img.mimeType = file.type;
-            console.log("Loaded image:", file.name);
-            newImages.push(img);
-            loadedCount++;
-
-            if (loadedCount === files.length) {
-              console.log(
-                "All images loaded:",
-                newImages.map((i) => i.filename)
-              );
-              setAllImages((prev) => [...prev, ...newImages]);
-              setAvailableImages((prev) => [...prev, ...newImages]);
-            }
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+    const handleFileComplete = () => {
+      processedCount++;
+      if (processedCount === totalFiles && newImages.length > 0) {
+        console.log(
+          "All images loaded:",
+          newImages.map((i) => i.filename)
+        );
+        setAllImages((prev) => [...prev, ...newImages]);
+        setAvailableImages((prev) => [...prev, ...newImages]);
       }
+    };
+
+    validFiles.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+
+        img.onload = () => {
+          img.filename = file.name;
+          img.mimeType = file.type;
+          console.log("Loaded image:", file.name);
+          newImages.push(img);
+          handleFileComplete();
+        };
+
+        img.onerror = () => {
+          console.error(`Failed to load image: ${file.name}`);
+          handleFileComplete();
+        };
+
+        img.src = e.target.result;
+      };
+
+      reader.onerror = () => {
+        console.error(`Failed to read file: ${file.name}`);
+        handleFileComplete();
+      };
+
+      reader.readAsDataURL(file);
     });
   };
 
@@ -79,6 +107,11 @@ function useImageLoader() {
   };
 
   return { allImages, availableImages, loadFiles, toggleImageAvailability };
+}
+
+// Generate a consistent 6-character hash from seed (fixes collision issues)
+function generateSeedHash(seed) {
+  return Math.abs(seed).toString(36).padStart(7, "0").substring(0, 6);
 }
 
 // Custom hook for drag and drop
@@ -127,6 +160,9 @@ function useInfiniteScroll(sentinelRef, enabled) {
   const [visibleCount, setVisibleCount] = useState(pageSize);
 
   useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && enabled) {
@@ -136,14 +172,10 @@ function useInfiniteScroll(sentinelRef, enabled) {
       { threshold: 0.1 }
     );
 
-    if (sentinelRef.current) {
-      observer.observe(sentinelRef.current);
-    }
+    observer.observe(sentinel);
 
     return () => {
-      if (sentinelRef.current) {
-        observer.unobserve(sentinelRef.current);
-      }
+      observer.unobserve(sentinel);
     };
   }, [sentinelRef, enabled]);
 
@@ -242,78 +274,70 @@ function App() {
         style={{ display: "none" }}
       />
 
-      <nav className="nav">
+      <nav className="nav" aria-label="Image controls">
         <div className="nav__container">
           <div className="nav__controls">
-            <div className="nav__thumbnails">
-              <div
+            <div className="nav__thumbnails" role="toolbar" aria-label="Image selection">
+              <button
                 className="nav__thumbnail nav__thumbnail--upload"
                 onClick={handleUploadClick}
+                aria-label="Upload new images"
+                type="button"
               >
                 <Upload size={16} />
-              </div>
+              </button>
               {allImages
                 .slice()
                 .reverse()
                 .map((img, index) => (
-                  <img
+                  <button
                     key={index}
-                    src={img.src}
-                    alt={img.filename || `Upload ${index + 1}`}
                     className={`nav__thumbnail ${
                       availableImages.includes(img)
                         ? "nav__thumbnail--active"
                         : "nav__thumbnail--inactive"
                     }`}
                     onClick={() => handleToggleImage(img)}
+                    aria-label={`${availableImages.includes(img) ? "Disable" : "Enable"} ${img.filename || `image ${index + 1}`}`}
+                    aria-pressed={availableImages.includes(img)}
+                    type="button"
+                    style={{
+                      backgroundImage: `url(${img.src})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }}
                   />
                 ))}
             </div>
           </div>
-          {/* <div className="nav__caption">
-            <h2 className="nav__caption-title">minipix</h2>
-            <p className="nav__caption-text">
-              A photo manipulation tool.
-              <br />
-              By{" "}
-              <a
-                href="https://romellogoodman.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Romello Goodman
-              </a>{" "}
-              with{" "}
-              <a
-                href="https://www.getty.edu/art/collection/object/108QM6"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Kazumasa Ogawa's
-              </a>{" "}
-              photos
-            </p>
-          </div> */}
         </div>
       </nav>
 
       {availableImages.length > 0 && (
         <>
-          <div className="canvas-grid">
+          <div className="canvas-grid" role="grid" aria-label="Generated artwork grid">
             {Array.from({ length: visibleCanvasCount }).map((_, index) => {
               const img = getRandomImage();
               const seed = Math.floor(Math.random() * 0xffffffff);
               const renderer = getRenderer(seed);
 
               // Generate short hash from seed (6 characters)
-              const hash = seed.toString(36).substring(0, 6);
+              const hash = generateSeedHash(seed);
+
+              // Callback for when a render fails and needs retry with new renderer
+              const handleRetryNeeded = () => {
+                const newSeed = Math.floor(Math.random() * 0xffffffff);
+                const newRenderer = getRenderer(newSeed);
+                return { newRenderFn: newRenderer, newSeed };
+              };
 
               return (
-                <div key={`${generation}-${index}`} className="canvas-grid__item">
+                <div key={`${generation}-${index}`} className="canvas-grid__item" role="gridcell">
                   <Canvas
                     image={img}
                     renderFn={renderer}
                     seed={seed}
+                    onRetryNeeded={handleRetryNeeded}
                     onClick={(canvas) => {
                       const link = document.createElement("a");
 

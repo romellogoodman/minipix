@@ -126,15 +126,21 @@ body {
   &__thumbnail {
     width: var(--thumbnail-size);
     height: var(--thumbnail-size);
-    object-fit: cover;
     border-radius: var(--radius-sm);
     border: 2px solid rgba(255, 148, 194, 0.3);
     transition: all var(--transition-fast);
     cursor: pointer;
     flex-shrink: 0;
+    padding: 0;
+    background: transparent;
 
     &:hover {
       border-color: var(--accent-color);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--accent-color);
+      outline-offset: 2px;
     }
 
     &--active {
@@ -153,35 +159,6 @@ body {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--accent-color);
-      transition: opacity var(--transition-fast);
-
-      &:hover {
-        opacity: 0.7;
-      }
-    }
-  }
-
-  &__caption {
-    border-top: 1px solid var(--border-color-light);
-    padding-top: var(--spacing-md);
-  }
-
-  &__caption-title {
-    font-size: var(--font-size-md);
-    font-weight: var(--font-weight-bold);
-    color: var(--accent-color);
-    margin: 0 0 var(--spacing-xs) 0;
-    letter-spacing: var(--letter-spacing-tight);
-  }
-
-  &__caption-text {
-    font-size: var(--font-size-xs);
-    color: var(--text-color-secondary);
-    margin: 0;
-    line-height: var(--line-height-normal);
-
-    a {
       color: var(--accent-color);
       transition: opacity var(--transition-fast);
 

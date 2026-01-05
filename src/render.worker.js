@@ -1,27 +1,7 @@
 // Web Worker for pixel-intensive rendering operations
 // This runs off the main thread to avoid blocking UI
 
-// Utility functions (inlined since workers can't import from main bundle)
-function mulberry32(seed) {
-  return function () {
-    let t = (seed += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function createSeededRandom(seed) {
-  return mulberry32(seed);
-}
-
-function randomNumber(min, max, randomFn = Math.random) {
-  return Math.floor(randomFn() * (max - min + 1)) + min;
-}
-
-function map(value, inMin, inMax, outMin, outMax) {
-  return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
-}
+import { createSeededRandom, randomNumber, map } from "./workerUtils.js";
 
 // Renderer implementations for pixel-intensive operations
 const renderers = {
@@ -47,7 +27,9 @@ const renderers = {
       config.frequency.max
     );
 
-    // Generate ripple centers
+    // Generate ripple centers with precomputed max influence radius
+    // Ripples have negligible effect beyond this distance
+    const maxInfluenceRadius = amplitude / frequency + amplitude;
     const ripples = [];
     for (let i = 0; i < numRipples; i++) {
       ripples.push({
@@ -65,13 +47,20 @@ const renderers = {
         for (const ripple of ripples) {
           const dx = x - ripple.x;
           const dy = y - ripple.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
 
-          if (dist > 0) {
-            const wave = Math.sin(dist * frequency + ripple.phase) * amplitude;
-            offsetX += (dx / dist) * wave;
-            offsetY += (dy / dist) * wave;
-          }
+          // Use squared distance for initial culling (avoid expensive sqrt)
+          const distSq = dx * dx + dy * dy;
+          const maxRadiusSq = maxInfluenceRadius * maxInfluenceRadius;
+
+          // Skip ripples too far away to have meaningful effect
+          if (distSq > maxRadiusSq) continue;
+          if (distSq === 0) continue;
+
+          const dist = Math.sqrt(distSq);
+          const wave = Math.sin(dist * frequency + ripple.phase) * amplitude;
+          const invDist = 1 / dist;
+          offsetX += dx * invDist * wave;
+          offsetY += dy * invDist * wave;
         }
 
         const srcX = Math.floor(Math.max(0, Math.min(width - 1, x + offsetX)));
