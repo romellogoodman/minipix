@@ -13,11 +13,7 @@ function useImageLoader() {
 
   // Load default images on mount
   useEffect(() => {
-    const imageNames = [
-      "Tree-Peony-Kazumasa-Ogawa-1.jpg",
-      "Tree-Peony-Kazumasa-Ogawa-2.jpg",
-      "Tree-Peony-Kazumasa-Ogawa-3.jpg",
-    ];
+    const imageNames = ["Tree-Peony-Kazumasa-Ogawa.jpg"];
     const loadedImages = [];
     let loadedCount = 0;
 
