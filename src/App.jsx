@@ -175,11 +175,15 @@ function App() {
     (name) => renderers[name]
   );
 
-  // Parse query parameter for hardcoded renderer
+  // Parse query parameter for hardcoded renderer(s) - supports comma-separated list
   const queryParams = new URLSearchParams(window.location.search);
-  const rendererName = queryParams.get("renderer");
-  const hardcodedRenderer =
-    rendererName && renderers[rendererName] ? renderers[rendererName] : null;
+  const rendererParam = queryParams.get("renderer");
+  const filteredRenderers = rendererParam
+    ? rendererParam
+        .split(",")
+        .map((name) => renderers[name.trim()])
+        .filter(Boolean)
+    : null;
 
   const handleFileChange = (event) => {
     const files = Array.from(event.target.files);
@@ -204,18 +208,19 @@ function App() {
 
   // Select a single renderer using seeded randomness
   const getRenderer = (seed) => {
-    // Use hardcoded renderer if specified via query param
-    if (hardcodedRenderer) {
-      return hardcodedRenderer;
-    }
+    // Use filtered renderers if specified via query param
+    const pool =
+      filteredRenderers && filteredRenderers.length > 0
+        ? filteredRenderers
+        : enabledRenderers;
 
-    if (enabledRenderers.length === 0) {
+    if (pool.length === 0) {
       return null;
     }
 
     const random = createSeededRandom(seed);
-    const rendererIndex = Math.floor(random() * enabledRenderers.length);
-    return enabledRenderers[rendererIndex];
+    const rendererIndex = Math.floor(random() * pool.length);
+    return pool[rendererIndex];
   };
 
   return (

@@ -1,7 +1,6 @@
 import {
   map,
   randomNumber,
-  applyRandomFlip,
   calculateAdaptivePixelSize,
   getAverageColorInBlock,
   shuffleArray,
@@ -21,6 +20,18 @@ export const rendererConfig = {
   },
   chromaticShift: {
     offset: { min: -20, max: 20 },
+  },
+  crosshatch: {
+    numColors: { min: 3, max: 6 },
+    lineSpacing: { min: 3, max: 12 },
+    lineLength: { min: 8, max: 25 },
+    strokeWidth: { min: 1, max: 3 },
+  },
+  glitch: {
+    numSlices: { min: 5, max: 30 },
+    maxOffset: { min: 0.02, max: 0.15 },
+    colorShiftProbability: 0.3,
+    colorShiftAmount: { min: 5, max: 30 },
   },
   gridSwap: {
     baseGridSize: { min: 2, max: 20 },
@@ -42,9 +53,24 @@ export const rendererConfig = {
     fillCanvasProbability: 0.5, // chance to stretch to fill vs maintain square
   },
   pixelated: {},
+  radialBlur: {
+    numSamples: { min: 10, max: 100 },
+    blurStrength: { min: 0.02, max: 1.5 },
+    centerVariation: { min: 0.2, max: 0.8 },
+  },
+  ripple: {
+    numRipples: { min: 1, max: 8 },
+    amplitude: { min: 10, max: 50 },
+    frequency: { min: 0.03, max: 0.12 },
+  },
   scooch: {
     numScooches: { min: 1, max: 8 },
     scoochPercent: { min: 0.05, max: 0.5 },
+  },
+  spiral: {
+    spiralStrength: { min: 0.1, max: 5 },
+    oscillationFrequency: { min: 0.0025, max: 0.03 },
+    oscillationProbability: 0.5, // chance to oscillate vs one-direction twist
   },
   stacked: {
     numStacks: { min: 2, max: 20 },
@@ -60,6 +86,11 @@ export const rendererConfig = {
     skipProbability: { min: 0.3, max: 0.6 },
     splitPercent: { min: 0.3, max: 0.7 },
     minSize: 10,
+  },
+  waves: {
+    numWaves: { min: 20, max: 200 },
+    amplitude: { min: 5, max: 100 },
+    frequency: { min: 0.005, max: 0.05 },
   },
 };
 
@@ -78,7 +109,6 @@ export const barSwap = ({ canvas, image, seed = Date.now() }) => {
   const random = createSeededRandom(seed);
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Randomly choose direction: horizontal (0) or vertical (1)
   const isVertical = random() < 0.5;
@@ -151,7 +181,6 @@ export const gridSwap = ({ canvas, image, seed = Date.now() }) => {
   const random = createSeededRandom(seed);
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Calculate aspect ratio and adapt grid accordingly
   const config = rendererConfig.gridSwap;
@@ -245,7 +274,6 @@ export const halftone = ({ canvas, image, seed = Date.now() }) => {
   const random = createSeededRandom(seed);
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Draw image to get imageData
   ctx.drawImage(image, 0, 0, image.width, image.height);
@@ -391,7 +419,6 @@ export const halftoneBayer = ({ canvas, image, seed = Date.now() }) => {
   const random = createSeededRandom(seed);
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Draw image to get imageData
   ctx.drawImage(image, 0, 0, image.width, image.height);
@@ -430,7 +457,6 @@ export const halftoneClassicDots = ({ canvas, image, seed = Date.now() }) => {
   const random = createSeededRandom(seed);
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Draw image to get imageData
   ctx.drawImage(image, 0, 0, image.width, image.height);
@@ -510,7 +536,6 @@ export const halftoneFloydSteinberg = ({
   const random = createSeededRandom(seed);
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Draw image to get imageData
   ctx.drawImage(image, 0, 0, image.width, image.height);
@@ -549,7 +574,6 @@ export const halftoneLines = ({ canvas, image, seed = Date.now() }) => {
   const random = createSeededRandom(seed);
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Draw image to get imageData
   ctx.drawImage(image, 0, 0, image.width, image.height);
@@ -666,7 +690,6 @@ export const kaleidoscope = ({ canvas, image, seed = Date.now() }) => {
   const sqrCount = sqrCountBase * 2;
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // If sqrCount is 0, just draw the image
   if (sqrCount === 0) {
@@ -767,7 +790,6 @@ export const pixelated = ({ canvas, image, seed = Date.now() }) => {
   const random = createSeededRandom(seed);
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Draw original image to canvas so we can read pixel data
   ctx.drawImage(image, 0, 0, image.width, image.height);
@@ -835,7 +857,6 @@ export const scooch = ({ canvas, image, seed = Date.now() }) => {
   const random = createSeededRandom(seed);
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   const config = rendererConfig.scooch;
 
@@ -963,7 +984,6 @@ export const stacked = ({ canvas, image, seed = Date.now() }) => {
   const random = createSeededRandom(seed);
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Random number of stacks
   const config = rendererConfig.stacked;
@@ -1008,7 +1028,6 @@ export const stackedCircle = ({ canvas, image, seed = Date.now() }) => {
   const random = createSeededRandom(seed);
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Randomly choose between uniform (50%) and scaled (50%) mode
   const isUniform = random() < 0.5;
@@ -1178,7 +1197,6 @@ export const subdivision = ({ canvas, image, seed = Date.now() }) => {
   const random = createSeededRandom(seed);
 
   ctx.save();
-  applyRandomFlip(ctx, canvas.width, canvas.height, random);
 
   // Random max recursion depth and skip probability
   const config = rendererConfig.subdivision;
@@ -1289,5 +1307,454 @@ export const subdivision = ({ canvas, image, seed = Date.now() }) => {
     ctx.restore();
   });
 
+  ctx.restore();
+};
+
+export const crosshatch = ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const random = createSeededRandom(seed);
+
+  ctx.save();
+
+  // Draw image to get pixel data
+  ctx.drawImage(image, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  const config = rendererConfig.crosshatch;
+  const numColors = randomNumber(
+    config.numColors.min,
+    config.numColors.max,
+    random
+  );
+  const palette = extractDominantColors(imageData, numColors, 10);
+  const lineSpacing = randomNumber(
+    config.lineSpacing.min,
+    config.lineSpacing.max,
+    random
+  );
+  const lineLength = randomNumber(
+    config.lineLength.min,
+    config.lineLength.max,
+    random
+  );
+  const strokeWidth = randomNumber(
+    config.strokeWidth.min,
+    config.strokeWidth.max,
+    random
+  );
+
+  // Fill with lightest color from palette
+  const sortedPalette = [...palette].sort(
+    (a, b) => getLuminance(b.r, b.g, b.b) - getLuminance(a.r, a.g, a.b)
+  );
+  ctx.fillStyle = `rgb(${sortedPalette[0].r}, ${sortedPalette[0].g}, ${sortedPalette[0].b})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.lineWidth = strokeWidth;
+  ctx.lineCap = "round";
+
+  // Draw crosshatch strokes based on luminance
+  for (let y = 0; y < canvas.height; y += lineSpacing) {
+    for (let x = 0; x < canvas.width; x += lineSpacing) {
+      const avgColor = getAverageColorInBlock(
+        imageData,
+        x,
+        y,
+        lineSpacing,
+        canvas.width,
+        canvas.height
+      );
+      const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
+      const nearestColor = findNearestColor(avgColor, palette);
+
+      ctx.strokeStyle = `rgb(${nearestColor.r}, ${nearestColor.g}, ${nearestColor.b})`;
+
+      // More strokes for darker areas
+      const numStrokes = Math.floor((1 - luminance) * 4);
+
+      for (let s = 0; s < numStrokes; s++) {
+        const angle = (s * Math.PI) / 4 + (random() - 0.5) * 0.3;
+        const cx = x + lineSpacing / 2 + (random() - 0.5) * lineSpacing * 0.5;
+        const cy = y + lineSpacing / 2 + (random() - 0.5) * lineSpacing * 0.5;
+        const len = lineLength * (0.5 + random() * 0.5);
+
+        ctx.beginPath();
+        ctx.moveTo(
+          cx - (Math.cos(angle) * len) / 2,
+          cy - (Math.sin(angle) * len) / 2
+        );
+        ctx.lineTo(
+          cx + (Math.cos(angle) * len) / 2,
+          cy + (Math.sin(angle) * len) / 2
+        );
+        ctx.stroke();
+      }
+    }
+  }
+
+  ctx.restore();
+};
+
+export const glitch = ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const random = createSeededRandom(seed);
+
+  ctx.save();
+
+  // Draw original image first
+  ctx.drawImage(image, 0, 0);
+
+  const config = rendererConfig.glitch;
+  const numSlices = randomNumber(
+    config.numSlices.min,
+    config.numSlices.max,
+    random
+  );
+  const maxOffset = map(
+    random(),
+    0,
+    1,
+    config.maxOffset.min,
+    config.maxOffset.max
+  );
+
+  // Create horizontal glitch slices
+  for (let i = 0; i < numSlices; i++) {
+    const sliceY = Math.floor(random() * canvas.height);
+    const sliceHeight = randomNumber(2, Math.floor(canvas.height / 10), random);
+    const offset = Math.floor((random() - 0.5) * 2 * canvas.width * maxOffset);
+
+    // Get slice data
+    const sliceData = ctx.getImageData(
+      0,
+      sliceY,
+      canvas.width,
+      Math.min(sliceHeight, canvas.height - sliceY)
+    );
+
+    // Color channel shift
+    if (random() < config.colorShiftProbability) {
+      const shiftAmount = randomNumber(
+        config.colorShiftAmount.min,
+        config.colorShiftAmount.max,
+        random
+      );
+      const channelToShift = Math.floor(random() * 3); // R, G, or B
+
+      for (let p = 0; p < sliceData.data.length; p += 4) {
+        const shiftedIdx = p + shiftAmount * 4;
+        if (shiftedIdx >= 0 && shiftedIdx < sliceData.data.length - 4) {
+          sliceData.data[p + channelToShift] =
+            sliceData.data[shiftedIdx + channelToShift];
+        }
+      }
+    }
+
+    // Draw slice with horizontal offset (wrapping)
+    ctx.putImageData(sliceData, offset, sliceY);
+    if (offset > 0) {
+      ctx.putImageData(sliceData, offset - canvas.width, sliceY);
+    } else if (offset < 0) {
+      ctx.putImageData(sliceData, offset + canvas.width, sliceY);
+    }
+  }
+
+  ctx.restore();
+};
+
+export const radialBlur = ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const random = createSeededRandom(seed);
+
+  ctx.save();
+
+  const config = rendererConfig.radialBlur;
+  const numSamples = randomNumber(
+    config.numSamples.min,
+    config.numSamples.max,
+    random
+  );
+  const blurStrength = map(
+    random(),
+    0,
+    1,
+    config.blurStrength.min,
+    config.blurStrength.max
+  );
+
+  // Random center point
+  const centerX =
+    canvas.width *
+    map(random(), 0, 1, config.centerVariation.min, config.centerVariation.max);
+  const centerY =
+    canvas.height *
+    map(random(), 0, 1, config.centerVariation.min, config.centerVariation.max);
+
+  // Draw multiple scaled versions with transparency
+  for (let i = 0; i < numSamples; i++) {
+    const scale = 1 + (i / numSamples) * blurStrength;
+    const alpha = 1 / numSamples;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(centerX, centerY);
+    ctx.scale(scale, scale);
+    ctx.translate(-centerX, -centerY);
+    ctx.drawImage(image, 0, 0);
+    ctx.restore();
+  }
+
+  ctx.restore();
+};
+
+export const ripple = ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const random = createSeededRandom(seed);
+
+  ctx.save();
+
+  // Draw image to get pixel data
+  ctx.drawImage(image, 0, 0);
+  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const outputData = ctx.createImageData(canvas.width, canvas.height);
+
+  const config = rendererConfig.ripple;
+  const numRipples = randomNumber(
+    config.numRipples.min,
+    config.numRipples.max,
+    random
+  );
+  const amplitude = randomNumber(
+    config.amplitude.min,
+    config.amplitude.max,
+    random
+  );
+  const frequency = map(
+    random(),
+    0,
+    1,
+    config.frequency.min,
+    config.frequency.max
+  );
+
+  // Generate ripple centers
+  const ripples = [];
+  for (let i = 0; i < numRipples; i++) {
+    ripples.push({
+      x: random() * canvas.width,
+      y: random() * canvas.height,
+      phase: random() * Math.PI * 2,
+    });
+  }
+
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      let offsetX = 0;
+      let offsetY = 0;
+
+      // Sum ripple effects
+      for (const ripple of ripples) {
+        const dx = x - ripple.x;
+        const dy = y - ripple.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist > 0) {
+          const wave = Math.sin(dist * frequency + ripple.phase) * amplitude;
+          offsetX += (dx / dist) * wave;
+          offsetY += (dy / dist) * wave;
+        }
+      }
+
+      // Sample from offset position
+      const srcX = Math.floor(
+        Math.max(0, Math.min(canvas.width - 1, x + offsetX))
+      );
+      const srcY = Math.floor(
+        Math.max(0, Math.min(canvas.height - 1, y + offsetY))
+      );
+
+      const srcIdx = (srcY * canvas.width + srcX) * 4;
+      const dstIdx = (y * canvas.width + x) * 4;
+
+      outputData.data[dstIdx] = sourceData.data[srcIdx];
+      outputData.data[dstIdx + 1] = sourceData.data[srcIdx + 1];
+      outputData.data[dstIdx + 2] = sourceData.data[srcIdx + 2];
+      outputData.data[dstIdx + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(outputData, 0, 0);
+  ctx.restore();
+};
+
+export const spiral = ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const random = createSeededRandom(seed);
+
+  ctx.save();
+
+  // Draw image to get pixel data
+  ctx.drawImage(image, 0, 0);
+  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const outputData = ctx.createImageData(canvas.width, canvas.height);
+
+  const config = rendererConfig.spiral;
+  const spiralStrength = map(
+    random(),
+    0,
+    1,
+    config.spiralStrength.min,
+    config.spiralStrength.max
+  );
+  const oscillationFrequency = map(
+    random(),
+    0,
+    1,
+    config.oscillationFrequency.min,
+    config.oscillationFrequency.max
+  );
+  const useOscillation = random() < config.oscillationProbability;
+  const direction = random() < 0.5 ? 1 : -1; // clockwise or counter-clockwise
+
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const maxRadius = Math.sqrt(centerX * centerX + centerY * centerY);
+
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      const dx = x - centerX;
+      const dy = y - centerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx);
+
+      // Apply spiral twist - either oscillating or one-direction
+      const twist = useOscillation
+        ? Math.sin(dist * oscillationFrequency) * spiralStrength
+        : spiralStrength * (1 - dist / maxRadius) * direction;
+      const newAngle = angle + twist;
+
+      // Calculate source position
+      const srcX = Math.floor(centerX + Math.cos(newAngle) * dist);
+      const srcY = Math.floor(centerY + Math.sin(newAngle) * dist);
+
+      // Clamp to image bounds
+      const clampedSrcX = Math.max(0, Math.min(canvas.width - 1, srcX));
+      const clampedSrcY = Math.max(0, Math.min(canvas.height - 1, srcY));
+
+      const srcIdx = (clampedSrcY * canvas.width + clampedSrcX) * 4;
+      const dstIdx = (y * canvas.width + x) * 4;
+
+      outputData.data[dstIdx] = sourceData.data[srcIdx];
+      outputData.data[dstIdx + 1] = sourceData.data[srcIdx + 1];
+      outputData.data[dstIdx + 2] = sourceData.data[srcIdx + 2];
+      outputData.data[dstIdx + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(outputData, 0, 0);
+  ctx.restore();
+};
+
+export const waves = ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const random = createSeededRandom(seed);
+
+  ctx.save();
+
+  // Draw image to get pixel data
+  ctx.drawImage(image, 0, 0);
+  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const outputData = ctx.createImageData(canvas.width, canvas.height);
+
+  const config = rendererConfig.waves;
+  const numWaves = randomNumber(
+    config.numWaves.min,
+    config.numWaves.max,
+    random
+  );
+  const amplitude = randomNumber(
+    config.amplitude.min,
+    config.amplitude.max,
+    random
+  );
+  const frequency = map(
+    random(),
+    0,
+    1,
+    config.frequency.min,
+    config.frequency.max
+  );
+
+  // Choose wave direction: 0 = horizontal, 1 = vertical
+  const isVertical = random() < 0.5;
+  const phase = random() * Math.PI * 2;
+
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      let srcX, srcY;
+
+      if (isVertical) {
+        // Vertical waves - offset x based on y
+        const wave = Math.sin(y * frequency + phase) * amplitude;
+        srcX = Math.floor(x + wave);
+        srcY = y;
+      } else {
+        // Horizontal waves - offset y based on x
+        const wave = Math.sin(x * frequency + phase) * amplitude;
+        srcX = x;
+        srcY = Math.floor(y + wave);
+      }
+
+      // Wrap around edges
+      srcX = ((srcX % canvas.width) + canvas.width) % canvas.width;
+      srcY = ((srcY % canvas.height) + canvas.height) % canvas.height;
+
+      const srcIdx = (srcY * canvas.width + srcX) * 4;
+      const dstIdx = (y * canvas.width + x) * 4;
+
+      outputData.data[dstIdx] = sourceData.data[srcIdx];
+      outputData.data[dstIdx + 1] = sourceData.data[srcIdx + 1];
+      outputData.data[dstIdx + 2] = sourceData.data[srcIdx + 2];
+      outputData.data[dstIdx + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(outputData, 0, 0);
   ctx.restore();
 };
