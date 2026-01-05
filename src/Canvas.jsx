@@ -1,9 +1,10 @@
 import { useRef, useEffect, useState } from "react";
 
 // Global render queue to limit concurrent renders
+// Use more workers on multi-core machines
 const renderQueue = {
   active: 0,
-  maxConcurrent: 3,
+  maxConcurrent: Math.max(4, navigator.hardwareConcurrency || 4),
   waiting: [],
 
   async request(fn) {
@@ -71,13 +72,17 @@ function Canvas({ image, renderFn, onClick, seed }) {
         if (cancelled) return;
 
         // Use requestIdleCallback for non-blocking rendering
-        await new Promise((resolve) => {
+        await new Promise(async (resolve) => {
           const idleCallback =
             window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
-          idleCallback(() => {
+          idleCallback(async () => {
             if (!cancelled && canvasRef.current) {
               try {
-                renderFn({ canvas: canvasRef.current, image, seed });
+                // Support both sync and async renderers
+                const result = renderFn({ canvas: canvasRef.current, image, seed });
+                if (result instanceof Promise) {
+                  await result;
+                }
                 setIsRendered(true);
               } catch (error) {
                 console.error("Rendering error:", error);

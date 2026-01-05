@@ -3,7 +3,7 @@ This is a computational collage app built with React. It allows users to upload 
 Minipix is a generative art tool that:
 
 - Accepts multiple image uploads (PNG/JPEG)
-- Displays a 3×4 grid (12 canvases) of computational collages
+- Displays an infinite scroll grid of computational collages
 - Randomly assigns uploaded images and rendering functions to each canvas
 - Uses seeded randomness for reproducible artwork
 - Allows toggling individual images on/off from the generation pool
@@ -13,15 +13,14 @@ Minipix is a generative art tool that:
 
 ```
 src/
-├── scss/           # SCSS stylesheets
-│   ├── main.scss
-│   └── modern-reset.scss
-├── main.jsx        # React entry point
-├── App.jsx         # Main App component - handles image upload and grid layout
-├── Canvas.jsx      # Canvas component - renders individual canvases
-├── renderers.js    # Rendering algorithms for image manipulation
-├── utils.js        # Utility functions including seeded PRNG
-└── App.scss        # App component styles
+├── main.jsx           # React entry point
+├── App.jsx            # Main App component - handles image upload and grid layout
+├── App.scss           # App component styles
+├── Canvas.jsx         # Canvas component - renders individual canvases with lazy loading
+├── renderers.js       # Rendering algorithms for image manipulation
+├── render.worker.js   # Web Worker for pixel-intensive rendering operations
+├── workerPool.js      # Worker pool manager for parallel rendering
+└── utils.js           # Utility functions including seeded PRNG
 ```
 
 ## Architecture
@@ -39,51 +38,115 @@ Main application component that manages:
 - Filters enabled renderers using `rendererConfig` object
 
 **Query Parameters:**
-- `renderer`: Specify a renderer by name to use for all canvases (e.g., `?renderer=renderStacked`)
-  - Available renderer names: `renderBarSwap`, `renderGridSwap`, `renderPixelated`, `renderScooch`, `renderStacked`, `renderStackedCircle`, `renderSubdivision`
-  - If invalid or not provided, random selection is used
+- `renderer`: Specify renderer(s) by name (e.g., `?renderer=spiral` or `?renderer=ripple,waves,spiral`)
+  - Supports comma-separated list for multiple renderers
+  - If invalid or not provided, random selection from all enabled renderers is used
 
 ### Canvas.jsx
 
-Reusable canvas component that:
+Reusable canvas component with performance optimizations:
 
 - Accepts `renderFn`, `image`, `seed`, and `onClick` props
-- Executes the rendering function on mount, passing the seed
+- Implements lazy loading via IntersectionObserver
+- Uses render queue to limit concurrent renders
+- Supports both sync and async renderer functions
 - Handles click events for canvas download
+
+**Lazy Loading:**
+```javascript
+// Starts loading 100px before canvas enters viewport
+const observer = new IntersectionObserver(
+  (entries) => {
+    if (entries[0].isIntersecting) {
+      setIsVisible(true);
+    }
+  },
+  { rootMargin: "100px", threshold: 0.01 }
+);
+```
+
+**Render Queue:**
+- Limits concurrent renders to `Math.max(4, navigator.hardwareConcurrency)`
+- Queues additional renders and processes them as slots free up
+- Uses `requestIdleCallback` to avoid blocking scroll/UI
 
 ### renderers.js
 
 Collection of rendering algorithms exported as named functions:
 
-- `renderBarSwap`: Shuffles horizontal or vertical bars
-- `renderGridSwap`: Shuffles grid tiles with aspect-ratio adaptation
-- `renderPixelated`: Adaptive block-based pixelation effect
-- `renderScooch`: Wraps edge slice to opposite side
-- `renderStacked`: Creates layered effect with 4-12 stacks at varying scales (100%-25%)
-- `renderStackedCircle`: Circular clipped stacks with optional rotation
-- `renderSubdivision`: Recursive fragmentation with binary space partitioning
+**Canvas-based renderers (sync):**
+- `barSwap`: Shuffles horizontal or vertical bars
+- `gridSwap`: Shuffles grid tiles with aspect-ratio adaptation
+- `pixelated`: Adaptive block-based pixelation effect
+- `scooch`: Wraps edge slice to opposite side
+- `stacked`: Creates layered effect with 2-20 stacks at varying scales
+- `stackedCircle`: Circular clipped stacks with optional rotation
+- `subdivision`: Recursive fragmentation with binary space partitioning
+- `halftone`: Multiple halftone modes (bayer, floyd-steinberg, classic dots, lines)
+- `kaleidoscope`: Mirrored square grid effect
+- `crosshatch`: Pen-stroke crosshatching based on luminance
+- `glitch`: Horizontal slice displacement with color channel shifting
+- `radialBlur`: Zoom blur effect from random center point
+
+**Worker-based renderers (async):**
+- `ripple`: Concentric wave distortion from random points
+- `spiral`: Rotational twist effect (oscillating or one-direction)
+- `waves`: Sinusoidal displacement (horizontal or vertical)
 
 **Renderer Configuration:**
-- `rendererConfig` object at the top of the file controls each renderer's parameters and enabled state
-- Each renderer entry includes `enabled: boolean` and configurable min/max ranges
-- App.jsx filters renderers based on `enabled` flag
+- `rendererConfig` object at the top of the file controls each renderer's parameters
+- Each renderer entry includes configurable min/max ranges
 - Example config structure:
   ```javascript
   export const rendererConfig = {
-    renderBarSwap: {
-      enabled: true,
+    barSwap: {
       numBars: { min: 4, max: 50 },
+    },
+    spiral: {
+      spiralStrength: { min: 0.1, max: 5 },
+      oscillationFrequency: { min: 0.0025, max: 0.03 },
+      oscillationProbability: 0.5,
     },
     // ...
   };
   ```
 
 **Renderer Function Signature:**
-- All renderers follow: `({ canvas, image, seed = Date.now() }) => void`
+- Sync renderers: `({ canvas, image, seed = Date.now() }) => void`
+- Async renderers: `async ({ canvas, image, seed = Date.now() }) => Promise<void>`
+- Async renderers have `rendererName.isAsync = true` flag
 - `seed` parameter controls all randomness within the renderer using seeded PRNG
 - Canvas dimensions are set to original image dimensions (preserves aspect ratio and resolution)
-- Each renderer creates a seeded random function: `const random = createSeededRandom(seed);`
-- All randomization uses the seeded random function instead of `Math.random()`
+
+### render.worker.js
+
+Web Worker for pixel-intensive rendering operations:
+
+- Runs pixel manipulation off the main thread
+- Contains implementations for `ripple`, `spiral`, and `waves` renderers
+- Receives ImageData buffer via transferable objects (zero-copy)
+- Returns processed pixel buffer back to main thread
+
+### workerPool.js
+
+Manages a pool of Web Workers for parallel rendering:
+
+- Creates workers on-demand up to `navigator.hardwareConcurrency` limit
+- Reuses idle workers for subsequent renders
+- Queues tasks when all workers are busy
+- Uses transferable objects to avoid copying image data
+
+**Usage:**
+```javascript
+const result = await workerPool.render(
+  "ripple",           // renderer name
+  sourceData.data,    // Uint8ClampedArray pixel data
+  canvas.width,
+  canvas.height,
+  seed,
+  rendererConfig.ripple
+);
+```
 
 ### utils.js
 
@@ -92,9 +155,12 @@ Utility functions for rendering:
 - `mulberry32(seed)`: Mulberry32 PRNG implementation for seeded randomness
 - `createSeededRandom(seed)`: Creates a seeded random function from a seed value
 - `randomNumber(min, max, randomFn)`: Generates random integers with optional seeded random function
-- `applyRandomFlip(ctx, width, height, randomFn)`: Randomly flips canvas horizontally/vertically
+- `map(value, inMin, inMax, outMin, outMax)`: Linear interpolation/mapping
 - `calculateAdaptivePixelSize(width, height, randomFn)`: Calculates pixelation block size
 - `shuffleArray(array, randomFn)`: Fisher-Yates shuffle with optional seeded randomness
+- `extractDominantColors(imageData, numColors, sampleStep)`: K-means color extraction
+- `getLuminance(r, g, b)`: Calculate perceived brightness
+- `findNearestColor(color, palette)`: Find closest palette match
 - All functions accept optional `randomFn` parameter (defaults to `Math.random`)
 
 ## CSS/SCSS Conventions
@@ -133,7 +199,6 @@ To add a new rendering algorithm:
 1. Add configuration entry to `rendererConfig` object at top of `renderers.js`:
    ```javascript
    rendererName: {
-     enabled: true,
      parameterName: { min: value, max: value },
      // ... other configurable parameters
    }
@@ -160,4 +225,50 @@ To add a new rendering algorithm:
 
 3. Keep renderers in alphabetical order by function name for easier navigation and maintenance
 
-4. The function will automatically be included in the random selection pool if `enabled: true` in config
+4. The function will automatically be included in the random selection pool
+
+### Adding Worker-Based Renderers
+
+For pixel-intensive renderers that loop through every pixel:
+
+1. Add the pixel manipulation logic to `render.worker.js`:
+   ```javascript
+   const renderers = {
+     // ... existing renderers
+     newRenderer: (imageData, width, height, config, seed) => {
+       const random = createSeededRandom(seed);
+       const outputData = new Uint8ClampedArray(imageData.length);
+       // ... pixel manipulation
+       return outputData;
+     },
+   };
+   ```
+
+2. Create an async wrapper in `renderers.js`:
+   ```javascript
+   export const newRenderer = async ({ canvas, image, seed = Date.now() }) => {
+     if (!image) return;
+     const ctx = canvas.getContext("2d");
+     canvas.width = image.width;
+     canvas.height = image.height;
+     ctx.drawImage(image, 0, 0);
+     const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+     const result = await workerPool.render(
+       "newRenderer",
+       sourceData.data,
+       canvas.width,
+       canvas.height,
+       seed,
+       rendererConfig.newRenderer
+     );
+
+     const outputData = ctx.createImageData(canvas.width, canvas.height);
+     outputData.data.set(result.data);
+     ctx.putImageData(outputData, 0, 0);
+   };
+
+   newRenderer.isAsync = true;
+   ```
+
+3. Add the renderer name to the `canOffload` check in `workerPool.js` if needed

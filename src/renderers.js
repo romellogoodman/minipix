@@ -12,6 +12,7 @@ import {
   applyFloydSteinbergDithering,
   createSeededRandom,
 } from "./utils.js";
+import { workerPool } from "./workerPool.js";
 
 // Renderer configuration
 export const rendererConfig = {
@@ -1525,7 +1526,7 @@ export const radialBlur = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-export const ripple = ({ canvas, image, seed = Date.now() }) => {
+export const ripple = async ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -1533,85 +1534,29 @@ export const ripple = ({ canvas, image, seed = Date.now() }) => {
   canvas.height = image.height;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const random = createSeededRandom(seed);
-
-  ctx.save();
-
   // Draw image to get pixel data
   ctx.drawImage(image, 0, 0);
   const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Use worker for pixel processing
+  const result = await workerPool.render(
+    "ripple",
+    sourceData.data,
+    canvas.width,
+    canvas.height,
+    seed,
+    rendererConfig.ripple
+  );
+
   const outputData = ctx.createImageData(canvas.width, canvas.height);
-
-  const config = rendererConfig.ripple;
-  const numRipples = randomNumber(
-    config.numRipples.min,
-    config.numRipples.max,
-    random
-  );
-  const amplitude = randomNumber(
-    config.amplitude.min,
-    config.amplitude.max,
-    random
-  );
-  const frequency = map(
-    random(),
-    0,
-    1,
-    config.frequency.min,
-    config.frequency.max
-  );
-
-  // Generate ripple centers
-  const ripples = [];
-  for (let i = 0; i < numRipples; i++) {
-    ripples.push({
-      x: random() * canvas.width,
-      y: random() * canvas.height,
-      phase: random() * Math.PI * 2,
-    });
-  }
-
-  for (let y = 0; y < canvas.height; y++) {
-    for (let x = 0; x < canvas.width; x++) {
-      let offsetX = 0;
-      let offsetY = 0;
-
-      // Sum ripple effects
-      for (const ripple of ripples) {
-        const dx = x - ripple.x;
-        const dy = y - ripple.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist > 0) {
-          const wave = Math.sin(dist * frequency + ripple.phase) * amplitude;
-          offsetX += (dx / dist) * wave;
-          offsetY += (dy / dist) * wave;
-        }
-      }
-
-      // Sample from offset position
-      const srcX = Math.floor(
-        Math.max(0, Math.min(canvas.width - 1, x + offsetX))
-      );
-      const srcY = Math.floor(
-        Math.max(0, Math.min(canvas.height - 1, y + offsetY))
-      );
-
-      const srcIdx = (srcY * canvas.width + srcX) * 4;
-      const dstIdx = (y * canvas.width + x) * 4;
-
-      outputData.data[dstIdx] = sourceData.data[srcIdx];
-      outputData.data[dstIdx + 1] = sourceData.data[srcIdx + 1];
-      outputData.data[dstIdx + 2] = sourceData.data[srcIdx + 2];
-      outputData.data[dstIdx + 3] = 255;
-    }
-  }
-
+  outputData.data.set(result.data);
   ctx.putImageData(outputData, 0, 0);
-  ctx.restore();
 };
 
-export const spiral = ({ canvas, image, seed = Date.now() }) => {
+// Mark as async for Canvas.jsx to handle
+ripple.isAsync = true;
+
+export const spiral = async ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -1619,73 +1564,28 @@ export const spiral = ({ canvas, image, seed = Date.now() }) => {
   canvas.height = image.height;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const random = createSeededRandom(seed);
-
-  ctx.save();
-
   // Draw image to get pixel data
   ctx.drawImage(image, 0, 0);
   const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Use worker for pixel processing
+  const result = await workerPool.render(
+    "spiral",
+    sourceData.data,
+    canvas.width,
+    canvas.height,
+    seed,
+    rendererConfig.spiral
+  );
+
   const outputData = ctx.createImageData(canvas.width, canvas.height);
-
-  const config = rendererConfig.spiral;
-  const spiralStrength = map(
-    random(),
-    0,
-    1,
-    config.spiralStrength.min,
-    config.spiralStrength.max
-  );
-  const oscillationFrequency = map(
-    random(),
-    0,
-    1,
-    config.oscillationFrequency.min,
-    config.oscillationFrequency.max
-  );
-  const useOscillation = random() < config.oscillationProbability;
-  const direction = random() < 0.5 ? 1 : -1; // clockwise or counter-clockwise
-
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
-  const maxRadius = Math.sqrt(centerX * centerX + centerY * centerY);
-
-  for (let y = 0; y < canvas.height; y++) {
-    for (let x = 0; x < canvas.width; x++) {
-      const dx = x - centerX;
-      const dy = y - centerY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const angle = Math.atan2(dy, dx);
-
-      // Apply spiral twist - either oscillating or one-direction
-      const twist = useOscillation
-        ? Math.sin(dist * oscillationFrequency) * spiralStrength
-        : spiralStrength * (1 - dist / maxRadius) * direction;
-      const newAngle = angle + twist;
-
-      // Calculate source position
-      const srcX = Math.floor(centerX + Math.cos(newAngle) * dist);
-      const srcY = Math.floor(centerY + Math.sin(newAngle) * dist);
-
-      // Clamp to image bounds
-      const clampedSrcX = Math.max(0, Math.min(canvas.width - 1, srcX));
-      const clampedSrcY = Math.max(0, Math.min(canvas.height - 1, srcY));
-
-      const srcIdx = (clampedSrcY * canvas.width + clampedSrcX) * 4;
-      const dstIdx = (y * canvas.width + x) * 4;
-
-      outputData.data[dstIdx] = sourceData.data[srcIdx];
-      outputData.data[dstIdx + 1] = sourceData.data[srcIdx + 1];
-      outputData.data[dstIdx + 2] = sourceData.data[srcIdx + 2];
-      outputData.data[dstIdx + 3] = 255;
-    }
-  }
-
+  outputData.data.set(result.data);
   ctx.putImageData(outputData, 0, 0);
-  ctx.restore();
 };
 
-export const waves = ({ canvas, image, seed = Date.now() }) => {
+spiral.isAsync = true;
+
+export const waves = async ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
   const ctx = canvas.getContext("2d");
@@ -1693,68 +1593,23 @@ export const waves = ({ canvas, image, seed = Date.now() }) => {
   canvas.height = image.height;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const random = createSeededRandom(seed);
-
-  ctx.save();
-
   // Draw image to get pixel data
   ctx.drawImage(image, 0, 0);
   const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Use worker for pixel processing
+  const result = await workerPool.render(
+    "waves",
+    sourceData.data,
+    canvas.width,
+    canvas.height,
+    seed,
+    rendererConfig.waves
+  );
+
   const outputData = ctx.createImageData(canvas.width, canvas.height);
-
-  const config = rendererConfig.waves;
-  const numWaves = randomNumber(
-    config.numWaves.min,
-    config.numWaves.max,
-    random
-  );
-  const amplitude = randomNumber(
-    config.amplitude.min,
-    config.amplitude.max,
-    random
-  );
-  const frequency = map(
-    random(),
-    0,
-    1,
-    config.frequency.min,
-    config.frequency.max
-  );
-
-  // Choose wave direction: 0 = horizontal, 1 = vertical
-  const isVertical = random() < 0.5;
-  const phase = random() * Math.PI * 2;
-
-  for (let y = 0; y < canvas.height; y++) {
-    for (let x = 0; x < canvas.width; x++) {
-      let srcX, srcY;
-
-      if (isVertical) {
-        // Vertical waves - offset x based on y
-        const wave = Math.sin(y * frequency + phase) * amplitude;
-        srcX = Math.floor(x + wave);
-        srcY = y;
-      } else {
-        // Horizontal waves - offset y based on x
-        const wave = Math.sin(x * frequency + phase) * amplitude;
-        srcX = x;
-        srcY = Math.floor(y + wave);
-      }
-
-      // Wrap around edges
-      srcX = ((srcX % canvas.width) + canvas.width) % canvas.width;
-      srcY = ((srcY % canvas.height) + canvas.height) % canvas.height;
-
-      const srcIdx = (srcY * canvas.width + srcX) * 4;
-      const dstIdx = (y * canvas.width + x) * 4;
-
-      outputData.data[dstIdx] = sourceData.data[srcIdx];
-      outputData.data[dstIdx + 1] = sourceData.data[srcIdx + 1];
-      outputData.data[dstIdx + 2] = sourceData.data[srcIdx + 2];
-      outputData.data[dstIdx + 3] = 255;
-    }
-  }
-
+  outputData.data.set(result.data);
   ctx.putImageData(outputData, 0, 0);
-  ctx.restore();
 };
+
+waves.isAsync = true;
