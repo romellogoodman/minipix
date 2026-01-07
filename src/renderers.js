@@ -17,25 +17,30 @@ import { workerPool } from "./workerPool.js";
 // Renderer configuration
 export const rendererConfig = {
   barSwap: {
+    displayName: "barSwap",
     numBars: { min: 4, max: 50 },
   },
   crosshatch: {
+    displayName: "crosshatch",
     numColors: { min: 3, max: 6 },
     lineSpacing: { min: 3, max: 12 },
     lineLength: { min: 8, max: 25 },
     strokeWidth: { min: 1, max: 3 },
   },
   glitch: {
+    displayName: "glitch",
     numSlices: { min: 5, max: 30 },
     maxOffset: { min: 0.02, max: 0.15 },
     colorShiftProbability: 0.3,
     colorShiftAmount: { min: 5, max: 30 },
   },
   gridSwap: {
+    displayName: "gridSwap",
     baseGridSize: { min: 2, max: 20 },
     extraGridCells: { min: 1, max: 3 },
   },
   halftone: {
+    displayName: "halftone",
     numColors: { min: 2, max: 6 },
     classicDots: {
       blockSize: { min: 1, max: 16 },
@@ -45,47 +50,71 @@ export const rendererConfig = {
       lineWeightMultiplier: 1,
     },
   },
+  halftoneBayer: {
+    displayName: "halftoneBayer",
+  },
+  halftoneClassicDots: {
+    displayName: "halftoneClassicDots",
+  },
+  halftoneFloydSteinberg: {
+    displayName: "halftoneFloydSteinberg",
+  },
+  halftoneLines: {
+    displayName: "halftoneLines",
+  },
   kaleidoscope: {
+    displayName: "kaleidoscope",
     squareCount: { min: 2, max: 20 },
     sourceOffsetPercent: { min: 0, max: 1 }, // where to sample from in non-square images
     fillCanvasProbability: 0.5, // chance to stretch to fill vs maintain square
   },
-  pixelated: {},
+  pixelated: {
+    displayName: "pixelated",
+  },
   radialBlur: {
+    displayName: "radialBlur",
     numSamples: { min: 10, max: 100 },
     blurStrength: { min: 0.02, max: 1.5 },
     centerVariation: { min: 0.2, max: 0.8 },
   },
   ripple: {
-    numRipples: { min: 1, max: 8 },
-    amplitude: { min: 10, max: 50 },
+    displayName: "ripple",
+    numRipples: { min: 1, max: 4 },
+    amplitudePercent: { min: 0.02, max: 0.07 }, // percentage of smaller dimension
+    singleRippleAmplitudePercent: 0.05, // fixed amplitude when only 1 ripple
     frequency: { min: 0.03, max: 0.12 },
   },
   scooch: {
+    displayName: "scooch",
     numScooches: { min: 1, max: 8 },
     scoochPercent: { min: 0.05, max: 0.5 },
   },
   spiral: {
+    displayName: "spiral",
     spiralStrength: { min: 0.1, max: 5 },
     oscillationFrequency: { min: 0.0025, max: 0.03 },
     oscillationProbability: 0.5, // chance to oscillate vs one-direction twist
   },
   stacked: {
+    displayName: "stacked",
     numStacks: { min: 2, max: 20 },
     sizeFactor: { min: 0.2, max: 1 },
   },
   stackedCircle: {
+    displayName: "stackedCircle",
     numStacks: { min: 4, max: 20 },
     sizeFactor: { min: 0.2, max: 1 },
     rotation: { min: -180, max: 180 },
   },
   subdivision: {
+    displayName: "subdivision",
     maxDepth: { min: 3, max: 5 },
     skipProbability: { min: 0.3, max: 0.6 },
     splitPercent: { min: 0.3, max: 0.7 },
     minSize: 10,
   },
   waves: {
+    displayName: "waves",
     numWaves: { min: 20, max: 200 },
     amplitude: { min: 5, max: 100 },
     frequency: { min: 0.005, max: 0.05 },
@@ -1467,6 +1496,10 @@ export const radialBlur = ({ canvas, image, seed = Date.now() }) => {
   canvas.width = image.width;
   canvas.height = image.height;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // White background to prevent dark transparent areas
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const random = createSeededRandom(seed);
 

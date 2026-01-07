@@ -14,11 +14,18 @@ const renderers = {
       config.numRipples.max,
       random
     );
-    const amplitude = randomNumber(
-      config.amplitude.min,
-      config.amplitude.max,
-      random
-    );
+    const minDimension = Math.min(width, height);
+    const amplitudePercent =
+      numRipples === 1
+        ? config.singleRippleAmplitudePercent
+        : map(
+            random(),
+            0,
+            1,
+            config.amplitudePercent.min,
+            config.amplitudePercent.max
+          );
+    const amplitude = minDimension * amplitudePercent;
     const frequency = map(
       random(),
       0,
@@ -37,6 +44,18 @@ const renderers = {
         y: random() * height,
         phase: random() * Math.PI * 2,
       });
+    }
+
+    // Center the group of ripples on the canvas
+    const centroidX = ripples.reduce((sum, r) => sum + r.x, 0) / numRipples;
+    const centroidY = ripples.reduce((sum, r) => sum + r.y, 0) / numRipples;
+    const offsetToCenter = {
+      x: width / 2 - centroidX,
+      y: height / 2 - centroidY,
+    };
+    for (const ripple of ripples) {
+      ripple.x += offsetToCenter.x;
+      ripple.y += offsetToCenter.y;
     }
 
     for (let y = 0; y < height; y++) {

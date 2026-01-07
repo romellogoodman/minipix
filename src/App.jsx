@@ -360,11 +360,11 @@ function App() {
                           /\.(jpe?g|png)$/i,
                           ""
                         );
-                        filename = `${nameWithoutExt}-minipix-${renderer.name}-${hash}.${extension}`;
+                        filename = `${nameWithoutExt}-minipix-${rendererConfig[renderer.name].displayName}-${hash}.${extension}`;
                       } else {
                         filename = `canvas-${
                           index + 1
-                        }-minipix-${renderer.name}-${hash}.${extension}`;
+                        }-minipix-${rendererConfig[renderer.name].displayName}-${hash}.${extension}`;
                       }
 
                       link.download = filename;
