@@ -40,12 +40,26 @@ export const rendererConfig = {
     vignetteStrength: { min: 0.2, max: 0.5 },
     curvature: { min: 0.05, max: 0.2 },
   },
+  duotone: {
+    displayName: "duotone",
+    hueShift: { min: 0, max: 360 },
+    saturationBoost: { min: 0.8, max: 1.2 },
+  },
+  filmGrain: {
+    displayName: "filmGrain",
+    grainIntensity: { min: 0.1, max: 0.5 },
+    tintStrength: { min: 0.1, max: 0.6 },
+    contrast: { min: 0.9, max: 1.3 },
+    vignette: { min: 0.2, max: 0.6 },
+    scratchCount: { min: 0, max: 20 },
+  },
   glitch: {
     displayName: "glitch",
     numSlices: { min: 5, max: 30 },
     maxOffset: { min: 0.02, max: 0.15 },
     colorShiftProbability: 0.3,
     colorShiftAmount: { min: 5, max: 30 },
+    invertProbability: 0.5,
   },
   gridSwap: {
     displayName: "gridSwap",
@@ -81,8 +95,24 @@ export const rendererConfig = {
     sourceOffsetPercent: { min: 0, max: 1 }, // where to sample from in non-square images
     fillCanvasProbability: 0.5, // chance to stretch to fill vs maintain square
   },
+  oilPaint: {
+    displayName: "oilPaint",
+    radius: { min: 3, max: 6 },
+    levels: { min: 4, max: 10 },
+    saturation: { min: 1.2, max: 1.6 },
+  },
   pixelated: {
     displayName: "pixelated",
+  },
+  pixelSort: {
+    displayName: "pixelSort",
+    threshold: { min: 0.05, max: 0.4 },
+    sortLength: { min: 0.6, max: 1.0 },
+    reverseProbability: 0.5,
+  },
+  posterize: {
+    displayName: "posterize",
+    levels: { min: 2, max: 8 },
   },
   radialBlur: {
     displayName: "radialBlur",
@@ -101,6 +131,12 @@ export const rendererConfig = {
     displayName: "scooch",
     numScooches: { min: 1, max: 8 },
     scoochPercent: { min: 0.05, max: 0.5 },
+  },
+  sketch: {
+    displayName: "sketch",
+    lineThickness: { min: 1, max: 3 },
+    edgeThreshold: { min: 30, max: 100 },
+    hatchingDensity: { min: 2, max: 6 },
   },
   spiral: {
     displayName: "spiral",
@@ -125,6 +161,13 @@ export const rendererConfig = {
     skipProbability: { min: 0.3, max: 0.6 },
     splitPercent: { min: 0.3, max: 0.7 },
     minSize: 10,
+  },
+  vhs: {
+    displayName: "vhs",
+    trackingNoise: { min: 0.02, max: 0.1 },
+    colorBleed: { min: 2, max: 10 },
+    wobble: { min: 1, max: 5 },
+    noiseIntensity: { min: 0.05, max: 0.2 },
   },
   waves: {
     displayName: "waves",
@@ -1458,6 +1501,61 @@ export const crt = async ({ canvas, image, seed = Date.now() }) => {
 
 crt.isAsync = true;
 
+export const duotone = async ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.drawImage(image, 0, 0);
+  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  const result = await workerPool.render(
+    "duotone",
+    sourceData.data,
+    canvas.width,
+    canvas.height,
+    seed,
+    rendererConfig.duotone
+  );
+
+  const outputData = ctx.createImageData(canvas.width, canvas.height);
+  outputData.data.set(result.data);
+  ctx.putImageData(outputData, 0, 0);
+};
+
+duotone.isAsync = true;
+
+
+export const filmGrain = async ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.drawImage(image, 0, 0);
+  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  const result = await workerPool.render(
+    "filmGrain",
+    sourceData.data,
+    canvas.width,
+    canvas.height,
+    seed,
+    rendererConfig.filmGrain
+  );
+
+  const outputData = ctx.createImageData(canvas.width, canvas.height);
+  outputData.data.set(result.data);
+  ctx.putImageData(outputData, 0, 0);
+};
+
+filmGrain.isAsync = true;
+
 export const glitch = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
 
@@ -1486,6 +1584,7 @@ export const glitch = ({ canvas, image, seed = Date.now() }) => {
     config.maxOffset.min,
     config.maxOffset.max
   );
+  const shouldInvert = random() < config.invertProbability;
 
   // Create horizontal glitch slices
   for (let i = 0; i < numSlices; i++) {
@@ -1516,6 +1615,15 @@ export const glitch = ({ canvas, image, seed = Date.now() }) => {
           sliceData.data[p + channelToShift] =
             sliceData.data[shiftedIdx + channelToShift];
         }
+      }
+    }
+
+    // Invert colors (50/50 to enable, then 50/50 per slice)
+    if (shouldInvert && random() < 0.5) {
+      for (let p = 0; p < sliceData.data.length; p += 4) {
+        sliceData.data[p] = 255 - sliceData.data[p]; // R
+        sliceData.data[p + 1] = 255 - sliceData.data[p + 1]; // G
+        sliceData.data[p + 2] = 255 - sliceData.data[p + 2]; // B
       }
     }
 
@@ -1673,3 +1781,140 @@ export const waves = async ({ canvas, image, seed = Date.now() }) => {
 };
 
 waves.isAsync = true;
+
+export const oilPaint = async ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.drawImage(image, 0, 0);
+  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  const result = await workerPool.render(
+    "oilPaint",
+    sourceData.data,
+    canvas.width,
+    canvas.height,
+    seed,
+    rendererConfig.oilPaint
+  );
+
+  const outputData = ctx.createImageData(canvas.width, canvas.height);
+  outputData.data.set(result.data);
+  ctx.putImageData(outputData, 0, 0);
+};
+
+oilPaint.isAsync = true;
+
+export const pixelSort = async ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.drawImage(image, 0, 0);
+  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  const result = await workerPool.render(
+    "pixelSort",
+    sourceData.data,
+    canvas.width,
+    canvas.height,
+    seed,
+    rendererConfig.pixelSort
+  );
+
+  const outputData = ctx.createImageData(canvas.width, canvas.height);
+  outputData.data.set(result.data);
+  ctx.putImageData(outputData, 0, 0);
+};
+
+pixelSort.isAsync = true;
+
+export const posterize = async ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.drawImage(image, 0, 0);
+  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  const result = await workerPool.render(
+    "posterize",
+    sourceData.data,
+    canvas.width,
+    canvas.height,
+    seed,
+    rendererConfig.posterize
+  );
+
+  const outputData = ctx.createImageData(canvas.width, canvas.height);
+  outputData.data.set(result.data);
+  ctx.putImageData(outputData, 0, 0);
+};
+
+posterize.isAsync = true;
+
+export const sketch = async ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.drawImage(image, 0, 0);
+  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  const result = await workerPool.render(
+    "sketch",
+    sourceData.data,
+    canvas.width,
+    canvas.height,
+    seed,
+    rendererConfig.sketch
+  );
+
+  const outputData = ctx.createImageData(canvas.width, canvas.height);
+  outputData.data.set(result.data);
+  ctx.putImageData(outputData, 0, 0);
+};
+
+sketch.isAsync = true;
+
+
+export const vhs = async ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.drawImage(image, 0, 0);
+  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  const result = await workerPool.render(
+    "vhs",
+    sourceData.data,
+    canvas.width,
+    canvas.height,
+    seed,
+    rendererConfig.vhs
+  );
+
+  const outputData = ctx.createImageData(canvas.width, canvas.height);
+  outputData.data.set(result.data);
+  ctx.putImageData(outputData, 0, 0);
+};
+
+vhs.isAsync = true;
+
