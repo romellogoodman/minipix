@@ -27,6 +27,19 @@ export const rendererConfig = {
     lineLength: { min: 8, max: 25 },
     strokeWidth: { min: 1, max: 3 },
   },
+  crt: {
+    displayName: "crt",
+    scanlineIntensity: { min: 0.1, max: 0.5 },
+    scanlineCount: { min: 100, max: 400 },
+    brightness: { min: 1.0, max: 1.3 },
+    contrast: { min: 1.0, max: 1.2 },
+    saturation: { min: 1.0, max: 1.3 },
+    bloomIntensity: { min: 0.1, max: 0.4 },
+    bloomRadius: { min: 2, max: 6 },
+    rgbShift: { min: 1, max: 4 },
+    vignetteStrength: { min: 0.2, max: 0.5 },
+    curvature: { min: 0.05, max: 0.2 },
+  },
   glitch: {
     displayName: "glitch",
     numSlices: { min: 5, max: 30 },
@@ -1415,6 +1428,35 @@ export const crosshatch = ({ canvas, image, seed = Date.now() }) => {
 
   ctx.restore();
 };
+
+export const crt = async ({ canvas, image, seed = Date.now() }) => {
+  if (!image) return;
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw image to get pixel data
+  ctx.drawImage(image, 0, 0);
+  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  // Use worker for pixel processing
+  const result = await workerPool.render(
+    "crt",
+    sourceData.data,
+    canvas.width,
+    canvas.height,
+    seed,
+    rendererConfig.crt
+  );
+
+  const outputData = ctx.createImageData(canvas.width, canvas.height);
+  outputData.data.set(result.data);
+  ctx.putImageData(outputData, 0, 0);
+};
+
+crt.isAsync = true;
 
 export const glitch = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
