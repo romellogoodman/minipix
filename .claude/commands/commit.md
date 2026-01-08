@@ -1,7 +1,7 @@
 ---
-allowed-tools: Bash(npm run format:*), Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git diff:*)
+allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(git diff:*)
 argument-hint: [optional custom message]
-description: Format code and commit all changes with Gitmoji format
+description: Commit all changes with Gitmoji format
 ---
 
 ## Context
@@ -34,13 +34,12 @@ Based on the above git changes, create a single commit with a Gitmoji-style comm
 
 **Instructions:**
 
-1. Format all code with `npm run format` to ensure consistent formatting
-2. Stage all changes with `git add .`
-3. Analyze the changes and choose the most appropriate Gitmoji
-4. Create a commit message with:
+1. Stage all changes with `git add .`
+2. Analyze the changes and choose the most appropriate Gitmoji
+3. Create a commit message with:
    - Title: `emoji description` (if custom message provided as $ARGUMENTS, use: `emoji $ARGUMENTS`)
    - Body: Detailed changelog in keepachangelog format listing specific changes
-5. Commit the changes using HEREDOC format
+4. Commit the changes using HEREDOC format
 
 **Commit Message Format:**
 
