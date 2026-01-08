@@ -5,7 +5,7 @@ A generative art tool for creating computational collages from images using vari
 ## Features
 
 - Upload multiple images (PNG/JPEG) via drag-and-drop or file selection
-- Generate infinite variations using 10+ different rendering algorithms
+- Generate infinite variations using 25+ different rendering algorithms
 - Seeded randomness for reproducible artwork
 - Configurable renderer parameters
 - Download individual canvases with descriptive filenames including seed hash
@@ -88,19 +88,42 @@ npm run render -- --help
 
 #### Available Renderers
 
+**Geometric**
 - `barSwap` - Shuffles horizontal or vertical bars
 - `gridSwap` - Shuffles grid tiles with aspect-ratio adaptation
+- `kaleidoscope` - Mirrored kaleidoscope effect
 - `pixelated` - Adaptive block-based pixelation
 - `scooch` - Wraps edge slices to opposite side
 - `stacked` - Layered effect with varying scales
 - `stackedCircle` - Circular clipped stacks with rotation
 - `subdivision` - Recursive fragmentation with flips
+
+**Halftone & Dithering**
 - `halftone` - Halftone effect with multiple modes
 - `halftoneBayer` - Bayer matrix dithering
 - `halftoneClassicDots` - Classic halftone dots
 - `halftoneFloydSteinberg` - Floyd-Steinberg dithering
 - `halftoneLines` - Line-based halftone
-- `kaleidoscope` - Mirrored kaleidoscope effect
+- `crosshatch` - Crosshatch drawing style
+- `posterize` - Reduce colors to discrete bands
+
+**Distortion**
+- `glitch` - Horizontal slice displacement with color inversion
+- `pixelSort` - Glitch art pixel reordering by luminance
+- `radialBlur` - Zoom blur from center point
+- `ripple` - Concentric wave distortion
+- `spiral` - Rotational twist effect
+- `waves` - Sinusoidal displacement
+
+**Vintage & Film**
+- `crt` - CRT monitor effect with scanlines, curvature, bloom
+- `duotone` - Two-color gradient mapping
+- `filmGrain` - Vintage film with grain, vignette, scratches
+- `vhs` - VHS tape degradation effect
+
+**Artistic**
+- `oilPaint` - Kuwahara filter painterly effect
+- `sketch` - Pencil drawing with edge detection and hatching
 
 #### Performance Tips
 
