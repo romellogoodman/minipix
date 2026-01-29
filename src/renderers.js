@@ -1918,3 +1918,32 @@ export const vhs = async ({ canvas, image, seed = Date.now() }) => {
 
 vhs.isAsync = true;
 
+// Add displayName to each renderer to survive minification
+barSwap.displayName = "barSwap";
+crosshatch.displayName = "crosshatch";
+crt.displayName = "crt";
+duotone.displayName = "duotone";
+filmGrain.displayName = "filmGrain";
+glitch.displayName = "glitch";
+gridSwap.displayName = "gridSwap";
+halftone.displayName = "halftone";
+halftoneBayer.displayName = "halftoneBayer";
+halftoneClassicDots.displayName = "halftoneClassicDots";
+halftoneFloydSteinberg.displayName = "halftoneFloydSteinberg";
+halftoneLines.displayName = "halftoneLines";
+kaleidoscope.displayName = "kaleidoscope";
+oilPaint.displayName = "oilPaint";
+pixelated.displayName = "pixelated";
+pixelSort.displayName = "pixelSort";
+posterize.displayName = "posterize";
+radialBlur.displayName = "radialBlur";
+ripple.displayName = "ripple";
+scooch.displayName = "scooch";
+sketch.displayName = "sketch";
+spiral.displayName = "spiral";
+stacked.displayName = "stacked";
+stackedCircle.displayName = "stackedCircle";
+subdivision.displayName = "subdivision";
+vhs.displayName = "vhs";
+waves.displayName = "waves";
+
