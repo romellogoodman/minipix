@@ -331,48 +331,90 @@ const renderers = {
       }
     }
 
-    // Second pass: apply bloom (simple box blur on bright areas), scanlines, color adjustments, vignette
+    // Second pass: separable bloom blur (horizontal then vertical) on bright pixels
+    let bloomData = null;
+    if (bloomIntensity > 0) {
+      // Extract bright pixels for bloom
+      const brightR = new Float32Array(width * height);
+      const brightG = new Float32Array(width * height);
+      const brightB = new Float32Array(width * height);
+
+      for (let i = 0, j = 0; i < tempData.length; i += 4, j++) {
+        const sr = tempData[i];
+        const sg = tempData[i + 1];
+        const sb = tempData[i + 2];
+        if (sr + sg + sb > 384) {
+          brightR[j] = sr;
+          brightG[j] = sg;
+          brightB[j] = sb;
+        }
+      }
+
+      // Horizontal blur pass
+      const hBlurR = new Float32Array(width * height);
+      const hBlurG = new Float32Array(width * height);
+      const hBlurB = new Float32Array(width * height);
+
+      for (let y = 0; y < height; y++) {
+        const rowOffset = y * width;
+        for (let x = 0; x < width; x++) {
+          let sumR = 0, sumG = 0, sumB = 0, count = 0;
+          const x0 = Math.max(0, x - bloomRadius);
+          const x1 = Math.min(width - 1, x + bloomRadius);
+          for (let sx = x0; sx <= x1; sx++) {
+            const idx = rowOffset + sx;
+            sumR += brightR[idx];
+            sumG += brightG[idx];
+            sumB += brightB[idx];
+            count++;
+          }
+          const idx = rowOffset + x;
+          const inv = 1 / count;
+          hBlurR[idx] = sumR * inv;
+          hBlurG[idx] = sumG * inv;
+          hBlurB[idx] = sumB * inv;
+        }
+      }
+
+      // Vertical blur pass
+      bloomData = { r: new Float32Array(width * height), g: new Float32Array(width * height), b: new Float32Array(width * height) };
+
+      for (let x = 0; x < width; x++) {
+        for (let y = 0; y < height; y++) {
+          let sumR = 0, sumG = 0, sumB = 0, count = 0;
+          const y0 = Math.max(0, y - bloomRadius);
+          const y1 = Math.min(height - 1, y + bloomRadius);
+          for (let sy = y0; sy <= y1; sy++) {
+            const idx = sy * width + x;
+            sumR += hBlurR[idx];
+            sumG += hBlurG[idx];
+            sumB += hBlurB[idx];
+            count++;
+          }
+          const idx = y * width + x;
+          const inv = 1 / count;
+          bloomData.r[idx] = sumR * inv;
+          bloomData.g[idx] = sumG * inv;
+          bloomData.b[idx] = sumB * inv;
+        }
+      }
+    }
+
+    // Third pass: combine bloom with color adjustments, scanlines, vignette
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const dstIdx = (y * width + x) * 4;
+        const pixIdx = y * width + x;
+        const dstIdx = pixIdx * 4;
 
         let r = tempData[dstIdx];
         let g = tempData[dstIdx + 1];
         let b = tempData[dstIdx + 2];
 
-        // Simple bloom: sample sparse grid for speed
-        if (bloomIntensity > 0) {
-          let bloomR = 0, bloomG = 0, bloomB = 0;
-          let samples = 0;
-          const step = 2; // Sample every 2nd pixel for speed
-
-          for (let dy = -bloomRadius; dy <= bloomRadius; dy += step) {
-            const sy = y + dy;
-            if (sy < 0 || sy >= height) continue;
-            const rowOffset = sy * width;
-            for (let dx = -bloomRadius; dx <= bloomRadius; dx += step) {
-              const sx = x + dx;
-              if (sx < 0 || sx >= width) continue;
-              const sIdx = (rowOffset + sx) * 4;
-              const sr = tempData[sIdx];
-              const sg = tempData[sIdx + 1];
-              const sb = tempData[sIdx + 2];
-              // Only bloom bright pixels (fast luminance approximation)
-              if (sr + sg + sb > 384) {
-                bloomR += sr;
-                bloomG += sg;
-                bloomB += sb;
-                samples++;
-              }
-            }
-          }
-
-          if (samples > 0) {
-            const invSamples = 1 / samples;
-            r += bloomR * invSamples * bloomIntensity;
-            g += bloomG * invSamples * bloomIntensity;
-            b += bloomB * invSamples * bloomIntensity;
-          }
+        // Add bloom
+        if (bloomData) {
+          r += bloomData.r[pixIdx] * bloomIntensity;
+          g += bloomData.g[pixIdx] * bloomIntensity;
+          b += bloomData.b[pixIdx] * bloomIntensity;
         }
 
         // Apply brightness

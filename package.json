@@ -11,13 +11,13 @@
     "render": "node scripts/render.js"
   },
   "dependencies": {
-    "canvas": "^3.2.0",
     "feather-icons-react": "^1.0.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "canvas": "^3.2.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",

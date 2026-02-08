@@ -1472,89 +1472,40 @@ export const crosshatch = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-export const crt = async ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
+// Factory for worker-based async renderers
+const createWorkerRenderer = (name) => {
+  const renderer = async ({ canvas, image, seed = Date.now() }) => {
+    if (!image) return;
 
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const ctx = canvas.getContext("2d");
+    canvas.width = image.width;
+    canvas.height = image.height;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw image to get pixel data
-  ctx.drawImage(image, 0, 0);
-  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0);
+    const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-  // Use worker for pixel processing
-  const result = await workerPool.render(
-    "crt",
-    sourceData.data,
-    canvas.width,
-    canvas.height,
-    seed,
-    rendererConfig.crt
-  );
+    const result = await workerPool.render(
+      name,
+      sourceData.data,
+      canvas.width,
+      canvas.height,
+      seed,
+      rendererConfig[name]
+    );
 
-  const outputData = ctx.createImageData(canvas.width, canvas.height);
-  outputData.data.set(result.data);
-  ctx.putImageData(outputData, 0, 0);
+    const outputData = ctx.createImageData(canvas.width, canvas.height);
+    outputData.data.set(result.data);
+    ctx.putImageData(outputData, 0, 0);
+  };
+  renderer.isAsync = true;
+  renderer.displayName = rendererConfig[name].displayName;
+  return renderer;
 };
 
-crt.isAsync = true;
-
-export const duotone = async ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.drawImage(image, 0, 0);
-  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  const result = await workerPool.render(
-    "duotone",
-    sourceData.data,
-    canvas.width,
-    canvas.height,
-    seed,
-    rendererConfig.duotone
-  );
-
-  const outputData = ctx.createImageData(canvas.width, canvas.height);
-  outputData.data.set(result.data);
-  ctx.putImageData(outputData, 0, 0);
-};
-
-duotone.isAsync = true;
-
-
-export const filmGrain = async ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.drawImage(image, 0, 0);
-  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  const result = await workerPool.render(
-    "filmGrain",
-    sourceData.data,
-    canvas.width,
-    canvas.height,
-    seed,
-    rendererConfig.filmGrain
-  );
-
-  const outputData = ctx.createImageData(canvas.width, canvas.height);
-  outputData.data.set(result.data);
-  ctx.putImageData(outputData, 0, 0);
-};
-
-filmGrain.isAsync = true;
+export const crt = createWorkerRenderer("crt");
+export const duotone = createWorkerRenderer("duotone");
+export const filmGrain = createWorkerRenderer("filmGrain");
 
 export const glitch = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
@@ -1694,236 +1645,19 @@ export const radialBlur = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-export const ripple = async ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
+export const oilPaint = createWorkerRenderer("oilPaint");
+export const pixelSort = createWorkerRenderer("pixelSort");
+export const posterize = createWorkerRenderer("posterize");
+export const ripple = createWorkerRenderer("ripple");
+export const sketch = createWorkerRenderer("sketch");
+export const spiral = createWorkerRenderer("spiral");
+export const vhs = createWorkerRenderer("vhs");
+export const waves = createWorkerRenderer("waves");
 
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Draw image to get pixel data
-  ctx.drawImage(image, 0, 0);
-  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  // Use worker for pixel processing
-  const result = await workerPool.render(
-    "ripple",
-    sourceData.data,
-    canvas.width,
-    canvas.height,
-    seed,
-    rendererConfig.ripple
-  );
-
-  const outputData = ctx.createImageData(canvas.width, canvas.height);
-  outputData.data.set(result.data);
-  ctx.putImageData(outputData, 0, 0);
-};
-
-// Mark as async for Canvas.jsx to handle
-ripple.isAsync = true;
-
-export const spiral = async ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Draw image to get pixel data
-  ctx.drawImage(image, 0, 0);
-  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  // Use worker for pixel processing
-  const result = await workerPool.render(
-    "spiral",
-    sourceData.data,
-    canvas.width,
-    canvas.height,
-    seed,
-    rendererConfig.spiral
-  );
-
-  const outputData = ctx.createImageData(canvas.width, canvas.height);
-  outputData.data.set(result.data);
-  ctx.putImageData(outputData, 0, 0);
-};
-
-spiral.isAsync = true;
-
-export const waves = async ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Draw image to get pixel data
-  ctx.drawImage(image, 0, 0);
-  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  // Use worker for pixel processing
-  const result = await workerPool.render(
-    "waves",
-    sourceData.data,
-    canvas.width,
-    canvas.height,
-    seed,
-    rendererConfig.waves
-  );
-
-  const outputData = ctx.createImageData(canvas.width, canvas.height);
-  outputData.data.set(result.data);
-  ctx.putImageData(outputData, 0, 0);
-};
-
-waves.isAsync = true;
-
-export const oilPaint = async ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.drawImage(image, 0, 0);
-  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  const result = await workerPool.render(
-    "oilPaint",
-    sourceData.data,
-    canvas.width,
-    canvas.height,
-    seed,
-    rendererConfig.oilPaint
-  );
-
-  const outputData = ctx.createImageData(canvas.width, canvas.height);
-  outputData.data.set(result.data);
-  ctx.putImageData(outputData, 0, 0);
-};
-
-oilPaint.isAsync = true;
-
-export const pixelSort = async ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.drawImage(image, 0, 0);
-  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  const result = await workerPool.render(
-    "pixelSort",
-    sourceData.data,
-    canvas.width,
-    canvas.height,
-    seed,
-    rendererConfig.pixelSort
-  );
-
-  const outputData = ctx.createImageData(canvas.width, canvas.height);
-  outputData.data.set(result.data);
-  ctx.putImageData(outputData, 0, 0);
-};
-
-pixelSort.isAsync = true;
-
-export const posterize = async ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.drawImage(image, 0, 0);
-  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  const result = await workerPool.render(
-    "posterize",
-    sourceData.data,
-    canvas.width,
-    canvas.height,
-    seed,
-    rendererConfig.posterize
-  );
-
-  const outputData = ctx.createImageData(canvas.width, canvas.height);
-  outputData.data.set(result.data);
-  ctx.putImageData(outputData, 0, 0);
-};
-
-posterize.isAsync = true;
-
-export const sketch = async ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.drawImage(image, 0, 0);
-  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  const result = await workerPool.render(
-    "sketch",
-    sourceData.data,
-    canvas.width,
-    canvas.height,
-    seed,
-    rendererConfig.sketch
-  );
-
-  const outputData = ctx.createImageData(canvas.width, canvas.height);
-  outputData.data.set(result.data);
-  ctx.putImageData(outputData, 0, 0);
-};
-
-sketch.isAsync = true;
-
-
-export const vhs = async ({ canvas, image, seed = Date.now() }) => {
-  if (!image) return;
-
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.drawImage(image, 0, 0);
-  const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-  const result = await workerPool.render(
-    "vhs",
-    sourceData.data,
-    canvas.width,
-    canvas.height,
-    seed,
-    rendererConfig.vhs
-  );
-
-  const outputData = ctx.createImageData(canvas.width, canvas.height);
-  outputData.data.set(result.data);
-  ctx.putImageData(outputData, 0, 0);
-};
-
-vhs.isAsync = true;
-
-// Add displayName to each renderer to survive minification
+// Add displayName to sync renderers to survive minification
+// (async renderers get displayName from createWorkerRenderer)
 barSwap.displayName = "barSwap";
 crosshatch.displayName = "crosshatch";
-crt.displayName = "crt";
-duotone.displayName = "duotone";
-filmGrain.displayName = "filmGrain";
 glitch.displayName = "glitch";
 gridSwap.displayName = "gridSwap";
 halftone.displayName = "halftone";
@@ -1932,18 +1666,10 @@ halftoneClassicDots.displayName = "halftoneClassicDots";
 halftoneFloydSteinberg.displayName = "halftoneFloydSteinberg";
 halftoneLines.displayName = "halftoneLines";
 kaleidoscope.displayName = "kaleidoscope";
-oilPaint.displayName = "oilPaint";
 pixelated.displayName = "pixelated";
-pixelSort.displayName = "pixelSort";
-posterize.displayName = "posterize";
 radialBlur.displayName = "radialBlur";
-ripple.displayName = "ripple";
 scooch.displayName = "scooch";
-sketch.displayName = "sketch";
-spiral.displayName = "spiral";
 stacked.displayName = "stacked";
 stackedCircle.displayName = "stackedCircle";
 subdivision.displayName = "subdivision";
-vhs.displayName = "vhs";
-waves.displayName = "waves";
 

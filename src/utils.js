@@ -1,68 +1,5 @@
-/**
- * Seeded pseudo-random number generator using Mulberry32 algorithm.
- * @param {number} seed - The seed value for the generator
- * @returns {function(): number} A function that returns random numbers between 0 and 1
- */
-export const mulberry32 = (seed) => {
-  return function() {
-    let t = seed += 0x6D2B79F5;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  }
-};
-
-/**
- * Creates a seeded random function from a seed value.
- * @param {number} seed - The seed value
- * @returns {function(): number} A seeded random function
- */
-export const createSeededRandom = (seed) => {
-  return mulberry32(seed);
-};
-
-/**
- * Remaps a number from one range to another range.
- * @param {number} value - The value to remap
- * @param {number} start1 - The lower bound of the input range
- * @param {number} stop1 - The upper bound of the input range
- * @param {number} start2 - The lower bound of the output range
- * @param {number} stop2 - The upper bound of the output range
- * @param {boolean} [withinBounds=false] - Whether to constrain the result within the output range
- * @returns {number} The remapped value
- */
-export const map = (
-  value,
-  start1,
-  stop1,
-  start2,
-  stop2,
-  withinBounds = false
-) => {
-  const mapped =
-    start2 + (stop2 - start2) * ((value - start1) / (stop1 - start1));
-
-  if (!withinBounds) {
-    return mapped;
-  }
-
-  if (start2 < stop2) {
-    return Math.max(Math.min(mapped, stop2), start2);
-  } else {
-    return Math.max(Math.min(mapped, start2), stop2);
-  }
-};
-
-/**
- * Generates a random integer between min and max (inclusive).
- * @param {number} min - The minimum value (inclusive)
- * @param {number} max - The maximum value (inclusive)
- * @param {function(): number} [randomFn=Math.random] - Optional random function to use
- * @returns {number} A random integer between min and max
- */
-export const randomNumber = (min, max, randomFn = Math.random) => {
-  return Math.floor(randomFn() * (max - min + 1)) + min;
-};
+// Re-export shared math utilities from the canonical source
+export { mulberry32, createSeededRandom, map, randomNumber } from "./math.js";
 
 /**
  * Applies random horizontal and/or vertical flipping to a canvas context.
@@ -431,9 +368,7 @@ export const applyFloydSteinbergDithering = (imageData, palette) => {
   const output = new ImageData(width, height);
 
   // Copy original data to output and create error buffer
-  for (let i = 0; i < data.length; i++) {
-    output.data[i] = data[i];
-  }
+  output.data.set(data);
 
   // Error diffusion coefficients (right, bottom-left, bottom, bottom-right)
   const diffusion = [

@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./App.scss";
 import Canvas from "./Canvas";
 import * as renderers from "./renderers";
 import { rendererConfig } from "./renderers";
 import { createSeededRandom } from "./utils";
 import { Upload } from "feather-icons-react";
+
+let nextImageId = 0;
 
 // Custom hook for loading images
 function useImageLoader() {
@@ -29,9 +31,8 @@ function useImageLoader() {
     imageNames.forEach((name) => {
       const img = new Image();
       img.onload = () => {
-        img.filename = name;
-        img.mimeType = "image/jpeg";
-        loadedImages.push(img);
+        const wrapped = { id: nextImageId++, element: img, filename: name, mimeType: "image/jpeg" };
+        loadedImages.push(wrapped);
         handleLoadComplete();
       };
       img.onerror = () => {
@@ -42,7 +43,7 @@ function useImageLoader() {
     });
   }, []);
 
-  const loadFiles = (files) => {
+  const loadFiles = useCallback((files) => {
     const validFiles = files.filter(
       (file) => file.type === "image/png" || file.type === "image/jpeg"
     );
@@ -71,10 +72,9 @@ function useImageLoader() {
         const img = new Image();
 
         img.onload = () => {
-          img.filename = file.name;
-          img.mimeType = file.type;
+          const wrapped = { id: nextImageId++, element: img, filename: file.name, mimeType: file.type };
           console.log("Loaded image:", file.name);
-          newImages.push(img);
+          newImages.push(wrapped);
           handleFileComplete();
         };
 
@@ -93,7 +93,7 @@ function useImageLoader() {
 
       reader.readAsDataURL(file);
     });
-  };
+  }, []);
 
   const toggleImageAvailability = (img) => {
     setAvailableImages((prev) => {
@@ -117,33 +117,43 @@ function generateSeedHash(seed) {
 // Custom hook for drag and drop
 function useDragAndDrop(onFilesDrop) {
   const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
 
   useEffect(() => {
+    const handleDragEnter = (e) => {
+      e.preventDefault();
+      dragCounter.current++;
+      setIsDragging(true);
+    };
+
     const handleDragOver = (e) => {
       e.preventDefault();
-      setIsDragging(true);
     };
 
     const handleDragLeave = (e) => {
       e.preventDefault();
-      if (e.target === document.body) {
+      dragCounter.current--;
+      if (dragCounter.current === 0) {
         setIsDragging(false);
       }
     };
 
     const handleDrop = (e) => {
       e.preventDefault();
+      dragCounter.current = 0;
       setIsDragging(false);
 
       const files = Array.from(e.dataTransfer.files);
       onFilesDrop(files);
     };
 
+    document.body.addEventListener("dragenter", handleDragEnter);
     document.body.addEventListener("dragover", handleDragOver);
     document.body.addEventListener("dragleave", handleDragLeave);
     document.body.addEventListener("drop", handleDrop);
 
     return () => {
+      document.body.removeEventListener("dragenter", handleDragEnter);
       document.body.removeEventListener("dragover", handleDragOver);
       document.body.removeEventListener("dragleave", handleDragLeave);
       document.body.removeEventListener("drop", handleDrop);
@@ -202,20 +212,23 @@ function App() {
     setGeneration((prev) => prev + 1);
   }, [availableImages]);
 
-  // Get all enabled renderers from config
-  const enabledRenderers = Object.keys(rendererConfig).map(
-    (name) => renderers[name]
+  // Get all enabled renderers from config (memoized)
+  const enabledRenderers = useMemo(
+    () => Object.keys(rendererConfig).map((name) => renderers[name]),
+    []
   );
 
-  // Parse query parameter for hardcoded renderer(s) - supports comma-separated list
-  const queryParams = new URLSearchParams(window.location.search);
-  const rendererParam = queryParams.get("renderer");
-  const filteredRenderers = rendererParam
-    ? rendererParam
-        .split(",")
-        .map((name) => renderers[name.trim()])
-        .filter(Boolean)
-    : null;
+  // Parse query parameter for hardcoded renderer(s) - supports comma-separated list (memoized)
+  const filteredRenderers = useMemo(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const rendererParam = queryParams.get("renderer");
+    if (!rendererParam) return null;
+    const matched = rendererParam
+      .split(",")
+      .map((name) => renderers[name.trim()])
+      .filter(Boolean);
+    return matched.length > 0 ? matched : null;
+  }, []);
 
   const handleFileChange = (event) => {
     const files = Array.from(event.target.files);
@@ -232,28 +245,26 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const getRandomImage = () => {
-    if (availableImages.length === 0) return null;
+  // Pre-compute canvas assignments using seeded randomness (deterministic per generation)
+  const rendererPool = filteredRenderers || enabledRenderers;
 
-    return availableImages[Math.floor(Math.random() * availableImages.length)];
-  };
+  const canvasAssignments = useMemo(() => {
+    if (availableImages.length === 0 || rendererPool.length === 0) return [];
 
-  // Select a single renderer using seeded randomness
-  const getRenderer = (seed) => {
-    // Use filtered renderers if specified via query param
-    const pool =
-      filteredRenderers && filteredRenderers.length > 0
-        ? filteredRenderers
-        : enabledRenderers;
-
-    if (pool.length === 0) {
-      return null;
-    }
-
-    const random = createSeededRandom(seed);
-    const rendererIndex = Math.floor(random() * pool.length);
-    return pool[rendererIndex];
-  };
+    // Use generation as seed for deterministic assignments
+    const random = createSeededRandom(generation * 0x1337);
+    return Array.from({ length: visibleCanvasCount }, () => {
+      const imageIndex = Math.floor(random() * availableImages.length);
+      const seed = Math.floor(random() * 0xffffffff);
+      const rendererRandom = createSeededRandom(seed);
+      const rendererIndex = Math.floor(rendererRandom() * rendererPool.length);
+      return {
+        image: availableImages[imageIndex],
+        seed,
+        renderer: rendererPool[rendererIndex],
+      };
+    });
+  }, [generation, visibleCanvasCount, availableImages, rendererPool]);
 
   return (
     <>
@@ -289,20 +300,20 @@ function App() {
               {allImages
                 .slice()
                 .reverse()
-                .map((img, index) => (
+                .map((img) => (
                   <button
-                    key={index}
+                    key={img.id}
                     className={`nav__thumbnail ${
                       availableImages.includes(img)
                         ? "nav__thumbnail--active"
                         : "nav__thumbnail--inactive"
                     }`}
                     onClick={() => handleToggleImage(img)}
-                    aria-label={`${availableImages.includes(img) ? "Disable" : "Enable"} ${img.filename || `image ${index + 1}`}`}
+                    aria-label={`${availableImages.includes(img) ? "Disable" : "Enable"} ${img.filename || "image"}`}
                     aria-pressed={availableImages.includes(img)}
                     type="button"
                     style={{
-                      backgroundImage: `url(${img.src})`,
+                      backgroundImage: `url(${img.element.src})`,
                       backgroundSize: "cover",
                       backgroundPosition: "center",
                     }}
@@ -313,49 +324,41 @@ function App() {
         </div>
       </nav>
 
-      {availableImages.length > 0 && (
+      {canvasAssignments.length > 0 && (
         <>
           <div className="canvas-grid" role="grid" aria-label="Generated artwork grid">
-            {Array.from({ length: visibleCanvasCount }).map((_, index) => {
-              const img = getRandomImage();
-              const seed = Math.floor(Math.random() * 0xffffffff);
-              const renderer = getRenderer(seed);
-
-              // Generate short hash from seed (6 characters)
+            {canvasAssignments.map(({ image: img, seed, renderer }, index) => {
               const hash = generateSeedHash(seed);
 
-              // Callback for when a render fails and needs retry with new renderer
               const handleRetryNeeded = () => {
-                const newSeed = Math.floor(Math.random() * 0xffffffff);
-                const newRenderer = getRenderer(newSeed);
-                return { newRenderFn: newRenderer, newSeed };
+                const retrySeed = seed ^ (0xdeadbeef + index);
+                const retryRandom = createSeededRandom(retrySeed);
+                const retryRendererIndex = Math.floor(retryRandom() * rendererPool.length);
+                return { newRenderFn: rendererPool[retryRendererIndex], newSeed: retrySeed };
               };
 
               return (
                 <div key={`${generation}-${index}`} className="canvas-grid__item" role="gridcell">
                   <Canvas
-                    image={img}
+                    image={img.element}
                     renderFn={renderer}
                     seed={seed}
                     onRetryNeeded={handleRetryNeeded}
                     onClick={(canvas) => {
                       const link = document.createElement("a");
 
-                      // Use original image format
-                      const mimeType = img?.mimeType || "image/png";
+                      const mimeType = img.mimeType || "image/png";
                       const quality =
                         mimeType === "image/jpeg" ? 0.95 : undefined;
                       const dataUrl = canvas.toDataURL(mimeType, quality);
 
                       link.href = dataUrl;
 
-                      // Get file extension from mime type
                       const extension =
                         mimeType === "image/jpeg" ? "jpg" : "png";
 
                       let filename;
-                      if (img?.filename) {
-                        // Replace original extension with correct one
+                      if (img.filename) {
                         const nameWithoutExt = img.filename.replace(
                           /\.(jpe?g|png)$/i,
                           ""
