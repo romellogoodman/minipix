@@ -165,8 +165,8 @@ function Canvas({ image, renderFn, onClick, seed, onRetryNeeded }) {
 
   // Calculate aspect ratio for placeholder
   const aspectRatio = image ? image.width / image.height : 1;
-  const maxWidth = 300; // matches CSS max-width
-  const maxHeight = 300;
+  const maxWidth = 600; // matches CSS max-width
+  const maxHeight = 600;
 
   let width, height;
   if (aspectRatio > 1) {
