@@ -1,47 +1,7 @@
 import { useRef, useEffect, useState, memo } from "react";
+import { renderQueue } from "./renderQueue";
 
-// Global render queue to limit concurrent renders
-// Use more workers on multi-core machines
-const renderQueue = {
-  active: 0,
-  maxConcurrent: Math.max(4, navigator.hardwareConcurrency || 4),
-  waiting: [],
-  retryCallbacks: [], // Callbacks waiting to retry with a new renderer
-
-  async request(fn) {
-    if (this.active >= this.maxConcurrent) {
-      // Wait for a slot to open
-      await new Promise((resolve) => this.waiting.push(resolve));
-    }
-
-    this.active++;
-    try {
-      await fn();
-    } finally {
-      this.active--;
-      // Process retry queue first (failed renders get priority)
-      if (this.retryCallbacks.length > 0) {
-        const retry = this.retryCallbacks.shift();
-        retry();
-      } else if (this.waiting.length > 0) {
-        const next = this.waiting.shift();
-        next();
-      }
-    }
-  },
-
-  // Queue a retry to happen when a slot opens
-  queueRetry(callback) {
-    this.retryCallbacks.push(callback);
-    // If there's capacity, trigger immediately
-    if (this.active < this.maxConcurrent && this.retryCallbacks.length > 0) {
-      const retry = this.retryCallbacks.shift();
-      retry();
-    }
-  },
-};
-
-function Canvas({ image, renderFn, onClick, seed, onRetryNeeded }) {
+function Canvas({ image, renderFn, onClick, seed, retryRenderFn, retrySeed }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -117,17 +77,16 @@ function Canvas({ image, renderFn, onClick, seed, onRetryNeeded }) {
             attemptRender(renderFn, seed).then((success) => {
               if (success) {
                 setIsRendered(true);
-              } else if (retryCountRef.current < maxRetries && onRetryNeeded) {
-                // Request a new renderer and retry when queue has space
+              } else if (retryCountRef.current < maxRetries && retryRenderFn) {
+                // Retry with precomputed fallback renderer when queue has space
                 retryCountRef.current++;
                 renderQueue.queueRetry(() => {
                   if (cancelled) return;
 
-                  const { newRenderFn, newSeed } = onRetryNeeded();
-                  if (newRenderFn && canvasRef.current) {
+                  if (canvasRef.current) {
                     renderQueue.request(async () => {
                       if (cancelled) return;
-                      const retrySuccess = await attemptRender(newRenderFn, newSeed);
+                      const retrySuccess = await attemptRender(retryRenderFn, retrySeed);
                       if (retrySuccess) {
                         setIsRendered(true);
                       }
@@ -147,7 +106,7 @@ function Canvas({ image, renderFn, onClick, seed, onRetryNeeded }) {
     return () => {
       cancelled = true;
     };
-  }, [isVisible, isRendered, renderFn, image, seed, onRetryNeeded]);
+  }, [isVisible, isRendered, renderFn, image, seed, retryRenderFn, retrySeed]);
 
   const handleClick = () => {
     if (onClick && canvasRef.current) {

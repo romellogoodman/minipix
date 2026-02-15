@@ -203,11 +203,6 @@ class WorkerPool {
     }
   }
 
-  // Check if a renderer can be offloaded to workers
-  canOffload(rendererName) {
-    return ["ripple", "spiral", "waves"].includes(rendererName);
-  }
-
   terminate() {
     // Reject all pending callbacks
     for (const callback of this.callbacks.values()) {
