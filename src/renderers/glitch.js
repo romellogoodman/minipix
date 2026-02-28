@@ -84,6 +84,6 @@ const glitch = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-glitch.displayName = rendererConfig.glitch.displayName;
+glitch.displayName = "glitch";
 
 export default glitch;

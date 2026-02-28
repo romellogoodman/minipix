@@ -56,6 +56,6 @@ const radialBlur = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-radialBlur.displayName = rendererConfig.radialBlur.displayName;
+radialBlur.displayName = "radialBlur";
 
 export default radialBlur;

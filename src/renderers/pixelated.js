@@ -3,7 +3,6 @@ import {
   calculateAdaptivePixelSize,
   getAverageColorInBlock,
 } from "../utils/index.js";
-import { rendererConfig } from "./config.js";
 
 const pixelated = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
@@ -72,6 +71,6 @@ const pixelated = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-pixelated.displayName = rendererConfig.pixelated.displayName;
+pixelated.displayName = "pixelated";
 
 export default pixelated;

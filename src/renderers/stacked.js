@@ -45,6 +45,6 @@ const stacked = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-stacked.displayName = rendererConfig.stacked.displayName;
+stacked.displayName = "stacked";
 
 export default stacked;

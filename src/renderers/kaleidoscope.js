@@ -139,6 +139,6 @@ const kaleidoscope = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-kaleidoscope.displayName = rendererConfig.kaleidoscope.displayName;
+kaleidoscope.displayName = "kaleidoscope";
 
 export default kaleidoscope;

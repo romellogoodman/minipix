@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import "./App.scss";
 import Canvas from "./Canvas";
 import * as renderers from "./renderers";
 import { rendererConfig } from "./renderers";
 import { createSeededRandom } from "./utils/math";
-import { workerPool } from "./workers/pool";
 import useImageLoader from "./hooks/useImageLoader";
 import useDragAndDrop from "./hooks/useDragAndDrop";
 import useInfiniteScroll from "./hooks/useInfiniteScroll";
@@ -15,11 +14,34 @@ function generateSeedHash(seed) {
   return (seed >>> 0).toString(36).padStart(7, "0");
 }
 
+function downloadCanvas(canvas, { img, rendererName, hash, index }) {
+  const mimeType = img.mimeType || "image/png";
+  const quality = mimeType === "image/jpeg" ? 0.95 : undefined;
+
+  canvas.toBlob(
+    (blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      const extension = mimeType === "image/jpeg" ? "jpg" : "png";
+      const base = img.filename
+        ? img.filename.replace(/\.(jpe?g|png)$/i, "")
+        : `canvas-${index + 1}`;
+      link.download = `${base}-minipix-${rendererName}-${hash}.${extension}`;
+
+      link.click();
+      URL.revokeObjectURL(url);
+    },
+    mimeType,
+    quality
+  );
+}
+
 function App() {
   const fileInputRef = useRef(null);
   const sentinelRef = useRef(null);
-  // Terminate worker pool on unmount
-  useEffect(() => () => workerPool.terminate(), []);
 
   const { allImages, availableImages, availableImageIds, loadFiles, toggleImageAvailability } =
     useImageLoader();
@@ -60,33 +82,29 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Pre-compute canvas assignments using seeded randomness
   const rendererPool = filteredRenderers || enabledRenderers;
 
+  // Assignments are seeded per-index so that growing visibleCanvasCount extends
+  // the list rather than regenerating it. Canvas N always gets the same seed,
+  // image, and renderer regardless of how far the user has scrolled.
   const canvasAssignments = useMemo(() => {
     if (availableImages.length === 0 || rendererPool.length === 0) return [];
 
-    const random = createSeededRandom(visibleCanvasCount * 0x1337);
     return Array.from({ length: visibleCanvasCount }, (_, index) => {
+      const random = createSeededRandom(index * 0x9e3779b1);
       const imageIndex = Math.floor(random() * availableImages.length);
       const seed = Math.floor(random() * 0xffffffff);
-      const rendererRandom = createSeededRandom(seed);
-      const rendererIndex = Math.floor(rendererRandom() * rendererPool.length);
-
-      // Precompute retry data so we don't need an inline callback
-      const retrySeed = seed ^ (0xdeadbeef + index);
-      const retryRandom = createSeededRandom(retrySeed);
-      const retryRendererIndex = Math.floor(retryRandom() * rendererPool.length);
+      const rendererIndex = Math.floor(random() * rendererPool.length);
 
       return {
         image: availableImages[imageIndex],
         seed,
         renderer: rendererPool[rendererIndex],
-        retrySeed,
-        retryRenderer: rendererPool[retryRendererIndex],
       };
     });
   }, [visibleCanvasCount, availableImages, rendererPool]);
+
+  const handleDownload = useCallback((canvas, meta) => downloadCanvas(canvas, meta), []);
 
   return (
     <>
@@ -152,7 +170,7 @@ function App() {
       {canvasAssignments.length > 0 && (
         <>
           <div className="canvas-grid" role="grid" aria-label="Generated artwork grid">
-            {canvasAssignments.map(({ image: img, seed, renderer, retrySeed, retryRenderer }, index) => {
+            {canvasAssignments.map(({ image: img, seed, renderer }, index) => {
               const hash = generateSeedHash(seed);
 
               return (
@@ -161,40 +179,8 @@ function App() {
                     image={img.element}
                     renderFn={renderer}
                     seed={seed}
-                    retryRenderFn={retryRenderer}
-                    retrySeed={retrySeed}
-                    onClick={(canvas) => {
-                      const mimeType = img.mimeType || "image/png";
-                      const quality =
-                        mimeType === "image/jpeg" ? 0.95 : undefined;
-
-                      canvas.toBlob(
-                        (blob) => {
-                          if (!blob) return;
-                          const url = URL.createObjectURL(blob);
-                          const link = document.createElement("a");
-                          link.href = url;
-
-                          const extension =
-                            mimeType === "image/jpeg" ? "jpg" : "png";
-
-                          if (img.filename) {
-                            const nameWithoutExt = img.filename.replace(
-                              /\.(jpe?g|png)$/i,
-                              ""
-                            );
-                            link.download = `${nameWithoutExt}-minipix-${renderer.displayName}-${hash}.${extension}`;
-                          } else {
-                            link.download = `canvas-${index + 1}-minipix-${renderer.displayName}-${hash}.${extension}`;
-                          }
-
-                          link.click();
-                          URL.revokeObjectURL(url);
-                        },
-                        mimeType,
-                        quality
-                      );
-                    }}
+                    onDownload={handleDownload}
+                    downloadMeta={{ img, rendererName: renderer.displayName, hash, index }}
                   />
                 </div>
               );

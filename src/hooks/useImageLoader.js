@@ -9,13 +9,13 @@ function useImageLoader() {
   // Load default images on mount
   useEffect(() => {
     const imageNames = ["Tree-Peony-Kazumasa-Ogawa.jpg"];
+    let cancelled = false;
     const loadedImages = [];
     let loadedCount = 0;
-    const totalImages = imageNames.length;
 
     const handleLoadComplete = () => {
       loadedCount++;
-      if (loadedCount === totalImages && loadedImages.length > 0) {
+      if (loadedCount === imageNames.length && loadedImages.length > 0 && !cancelled) {
         setAllImages(loadedImages);
         setAvailableImages(loadedImages);
       }
@@ -24,6 +24,7 @@ function useImageLoader() {
     imageNames.forEach((name) => {
       const img = new Image();
       img.onload = () => {
+        if (cancelled) return;
         const wrapped = { id: nextImageIdRef.current++, element: img, filename: name, mimeType: "image/jpeg" };
         loadedImages.push(wrapped);
         handleLoadComplete();
@@ -34,6 +35,10 @@ function useImageLoader() {
       };
       img.src = `/${name}`;
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadFiles = useCallback((files) => {
@@ -45,46 +50,32 @@ function useImageLoader() {
 
     const newImages = [];
     let processedCount = 0;
-    const totalFiles = validFiles.length;
 
     const handleFileComplete = () => {
       processedCount++;
-      if (processedCount === totalFiles && newImages.length > 0) {
-        console.log(
-          "All images loaded:",
-          newImages.map((i) => i.filename)
-        );
+      if (processedCount === validFiles.length && newImages.length > 0) {
         setAllImages((prev) => [...prev, ...newImages]);
         setAvailableImages((prev) => [...prev, ...newImages]);
       }
     };
 
     validFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
 
-        img.onload = () => {
-          const wrapped = { id: nextImageIdRef.current++, element: img, filename: file.name, mimeType: file.type };
-          console.log("Loaded image:", file.name);
-          newImages.push(wrapped);
-          handleFileComplete();
-        };
-
-        img.onerror = () => {
-          console.error(`Failed to load image: ${file.name}`);
-          handleFileComplete();
-        };
-
-        img.src = e.target.result;
-      };
-
-      reader.onerror = () => {
-        console.error(`Failed to read file: ${file.name}`);
+      img.onload = () => {
+        const wrapped = { id: nextImageIdRef.current++, element: img, filename: file.name, mimeType: file.type };
+        newImages.push(wrapped);
         handleFileComplete();
       };
 
-      reader.readAsDataURL(file);
+      img.onerror = () => {
+        console.error(`Failed to load image: ${file.name}`);
+        URL.revokeObjectURL(objectUrl);
+        handleFileComplete();
+      };
+
+      img.src = objectUrl;
     });
   }, []);
 

@@ -116,6 +116,6 @@ const crosshatch = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-crosshatch.displayName = rendererConfig.crosshatch.displayName;
+crosshatch.displayName = "crosshatch";
 
 export default crosshatch;

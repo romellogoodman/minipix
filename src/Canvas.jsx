@@ -1,13 +1,13 @@
 import { useRef, useEffect, useState, memo } from "react";
 import { renderQueue } from "./renderQueue";
 
-function Canvas({ image, renderFn, onClick, seed, retryRenderFn, retrySeed }) {
+const requestIdle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
+
+function Canvas({ image, renderFn, seed, onDownload, downloadMeta }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
-  const retryCountRef = useRef(0);
-  const maxRetries = 3;
 
   // IntersectionObserver to detect when canvas is in viewport
   useEffect(() => {
@@ -33,7 +33,7 @@ function Canvas({ image, renderFn, onClick, seed, retryRenderFn, retrySeed }) {
     };
   }, []);
 
-  // Progressive rendering when visible
+  // Render once the canvas enters the viewport
   useEffect(() => {
     if (!isVisible || isRendered || !canvasRef.current || !renderFn) {
       return;
@@ -41,76 +41,43 @@ function Canvas({ image, renderFn, onClick, seed, retryRenderFn, retrySeed }) {
 
     let cancelled = false;
 
-    const attemptRender = async (currentRenderFn, currentSeed) => {
-      if (cancelled) return false;
-
+    const doRender = async () => {
+      if (cancelled || !canvasRef.current) return;
       try {
-        // Support both sync and async renderers
-        const result = currentRenderFn({ canvas: canvasRef.current, image, seed: currentSeed });
-        if (result instanceof Promise) {
-          await result;
-        }
-        return true;
+        const result = renderFn({ canvas: canvasRef.current, image, seed });
+        if (result instanceof Promise) await result;
+        if (!cancelled) setIsRendered(true);
       } catch (error) {
         console.error("Rendering error:", error);
-        return false;
       }
     };
 
-    const render = async () => {
-      // Add to render queue to limit concurrent renders
-      await renderQueue.request(async () => {
-        if (cancelled) return;
-
-        // Use requestIdleCallback for non-blocking rendering
-        const idleCallback =
-          window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
-
-        await new Promise((resolve) => {
-          idleCallback(() => {
-            if (cancelled || !canvasRef.current) {
-              resolve();
-              return;
-            }
-
-            // Run the render attempt and handle result
-            attemptRender(renderFn, seed).then((success) => {
-              if (success) {
-                setIsRendered(true);
-              } else if (retryCountRef.current < maxRetries && retryRenderFn) {
-                // Retry with precomputed fallback renderer when queue has space
-                retryCountRef.current++;
-                renderQueue.queueRetry(() => {
-                  if (cancelled) return;
-
-                  if (canvasRef.current) {
-                    renderQueue.request(async () => {
-                      if (cancelled) return;
-                      const retrySuccess = await attemptRender(retryRenderFn, retrySeed);
-                      if (retrySuccess) {
-                        setIsRendered(true);
-                      }
-                    });
-                  }
-                });
-              }
-              resolve();
+    if (renderFn.isAsync) {
+      // Worker renderers are already gated by the worker pool — no need to
+      // also occupy a renderQueue slot (that would block sync renderers while
+      // we idle waiting on a worker).
+      doRender();
+    } else {
+      // Sync renderers run on the main thread; limit concurrency and defer
+      // to idle time so scroll stays smooth.
+      renderQueue.request(
+        () =>
+          new Promise((resolve) => {
+            requestIdle(() => {
+              doRender().finally(resolve);
             });
-          });
-        });
-      });
-    };
-
-    render();
+          })
+      );
+    }
 
     return () => {
       cancelled = true;
     };
-  }, [isVisible, isRendered, renderFn, image, seed, retryRenderFn, retrySeed]);
+  }, [isVisible, isRendered, renderFn, image, seed]);
 
   const handleClick = () => {
-    if (onClick && canvasRef.current) {
-      onClick(canvasRef.current);
+    if (onDownload && canvasRef.current) {
+      onDownload(canvasRef.current, downloadMeta);
     }
   };
 

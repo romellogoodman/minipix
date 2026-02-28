@@ -157,7 +157,7 @@ const halftone = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-halftone.displayName = rendererConfig.halftone.displayName;
+halftone.displayName = "halftone";
 
 export const halftoneBayer = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
@@ -197,7 +197,7 @@ export const halftoneBayer = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-halftoneBayer.displayName = rendererConfig.halftoneBayer.displayName;
+halftoneBayer.displayName = "halftoneBayer";
 
 export const halftoneClassicDots = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
@@ -274,7 +274,7 @@ export const halftoneClassicDots = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-halftoneClassicDots.displayName = rendererConfig.halftoneClassicDots.displayName;
+halftoneClassicDots.displayName = "halftoneClassicDots";
 
 export const halftoneFloydSteinberg = ({
   canvas,
@@ -318,7 +318,7 @@ export const halftoneFloydSteinberg = ({
   ctx.restore();
 };
 
-halftoneFloydSteinberg.displayName = rendererConfig.halftoneFloydSteinberg.displayName;
+halftoneFloydSteinberg.displayName = "halftoneFloydSteinberg";
 
 export const halftoneLines = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
@@ -399,6 +399,6 @@ export const halftoneLines = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-halftoneLines.displayName = rendererConfig.halftoneLines.displayName;
+halftoneLines.displayName = "halftoneLines";
 
 export default halftone;

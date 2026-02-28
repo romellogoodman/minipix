@@ -73,6 +73,6 @@ const barSwap = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-barSwap.displayName = rendererConfig.barSwap.displayName;
+barSwap.displayName = "barSwap";
 
 export default barSwap;

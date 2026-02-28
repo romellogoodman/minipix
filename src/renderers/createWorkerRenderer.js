@@ -28,7 +28,7 @@ const createWorkerRenderer = (name) => {
     ctx.putImageData(outputData, 0, 0);
   };
   renderer.isAsync = true;
-  renderer.displayName = rendererConfig[name].displayName;
+  renderer.displayName = name;
   return renderer;
 };
 

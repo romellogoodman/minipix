@@ -94,6 +94,6 @@ const gridSwap = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-gridSwap.displayName = rendererConfig.gridSwap.displayName;
+gridSwap.displayName = "gridSwap";
 
 export default gridSwap;

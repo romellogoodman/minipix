@@ -99,6 +99,6 @@ const scooch = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-scooch.displayName = rendererConfig.scooch.displayName;
+scooch.displayName = "scooch";
 
 export default scooch;

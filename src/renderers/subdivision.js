@@ -129,6 +129,6 @@ const subdivision = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-subdivision.displayName = rendererConfig.subdivision.displayName;
+subdivision.displayName = "subdivision";
 
 export default subdivision;

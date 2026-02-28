@@ -170,6 +170,6 @@ const stackedCircle = ({ canvas, image, seed = Date.now() }) => {
   ctx.restore();
 };
 
-stackedCircle.displayName = rendererConfig.stackedCircle.displayName;
+stackedCircle.displayName = "stackedCircle";
 
 export default stackedCircle;
