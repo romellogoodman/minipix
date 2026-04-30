@@ -112,7 +112,6 @@ export default function dither(imageData, width, height, config, seed) {
     const bayerN = 1 << bayerExp; // 8 or 16
 
     // Generate Bayer matrix recursively
-    const bayerMatrix = new Float32Array(bayerN * bayerN);
     const buildBayer = (size) => {
       const matrix = new Float32Array(size * size);
       if (size === 2) {

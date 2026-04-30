@@ -1,24 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 // Custom hook for infinite scroll
 const pageSize = 20;
 
 function useInfiniteScroll(sentinelRef, enabled) {
   const [visibleCount, setVisibleCount] = useState(pageSize);
-  const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
 
   // The sentinel is conditionally rendered by App, so it may not exist on
   // first mount. Re-run when `enabled` flips (which coincides with the
-  // sentinel being added to the DOM) and read `enabled` through a ref so we
-  // don't rebuild the observer on every scroll.
+  // sentinel being added to the DOM).
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && enabledRef.current) {
+        if (entries[0].isIntersecting && enabled) {
           setVisibleCount((prev) => prev + pageSize);
         }
       },
