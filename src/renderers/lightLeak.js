@@ -28,7 +28,7 @@ const lightLeak = ({ canvas, image, seed = Date.now() }) => {
     const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
     grad.addColorStop(0, color);
     grad.addColorStop(randFloat(config.falloff, random), color + "80");
-    grad.addColorStop(1, "transparent");
+    grad.addColorStop(1, color + "00");
 
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);

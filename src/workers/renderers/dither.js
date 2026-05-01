@@ -18,7 +18,7 @@ export default function dither({ imageData, width, height, config, random, outpu
 
   if (mode === "atkinson") {
     const err = new Float32Array(width * height * 3);
-    const offsets = [[1, 0], [2, 0], [-1, 1], [0, 1], [1, 1], [0, 2]];
+    const OFF = [1, 0, 2, 0, -1, 1, 0, 1, 1, 1, 0, 2];
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -31,8 +31,8 @@ export default function dither({ imageData, width, height, config, random, outpu
         const c = putNearest(idx, r, g, b);
 
         const eR = (r - c.r) / 8, eG = (g - c.g) / 8, eB = (b - c.b) / 8;
-        for (const [dx, dy] of offsets) {
-          const nx = x + dx, ny = y + dy;
+        for (let o = 0; o < 12; o += 2) {
+          const nx = x + OFF[o], ny = y + OFF[o + 1];
           if (nx >= 0 && nx < width && ny < height) {
             const ni = (ny * width + nx) * 3;
             err[ni] += eR; err[ni + 1] += eG; err[ni + 2] += eB;
@@ -75,18 +75,17 @@ export default function dither({ imageData, width, height, config, random, outpu
     for (let pass = 0; pass < 3; pass++) {
       for (let y = 0; y < noiseSize; y++) {
         for (let x = 0; x < noiseSize; x++) {
-          let sum = 0, count = 0;
+          let sum = 0;
           for (let dy = -2; dy <= 2; dy++) {
             for (let dx = -2; dx <= 2; dx++) {
               if (dx === 0 && dy === 0) continue;
               const nx = ((x + dx) % noiseSize + noiseSize) % noiseSize;
               const ny = ((y + dy) % noiseSize + noiseSize) % noiseSize;
               sum += noise[ny * noiseSize + nx];
-              count++;
             }
           }
           const i = y * noiseSize + x;
-          noise[i] = Math.max(0, Math.min(1, noise[i] + (noise[i] - sum / count) * 0.3));
+          noise[i] = Math.max(0, Math.min(1, noise[i] + (noise[i] - sum / 24) * 0.3));
         }
       }
     }

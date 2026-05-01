@@ -1,8 +1,8 @@
 import { randomNumber, randFloat } from "../utils.js";
 import { RISO_INKS } from "./risoInks.js";
 
-// White-on-white is a no-op under multiply; exclude it from random picks.
-const PRINTABLE_INKS = RISO_INKS.filter((ink) => ink.name !== "White");
+// White is a no-op under multiply; Black annihilates all other layers.
+const PRINTABLE_INKS = RISO_INKS.filter((ink) => ink.name !== "White" && ink.name !== "Black");
 
 export default function risograph({ imageData, width, height, config, random, outputData }) {
   const numLayers = randomNumber(config.numLayers.min, config.numLayers.max, random);
@@ -21,7 +21,8 @@ export default function risograph({ imageData, width, height, config, random, ou
       dx: Math.round((random() - 0.5) * 2 * maxOffset),
       dy: Math.round((random() - 0.5) * 2 * maxOffset),
       // Each layer prints where source luminance falls below its threshold.
-      threshold: (i + 1) / (numLayers + 1),
+      // Top layer threshold=1 so highlights receive at least one ink.
+      threshold: (i + 1) / numLayers,
     });
   }
 

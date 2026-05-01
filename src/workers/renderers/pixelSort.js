@@ -1,91 +1,60 @@
-import { map } from "../utils.js";
+import { randFloat } from "../utils.js";
 
 export default function pixelSort({ imageData, width, height, config, random, outputData }) {
   outputData.set(imageData);
 
-  const threshold = map(random(), 0, 1, config.threshold.min, config.threshold.max);
-  const sortLengthPercent = map(random(), 0, 1, config.sortLength.min, config.sortLength.max);
+  const threshold = randFloat(config.threshold, random);
+  const sortLengthPercent = randFloat(config.sortLength, random);
   const isVertical = random() < 0.5;
   const reverse = random() < config.reverseProbability;
 
-  const getLuminance = (idx) => {
-    return (0.299 * outputData[idx] + 0.587 * outputData[idx + 1] + 0.114 * outputData[idx + 2]) / 255;
+  const lumAt = (idx) =>
+    (0.299 * outputData[idx] + 0.587 * outputData[idx + 1] + 0.114 * outputData[idx + 2]) / 255;
+
+  // Sort a run of pixels along the given axis. Uses index+luminance pairs in
+  // typed arrays instead of per-pixel objects, and preserves alpha.
+  const stride = isVertical ? width * 4 : 4;
+  const sortRun = (baseIdx, len) => {
+    const n = Math.floor(len * sortLengthPercent);
+    if (n <= 1) return;
+    const order = new Uint32Array(n);
+    const lums = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      order[i] = i;
+      lums[i] = lumAt(baseIdx + i * stride);
+    }
+    order.sort(reverse ? (a, b) => lums[b] - lums[a] : (a, b) => lums[a] - lums[b]);
+    const tmp = new Uint8ClampedArray(n * 4);
+    for (let i = 0; i < n; i++) {
+      const src = baseIdx + order[i] * stride;
+      tmp[i * 4] = outputData[src];
+      tmp[i * 4 + 1] = outputData[src + 1];
+      tmp[i * 4 + 2] = outputData[src + 2];
+      tmp[i * 4 + 3] = outputData[src + 3];
+    }
+    for (let i = 0; i < n; i++) {
+      const dst = baseIdx + i * stride;
+      outputData[dst] = tmp[i * 4];
+      outputData[dst + 1] = tmp[i * 4 + 1];
+      outputData[dst + 2] = tmp[i * 4 + 2];
+      outputData[dst + 3] = tmp[i * 4 + 3];
+    }
   };
 
-  const sortFn = reverse
-    ? (a, b) => b.lum - a.lum
-    : (a, b) => a.lum - b.lum;
-
-  if (isVertical) {
-    for (let x = 0; x < width; x++) {
-      let sortStart = -1;
-      for (let y = 0; y < height; y++) {
-        const idx = (y * width + x) * 4;
-        const lum = getLuminance(idx);
-
-        if (lum > threshold && sortStart === -1) {
-          sortStart = y;
-        } else if ((lum <= threshold || y === height - 1) && sortStart !== -1) {
-          const sortEnd = y;
-          const runLength = sortEnd - sortStart;
-          const maxLen = Math.floor(runLength * sortLengthPercent);
-          if (maxLen > 1) {
-            const pixels = [];
-            for (let sy = sortStart; sy < sortStart + maxLen; sy++) {
-              const sIdx = (sy * width + x) * 4;
-              pixels.push({
-                r: outputData[sIdx],
-                g: outputData[sIdx + 1],
-                b: outputData[sIdx + 2],
-                lum: getLuminance(sIdx),
-              });
-            }
-            pixels.sort(sortFn);
-            for (let i = 0; i < pixels.length; i++) {
-              const sIdx = ((sortStart + i) * width + x) * 4;
-              outputData[sIdx] = pixels[i].r;
-              outputData[sIdx + 1] = pixels[i].g;
-              outputData[sIdx + 2] = pixels[i].b;
-            }
-          }
-          sortStart = -1;
-        }
-      }
-    }
-  } else {
-    for (let y = 0; y < height; y++) {
-      let sortStart = -1;
-      for (let x = 0; x < width; x++) {
-        const idx = (y * width + x) * 4;
-        const lum = getLuminance(idx);
-
-        if (lum > threshold && sortStart === -1) {
-          sortStart = x;
-        } else if ((lum <= threshold || x === width - 1) && sortStart !== -1) {
-          const sortEnd = x;
-          const runLength = sortEnd - sortStart;
-          const maxLen = Math.floor(runLength * sortLengthPercent);
-          if (maxLen > 1) {
-            const pixels = [];
-            for (let sx = sortStart; sx < sortStart + maxLen; sx++) {
-              const sIdx = (y * width + sx) * 4;
-              pixels.push({
-                r: outputData[sIdx],
-                g: outputData[sIdx + 1],
-                b: outputData[sIdx + 2],
-                lum: getLuminance(sIdx),
-              });
-            }
-            pixels.sort(sortFn);
-            for (let i = 0; i < pixels.length; i++) {
-              const sIdx = (y * width + (sortStart + i)) * 4;
-              outputData[sIdx] = pixels[i].r;
-              outputData[sIdx + 1] = pixels[i].g;
-              outputData[sIdx + 2] = pixels[i].b;
-            }
-          }
-          sortStart = -1;
-        }
+  const outer = isVertical ? width : height;
+  const inner = isVertical ? height : width;
+  for (let o = 0; o < outer; o++) {
+    let start = -1;
+    for (let i = 0; i < inner; i++) {
+      const idx = isVertical ? (i * width + o) * 4 : (o * width + i) * 4;
+      const above = lumAt(idx) > threshold;
+      if (above && start === -1) start = i;
+      const atEnd = i === inner - 1;
+      if (start !== -1 && (!above || atEnd)) {
+        const end = above ? i + 1 : i;
+        const baseIdx = isVertical ? (start * width + o) * 4 : (o * width + start) * 4;
+        sortRun(baseIdx, end - start);
+        start = -1;
       }
     }
   }

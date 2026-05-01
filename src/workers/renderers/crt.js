@@ -1,255 +1,114 @@
-import { randomNumber, map } from "../utils.js";
+import { randFloat, randomNumber } from "../utils.js";
 
 export default function crt({ imageData, width, height, config, random, outputData }) {
+  const minDim = Math.min(width, height);
+  const scanlineIntensity = randFloat(config.scanlineIntensity, random);
+  const scanlineCount = randomNumber(config.scanlineCount.min, config.scanlineCount.max, random);
+  const brightness = randFloat(config.brightness, random);
+  const contrast = randFloat(config.contrast, random);
+  const saturation = randFloat(config.saturation, random);
+  const bloomIntensity = randFloat(config.bloomIntensity, random);
+  const bloomRadius = Math.max(1, Math.round(minDim * randFloat(config.bloomRadiusPercent, random)));
+  const rgbShift = Math.max(1, Math.round(minDim * randFloat(config.rgbShiftPercent, random)));
+  const vignetteStrength = randFloat(config.vignetteStrength, random);
+  const curvature = randFloat(config.curvature, random);
 
-  // Randomize parameters within config ranges
-  const scanlineIntensity = map(
-    random(),
-    0,
-    1,
-    config.scanlineIntensity.min,
-    config.scanlineIntensity.max
-  );
-  const scanlineCount = randomNumber(
-    config.scanlineCount.min,
-    config.scanlineCount.max,
-    random
-  );
-  const brightness = map(
-    random(),
-    0,
-    1,
-    config.brightness.min,
-    config.brightness.max
-  );
-  const contrast = map(
-    random(),
-    0,
-    1,
-    config.contrast.min,
-    config.contrast.max
-  );
-  const saturation = map(
-    random(),
-    0,
-    1,
-    config.saturation.min,
-    config.saturation.max
-  );
-  const bloomIntensity = map(
-    random(),
-    0,
-    1,
-    config.bloomIntensity.min,
-    config.bloomIntensity.max
-  );
-  const bloomRadius = randomNumber(
-    config.bloomRadius.min,
-    config.bloomRadius.max,
-    random
-  );
-  const rgbShift = randomNumber(
-    config.rgbShift.min,
-    config.rgbShift.max,
-    random
-  );
-  const vignetteStrength = map(
-    random(),
-    0,
-    1,
-    config.vignetteStrength.min,
-    config.vignetteStrength.max
-  );
-  const curvature = map(
-    random(),
-    0,
-    1,
-    config.curvature.min,
-    config.curvature.max
-  );
+  const clampX = (v) => (v < 0 ? 0 : v >= width ? width - 1 : v | 0);
+  const clampY = (v) => (v < 0 ? 0 : v >= height ? height - 1 : v | 0);
 
-  // Helper to get pixel with bounds checking
-  const getPixel = (data, x, y) => {
-    x = Math.max(0, Math.min(width - 1, Math.floor(x)));
-    y = Math.max(0, Math.min(height - 1, Math.floor(y)));
-    const idx = (y * width + x) * 4;
-    return [data[idx], data[idx + 1], data[idx + 2]];
-  };
-
-  // Apply curvature (barrel distortion) to remap UV coordinates
-  const curveRemapUV = (x, y) => {
-    // Normalize to -1 to 1
-    let u = (x / width) * 2 - 1;
-    let v = (y / height) * 2 - 1;
-
-    // Apply barrel distortion
-    const curveAmount = curvature * 0.25;
-    const dist = u * u + v * v;
-    u = u * (1 + dist * curveAmount);
-    v = v * (1 + dist * curveAmount);
-
-    // Convert back to pixel coordinates
-    const newX = ((u + 1) / 2) * width;
-    const newY = ((v + 1) / 2) * height;
-
-    return { x: newX, y: newY, outOfBounds: newX < 0 || newX >= width || newY < 0 || newY >= height };
-  };
-
-  // First pass: apply curvature and RGB shift, store in temp buffer
   const tempData = new Uint8ClampedArray(imageData.length);
+  const curveAmount = curvature * 0.25;
+  const invW = 2 / width, invH = 2 / height;
 
+  // Pass 1: barrel distortion + RGB shift
   for (let y = 0; y < height; y++) {
+    const v0 = y * invH - 1;
     for (let x = 0; x < width; x++) {
       const dstIdx = (y * width + x) * 4;
+      const u0 = x * invW - 1;
+      const dist = u0 * u0 + v0 * v0;
+      const k = 1 + dist * curveAmount;
+      const nx = ((u0 * k + 1) / 2) * width;
+      const ny = ((v0 * k + 1) / 2) * height;
 
-      // Apply curvature
-      const curved = curveRemapUV(x, y);
-
-      if (curved.outOfBounds) {
-        // Black for out of bounds (curved screen edge)
-        tempData[dstIdx] = 0;
-        tempData[dstIdx + 1] = 0;
-        tempData[dstIdx + 2] = 0;
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
         tempData[dstIdx + 3] = 255;
         continue;
       }
 
-      // RGB shift (chromatic aberration)
-      const r = getPixel(imageData, curved.x + rgbShift, curved.y)[0];
-      const g = getPixel(imageData, curved.x, curved.y)[1];
-      const b = getPixel(imageData, curved.x - rgbShift, curved.y)[2];
-
-      tempData[dstIdx] = r;
-      tempData[dstIdx + 1] = g;
-      tempData[dstIdx + 2] = b;
+      const cy = clampY(ny);
+      tempData[dstIdx] = imageData[(cy * width + clampX(nx + rgbShift)) * 4];
+      tempData[dstIdx + 1] = imageData[(cy * width + clampX(nx)) * 4 + 1];
+      tempData[dstIdx + 2] = imageData[(cy * width + clampX(nx - rgbShift)) * 4 + 2];
       tempData[dstIdx + 3] = 255;
     }
   }
 
-  // Second pass: separable bloom blur (horizontal then vertical) on bright pixels
-  let bloomData = null;
-  if (bloomIntensity > 0) {
-    // Extract bright pixels for bloom
-    const brightR = new Float32Array(width * height);
-    const brightG = new Float32Array(width * height);
-    const brightB = new Float32Array(width * height);
+  // Pass 2: separable bloom blur on bright pixels. Reuse buffers across passes.
+  const bloomR = new Float32Array(width * height);
+  const bloomG = new Float32Array(width * height);
+  const bloomB = new Float32Array(width * height);
+  const tmpR = new Float32Array(width * height);
+  const tmpG = new Float32Array(width * height);
+  const tmpB = new Float32Array(width * height);
 
-    for (let i = 0, j = 0; i < tempData.length; i += 4, j++) {
-      const sr = tempData[i];
-      const sg = tempData[i + 1];
-      const sb = tempData[i + 2];
-      if (sr + sg + sb > 384) {
-        brightR[j] = sr;
-        brightG[j] = sg;
-        brightB[j] = sb;
-      }
-    }
-
-    // Horizontal blur pass
-    const hBlurR = new Float32Array(width * height);
-    const hBlurG = new Float32Array(width * height);
-    const hBlurB = new Float32Array(width * height);
-
-    for (let y = 0; y < height; y++) {
-      const rowOffset = y * width;
-      for (let x = 0; x < width; x++) {
-        let sumR = 0, sumG = 0, sumB = 0, count = 0;
-        const x0 = Math.max(0, x - bloomRadius);
-        const x1 = Math.min(width - 1, x + bloomRadius);
-        for (let sx = x0; sx <= x1; sx++) {
-          const idx = rowOffset + sx;
-          sumR += brightR[idx];
-          sumG += brightG[idx];
-          sumB += brightB[idx];
-          count++;
-        }
-        const idx = rowOffset + x;
-        const inv = 1 / count;
-        hBlurR[idx] = sumR * inv;
-        hBlurG[idx] = sumG * inv;
-        hBlurB[idx] = sumB * inv;
-      }
-    }
-
-    // Vertical blur pass
-    bloomData = { r: new Float32Array(width * height), g: new Float32Array(width * height), b: new Float32Array(width * height) };
-
-    for (let x = 0; x < width; x++) {
-      for (let y = 0; y < height; y++) {
-        let sumR = 0, sumG = 0, sumB = 0, count = 0;
-        const y0 = Math.max(0, y - bloomRadius);
-        const y1 = Math.min(height - 1, y + bloomRadius);
-        for (let sy = y0; sy <= y1; sy++) {
-          const idx = sy * width + x;
-          sumR += hBlurR[idx];
-          sumG += hBlurG[idx];
-          sumB += hBlurB[idx];
-          count++;
-        }
-        const idx = y * width + x;
-        const inv = 1 / count;
-        bloomData.r[idx] = sumR * inv;
-        bloomData.g[idx] = sumG * inv;
-        bloomData.b[idx] = sumB * inv;
-      }
+  for (let i = 0, j = 0; i < tempData.length; i += 4, j++) {
+    if (tempData[i] + tempData[i + 1] + tempData[i + 2] > 384) {
+      bloomR[j] = tempData[i]; bloomG[j] = tempData[i + 1]; bloomB[j] = tempData[i + 2];
     }
   }
 
-  // Third pass: combine bloom with color adjustments, scanlines, vignette
+  for (let y = 0; y < height; y++) {
+    const row = y * width;
+    for (let x = 0; x < width; x++) {
+      let sR = 0, sG = 0, sB = 0, c = 0;
+      const x0 = Math.max(0, x - bloomRadius), x1 = Math.min(width - 1, x + bloomRadius);
+      for (let sx = x0; sx <= x1; sx++) { const i = row + sx; sR += bloomR[i]; sG += bloomG[i]; sB += bloomB[i]; c++; }
+      const i = row + x, inv = 1 / c;
+      tmpR[i] = sR * inv; tmpG[i] = sG * inv; tmpB[i] = sB * inv;
+    }
+  }
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const pixIdx = y * width + x;
-      const dstIdx = pixIdx * 4;
+      let sR = 0, sG = 0, sB = 0, c = 0;
+      const y0 = Math.max(0, y - bloomRadius), y1 = Math.min(height - 1, y + bloomRadius);
+      for (let sy = y0; sy <= y1; sy++) { const i = sy * width + x; sR += tmpR[i]; sG += tmpG[i]; sB += tmpB[i]; c++; }
+      const i = y * width + x, inv = 1 / c;
+      bloomR[i] = sR * inv; bloomG[i] = sG * inv; bloomB[i] = sB * inv;
+    }
+  }
 
-      let r = tempData[dstIdx];
-      let g = tempData[dstIdx + 1];
-      let b = tempData[dstIdx + 2];
+  // Pass 3: compose
+  const scanK = (scanlineCount * Math.PI) / height;
+  for (let y = 0; y < height; y++) {
+    const scanline = 1 - Math.abs(Math.sin(y * scanK)) * scanlineIntensity;
+    const vy = y * invH - 1;
+    for (let x = 0; x < width; x++) {
+      const pi = y * width + x;
+      const di = pi * 4;
 
-      // Add bloom
-      if (bloomData) {
-        r += bloomData.r[pixIdx] * bloomIntensity;
-        g += bloomData.g[pixIdx] * bloomIntensity;
-        b += bloomData.b[pixIdx] * bloomIntensity;
-      }
+      let r = tempData[di] + bloomR[pi] * bloomIntensity;
+      let g = tempData[di + 1] + bloomG[pi] * bloomIntensity;
+      let b = tempData[di + 2] + bloomB[pi] * bloomIntensity;
 
-      // Apply brightness
-      r *= brightness;
-      g *= brightness;
-      b *= brightness;
-
-      // Apply contrast
+      r *= brightness; g *= brightness; b *= brightness;
       r = (r - 128) * contrast + 128;
       g = (g - 128) * contrast + 128;
       b = (b - 128) * contrast + 128;
 
-      // Apply saturation
       const lum = 0.299 * r + 0.587 * g + 0.114 * b;
       r = lum + (r - lum) * saturation;
       g = lum + (g - lum) * saturation;
       b = lum + (b - lum) * saturation;
 
-      // Apply scanlines
-      const scanlineY = (y / height) * scanlineCount;
-      const scanlinePattern = Math.abs(Math.sin(scanlineY * Math.PI));
-      const scanline = 1 - scanlinePattern * scanlineIntensity;
-      r *= scanline;
-      g *= scanline;
-      b *= scanline;
+      const vx = x * invW - 1;
+      const vd = Math.max(vx < 0 ? -vx : vx, vy < 0 ? -vy : vy);
+      const vignette = (1 - vd * vd * vignetteStrength) * scanline;
 
-      // Apply vignette (darkened edges)
-      const vx = (x / width) * 2 - 1;
-      const vy = (y / height) * 2 - 1;
-      const vignetteDist = Math.max(Math.abs(vx), Math.abs(vy));
-      const vignette = 1 - vignetteDist * vignetteDist * vignetteStrength;
-      r *= vignette;
-      g *= vignette;
-      b *= vignette;
-
-      // Clamp and store
-      outputData[dstIdx] = Math.max(0, Math.min(255, Math.round(r)));
-      outputData[dstIdx + 1] = Math.max(0, Math.min(255, Math.round(g)));
-      outputData[dstIdx + 2] = Math.max(0, Math.min(255, Math.round(b)));
-      outputData[dstIdx + 3] = 255;
+      outputData[di] = r * vignette;
+      outputData[di + 1] = g * vignette;
+      outputData[di + 2] = b * vignette;
+      outputData[di + 3] = 255;
     }
   }
 }

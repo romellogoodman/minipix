@@ -1,7 +1,7 @@
 // Renderer configuration
 export const rendererConfig = {
   asciiMosaic: {
-    cellWidth: { min: 6, max: 16 },
+    cols: { min: 60, max: 160 },
   },
   barSwap: {
     numBars: { min: 4, max: 50 },
@@ -14,9 +14,8 @@ export const rendererConfig = {
   },
   crosshatch: {
     numColors: { min: 3, max: 6 },
-    lineSpacing: { min: 3, max: 12 },
-    lineLength: { min: 8, max: 25 },
-    strokeWidth: { min: 1, max: 3 },
+    lineSpacingPercent: { min: 0.004, max: 0.015 },
+    lineLengthPercent: { min: 0.01, max: 0.03 },
   },
   crt: {
     scanlineIntensity: { min: 0.1, max: 0.5 },
@@ -25,8 +24,8 @@ export const rendererConfig = {
     contrast: { min: 1.0, max: 1.2 },
     saturation: { min: 1.0, max: 1.3 },
     bloomIntensity: { min: 0.1, max: 0.4 },
-    bloomRadius: { min: 2, max: 6 },
-    rgbShift: { min: 1, max: 4 },
+    bloomRadiusPercent: { min: 0.003, max: 0.008 },
+    rgbShiftPercent: { min: 0.001, max: 0.005 },
     vignetteStrength: { min: 0.2, max: 0.5 },
     curvature: { min: 0.05, max: 0.2 },
   },
@@ -50,7 +49,7 @@ export const rendererConfig = {
     numSlices: { min: 5, max: 30 },
     maxOffset: { min: 0.02, max: 0.15 },
     colorShiftProbability: 0.3,
-    colorShiftAmount: { min: 5, max: 30 },
+    colorShiftPercent: { min: 0.005, max: 0.03 },
     invertProbability: 0.5,
   },
   gridSwap: {
@@ -59,13 +58,6 @@ export const rendererConfig = {
   },
   halftone: {
     numColors: { min: 2, max: 6 },
-    classicDots: {
-      blockSize: { min: 1, max: 16 },
-    },
-    lines: {
-      blockSize: { min: 1, max: 16 },
-      lineWeightMultiplier: 1,
-    },
   },
   lightLeak: {
     numLeaks: { min: 1, max: 4 },
@@ -93,7 +85,7 @@ export const rendererConfig = {
     numHues: { min: 1, max: 3 },
   },
   oilPaint: {
-    radius: { min: 3, max: 6 },
+    radiusPercent: { min: 0.003, max: 0.007 },
     levels: { min: 4, max: 10 },
     saturation: { min: 1.2, max: 1.6 },
   },
@@ -115,7 +107,7 @@ export const rendererConfig = {
   },
   radialBlur: {
     numSamples: { min: 10, max: 60 },
-    blurStrength: { min: 0.02, max: 0.6 },
+    blurStrength: { min: 0.1, max: 0.6 },
     centerVariation: { min: 0.2, max: 0.8 },
   },
   risograph: {
@@ -134,7 +126,7 @@ export const rendererConfig = {
     scoochPercent: { min: 0.05, max: 0.5 },
   },
   sketch: {
-    lineThickness: { min: 1, max: 3 },
+    lineThickness: { min: 1, max: 5 },
     edgeThreshold: { min: 30, max: 100 },
     hatchingDensity: { min: 2, max: 6 },
   },
@@ -160,13 +152,12 @@ export const rendererConfig = {
   },
   vhs: {
     trackingNoise: { min: 0.02, max: 0.1 },
-    colorBleed: { min: 2, max: 10 },
-    wobble: { min: 1, max: 5 },
+    colorBleedPercent: { min: 0.002, max: 0.01 },
+    wobblePercent: { min: 0.002, max: 0.006 },
     noiseIntensity: { min: 0.05, max: 0.2 },
   },
   waves: {
-    numWaves: { min: 20, max: 200 },
-    amplitude: { min: 5, max: 100 },
+    amplitudePercent: { min: 0.01, max: 0.1 },
     frequency: { min: 0.005, max: 0.05 },
   },
 };

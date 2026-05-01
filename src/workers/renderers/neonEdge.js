@@ -1,12 +1,12 @@
 import { randomNumber, randFloat } from "../utils.js";
 
 const NEON = [
-  [255, 20, 147],   // deep pink
-  [0, 255, 255],    // cyan
-  [57, 255, 20],    // neon green
-  [255, 255, 0],    // yellow
-  [191, 0, 255],    // violet
-  [255, 110, 0],    // orange
+  [255, 20, 147],
+  [0, 255, 255],
+  [57, 255, 20],
+  [255, 255, 0],
+  [191, 0, 255],
+  [255, 110, 0],
 ];
 
 export default function neonEdge({ imageData, width, height, config, random, outputData }) {
@@ -15,15 +15,19 @@ export default function neonEdge({ imageData, width, height, config, random, out
   const glowRadius = randomNumber(config.glowRadius.min, config.glowRadius.max, random);
   const numHues = randomNumber(config.numHues.min, config.numHues.max, random);
 
-  const hues = [];
-  for (let i = 0; i < numHues; i++) hues.push(NEON[Math.floor(random() * NEON.length)]);
+  // Distinct hues via partial Fisher-Yates
+  const pool = NEON.slice();
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const hues = pool.slice(0, numHues);
 
   const lum = new Float32Array(width * height);
   for (let i = 0, p = 0; i < imageData.length; i += 4, p++) {
     lum[p] = 0.299 * imageData[i] + 0.587 * imageData[i + 1] + 0.114 * imageData[i + 2];
   }
 
-  // Sobel → edge map with hue assignment by angle bucket
   const edge = new Float32Array(width * height * 3);
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
@@ -44,28 +48,36 @@ export default function neonEdge({ imageData, width, height, config, random, out
     }
   }
 
-  // Box-blur the edge map for glow
+  // Separable box blur with clamped sampling (no border dimming).
+  const tmp = new Float32Array(width * height * 3);
   const glow = new Float32Array(width * height * 3);
-  const norm = 1 / ((glowRadius * 2 + 1) ** 2);
+  const win = glowRadius * 2 + 1;
+  const inv = 1 / win;
+  const clamp = (v, max) => (v < 0 ? 0 : v >= max ? max - 1 : v);
+
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      let gr = 0, gg = 0, gb = 0;
-      for (let dy = -glowRadius; dy <= glowRadius; dy++) {
-        const ny = y + dy;
-        if (ny < 0 || ny >= height) continue;
-        for (let dx = -glowRadius; dx <= glowRadius; dx++) {
-          const nx = x + dx;
-          if (nx < 0 || nx >= width) continue;
-          const ni = (ny * width + nx) * 3;
-          gr += edge[ni]; gg += edge[ni + 1]; gb += edge[ni + 2];
-        }
+      let sr = 0, sg = 0, sb = 0;
+      for (let dx = -glowRadius; dx <= glowRadius; dx++) {
+        const ni = (y * width + clamp(x + dx, width)) * 3;
+        sr += edge[ni]; sg += edge[ni + 1]; sb += edge[ni + 2];
       }
-      const gi = (y * width + x) * 3;
-      glow[gi] = gr * norm; glow[gi + 1] = gg * norm; glow[gi + 2] = gb * norm;
+      const i = (y * width + x) * 3;
+      tmp[i] = sr * inv; tmp[i + 1] = sg * inv; tmp[i + 2] = sb * inv;
+    }
+  }
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sr = 0, sg = 0, sb = 0;
+      for (let dy = -glowRadius; dy <= glowRadius; dy++) {
+        const ni = (clamp(y + dy, height) * width + x) * 3;
+        sr += tmp[ni]; sg += tmp[ni + 1]; sb += tmp[ni + 2];
+      }
+      const i = (y * width + x) * 3;
+      glow[i] = sr * inv; glow[i + 1] = sg * inv; glow[i + 2] = sb * inv;
     }
   }
 
-  // Composite: darkened original + edge core + glow (additive)
   for (let p = 0; p < width * height; p++) {
     const i = p * 4, e = p * 3;
     outputData[i] = Math.min(255, imageData[i] * darken + edge[e] + glow[e] * 2);

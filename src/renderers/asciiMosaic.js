@@ -16,10 +16,13 @@ const asciiMosaic = ({ canvas, image, seed = Date.now() }) => {
   ctx.drawImage(image, 0, 0);
   const src = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-  const cellW = randInt(config.cellWidth, random);
+  const shortSide = Math.min(canvas.width, canvas.height);
+  const cols = randInt(config.cols, random);
+  const cellW = Math.max(3, Math.round(shortSide / cols));
   const cellH = Math.round(cellW * 1.6);
-  const ramp = RAMPS[Math.floor(random() * RAMPS.length)];
-  const rampLen = [...ramp].length; // account for multi-byte glyphs
+
+  const chars = [...RAMPS[Math.floor(random() * RAMPS.length)]];
+  const rampLen = chars.length;
 
   const palette = extractDominantColors(src, 4);
   const bg = palette.reduce((a, b) =>
@@ -31,10 +34,9 @@ const asciiMosaic = ({ canvas, image, seed = Date.now() }) => {
   ctx.font = `${cellH}px ui-monospace, Menlo, monospace`;
   ctx.textBaseline = "top";
 
-  const chars = [...ramp];
   for (let y = 0; y < canvas.height; y += cellH) {
     for (let x = 0; x < canvas.width; x += cellW) {
-      const c = getAverageColorInBlock(src, x, y, cellW, canvas.width, canvas.height);
+      const c = getAverageColorInBlock(src, x, y, cellW, canvas.width, canvas.height, cellH);
       const lum = getLuminance(c.r, c.g, c.b);
       const ch = chars[Math.min(rampLen - 1, Math.floor(lum * rampLen))];
       ctx.fillStyle = `rgb(${c.r},${c.g},${c.b})`;

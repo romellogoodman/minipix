@@ -30,7 +30,7 @@ export default function filmGrain({ imageData, width, height, config, random, ou
     }
   }
 
-  // Pre-compute vignette per row for speed
+  const grainScale = 255 * grainIntensity;
   const vignetteMultiplier = vignetteStrength * 0.5;
   const invWidth = 2 / width;
   const invHeight = 2 / height;
@@ -61,17 +61,13 @@ export default function filmGrain({ imageData, width, height, config, random, ou
       b = b + (tb - b) * tintStrength;
 
       // Add grain noise (per-channel for color variation)
-      const noiseR = (random() - 0.5) * 255 * grainIntensity;
-      const noiseG = (random() - 0.5) * 255 * grainIntensity;
-      const noiseB = (random() - 0.5) * 255 * grainIntensity;
-      r += noiseR;
-      g += noiseG;
-      b += noiseB;
+      r += (random() - 0.5) * grainScale;
+      g += (random() - 0.5) * grainScale;
+      b += (random() - 0.5) * grainScale;
 
-      // Apply vignette (pre-computed y component)
+      // Apply vignette (pre-computed y component). Squared falloff, so no sqrt needed.
       const vx = x * invWidth - 1;
-      const vignetteDist = Math.sqrt(vx * vx + vySq);
-      const vignette = 1 - vignetteDist * vignetteDist * vignetteMultiplier;
+      const vignette = 1 - (vx * vx + vySq) * vignetteMultiplier;
       r *= vignette;
       g *= vignette;
       b *= vignette;

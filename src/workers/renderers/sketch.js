@@ -12,8 +12,9 @@ export default function sketch({ imageData, width, height, config, random, outpu
     luminance[j] = (0.299 * imageData[i] + 0.587 * imageData[i + 1] + 0.114 * imageData[i + 2]) | 0;
   }
 
-  // First pass: Sobel edge detection using pre-computed luminance
-  const edges = new Uint16Array(width * height);
+  // First pass: Sobel edge detection using pre-computed luminance.
+  // Squared magnitude can reach ~2.08M, so Uint16 would overflow.
+  const edges = new Uint32Array(width * height);
   const edgeThresholdSq = edgeThreshold * edgeThreshold;
   const halfThick = lineThickness >> 1;
 
@@ -67,7 +68,7 @@ export default function sketch({ imageData, width, height, config, random, outpu
             const px = x + dx;
             if (px < 0 || px >= width) continue;
             const pIdx = (py * width + px) * 4;
-            if (outputData[pIdx] > strokeVal) {
+            if (outputData[pIdx + 3] === 0 || outputData[pIdx] > strokeVal) {
               outputData[pIdx] = strokeVal;
               outputData[pIdx + 1] = strokeVal;
               outputData[pIdx + 2] = strokeVal;

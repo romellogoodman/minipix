@@ -1,13 +1,13 @@
 import { randomNumber, map } from "../utils.js";
 
 export default function oilPaint({ imageData, width, height, config, random, outputData }) {
-
-  const radius = randomNumber(config.radius.min, config.radius.max, random);
+  const minDim = Math.min(width, height);
+  const radius = Math.max(2, Math.round(minDim * map(random(), 0, 1, config.radiusPercent.min, config.radiusPercent.max)));
   const levels = randomNumber(config.levels.min, config.levels.max, random);
   const saturation = map(random(), 0, 1, config.saturation.min, config.saturation.max);
 
-  // Pre-compute constants outside the loop
-  const quantStep = 256 / levels;
+  // Endpoint-preserving quantization.
+  const quantStep = 255 / (levels - 1);
   const invQuantStep = 1 / quantStep;
 
   // Define 4 quadrant bounds once (relative offsets)
@@ -63,10 +63,9 @@ export default function oilPaint({ imageData, width, height, config, random, out
 
           if (variance < minVariance) {
             minVariance = variance;
-            // Quantize colors for painterly effect
-            bestR = ((avgR * invQuantStep) | 0) * quantStep;
-            bestG = ((avgG * invQuantStep) | 0) * quantStep;
-            bestB = ((avgB * invQuantStep) | 0) * quantStep;
+            bestR = Math.round(avgR * invQuantStep) * quantStep;
+            bestG = Math.round(avgG * invQuantStep) * quantStep;
+            bestB = Math.round(avgB * invQuantStep) * quantStep;
           }
         }
       }

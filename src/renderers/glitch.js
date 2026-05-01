@@ -1,4 +1,4 @@
-import { setupRenderer, randInt, randFloat, randomNumber } from "../utils/index.js";
+import { setupRenderer, randFloat, randInt, randomNumber } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
 const glitch = ({ canvas, image, seed = Date.now() }) => {
@@ -25,15 +25,22 @@ const glitch = ({ canvas, image, seed = Date.now() }) => {
     );
 
     if (random() < config.colorShiftProbability) {
-      const shiftAmount =
-        randInt(config.colorShiftAmount, random) * (random() < 0.5 ? -1 : 1);
-      const channelToShift = Math.floor(random() * 3);
-
-      for (let p = 0; p < sliceData.data.length; p += 4) {
-        const shiftedIdx = p + shiftAmount * 4;
-        if (shiftedIdx >= 0 && shiftedIdx < sliceData.data.length - 4) {
-          sliceData.data[p + channelToShift] =
-            sliceData.data[shiftedIdx + channelToShift];
+      const shiftPx = Math.round(canvas.width * randFloat(config.colorShiftPercent, random));
+      const shiftAmount = shiftPx * (random() < 0.5 ? -1 : 1);
+      const channel = Math.floor(random() * 3);
+      const data = sliceData.data;
+      const len = data.length;
+      // Iterate toward the shift direction so we read source pixels before
+      // overwriting them.
+      if (shiftAmount >= 0) {
+        for (let p = 0; p < len; p += 4) {
+          const s = p + shiftAmount * 4;
+          if (s < len) data[p + channel] = data[s + channel];
+        }
+      } else {
+        for (let p = len - 4; p >= 0; p -= 4) {
+          const s = p + shiftAmount * 4;
+          if (s >= 0) data[p + channel] = data[s + channel];
         }
       }
     }

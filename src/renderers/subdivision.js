@@ -34,6 +34,9 @@ const subdivision = ({ canvas, image, seed = Date.now() }) => {
 
   subdivide(0, 0, canvas.width, canvas.height, 0);
 
+  // Base layer fills anti-aliasing hairlines between fractional regions.
+  ctx.drawImage(image, 0, 0);
+
   regions.forEach((r) => {
     const flipH = random() < 0.5;
     const flipV = random() < 0.5;

@@ -22,9 +22,10 @@ const circlePacking = ({ canvas, image, seed = Date.now() }) => {
   const attempts = randInt(config.attempts, random);
   const padding = config.padding;
 
-  // Spatial hash grid for overlap checks — cell size = maxR so each circle
-  // touches at most the 3×3 neighborhood.
-  const gridSize = maxR;
+  // Spatial hash grid for overlap checks. Two circles interact when their
+  // centers are within 2·maxR, so cell size must be ≥ 2·maxR for a 3×3
+  // neighborhood scan to cover all candidates.
+  const gridSize = maxR * 2;
   const gridCols = Math.ceil(canvas.width / gridSize);
   const grid = new Map();
   const key = (x, y) => Math.floor(y / gridSize) * gridCols + Math.floor(x / gridSize);

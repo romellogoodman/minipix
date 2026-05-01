@@ -26,10 +26,11 @@ function makeNoise(random) {
   const lerp = (a, b, t) => a + (b - a) * t;
 
   return (x, y) => {
-    const xi = Math.floor(x) & 255;
-    const yi = Math.floor(y) & 255;
-    const xf = x - Math.floor(x);
-    const yf = y - Math.floor(y);
+    const fx = Math.floor(x), fy = Math.floor(y);
+    const xi = fx & 255;
+    const yi = fy & 255;
+    const xf = x - fx;
+    const yf = y - fy;
     const u = fade(xf);
     const v = fade(yf);
     const aa = perm[perm[xi] + yi];
@@ -50,16 +51,19 @@ export default function melt({ imageData, width, height, config, random, outputD
 
   const noise = makeNoise(random);
 
-  // fBm: sum octaves of noise, each at 2× frequency and ½ amplitude.
+  // Geometric series sum for amplitude normalization — constant per render.
+  let norm = 0;
+  for (let o = 0, a = 1; o < octaves; o++, a *= 0.5) norm += a;
+  const invNorm = 1 / norm;
+
   const fbm = (x, y) => {
-    let sum = 0, amp = 1, freq = baseFreq, norm = 0;
+    let sum = 0, amp = 1, freq = baseFreq;
     for (let o = 0; o < octaves; o++) {
       sum += noise(x * freq, y * freq) * amp;
-      norm += amp;
       amp *= 0.5;
       freq *= 2;
     }
-    return sum / norm;
+    return sum * invNorm;
   };
 
   // Use decorrelated offsets for the X and Y displacement fields so the

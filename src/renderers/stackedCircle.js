@@ -8,7 +8,8 @@ const stackedCircle = ({ canvas, image, seed = Date.now() }) => {
 
   const isUniform = random() < 0.5;
   const numStacks = randInt(config.numStacks, random);
-  const rotationMode = Math.floor(random() * 3); // 0=none, 1=random, 2=gradual
+  // Uniform mode with no rotation is pixel-identical to the input; skip mode 0 there.
+  const rotationMode = isUniform ? 1 + Math.floor(random() * 2) : Math.floor(random() * 3);
   const targetRotation = rotationMode === 2 ? randInt(config.rotation, random) : 0;
 
   const cx = canvas.width / 2;
@@ -60,7 +61,7 @@ const stackedCircle = ({ canvas, image, seed = Date.now() }) => {
       drawRotated(rotation, () => {
         if (i > 0) {
           ctx.beginPath();
-          ctx.arc(x + w / 2, y + h / 2, Math.min(w, h) / 2, 0, Math.PI * 2);
+          ctx.arc(cx, cy, Math.min(w, h) / 2, 0, Math.PI * 2);
           ctx.clip();
         }
         ctx.drawImage(image, x, y, w, h);

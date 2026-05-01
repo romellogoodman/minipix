@@ -1,6 +1,7 @@
 import {
   setupRenderer,
   randInt,
+  randFloat,
   extractDominantColors,
   getLuminance,
   getAverageColorInBlock,
@@ -16,11 +17,12 @@ const crosshatch = ({ canvas, image, seed = Date.now() }) => {
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
   const config = rendererConfig.crosshatch;
+  const shortSide = Math.min(canvas.width, canvas.height);
   const numColors = randInt(config.numColors, random);
   const palette = extractDominantColors(imageData, numColors, 10);
-  const lineSpacing = randInt(config.lineSpacing, random);
-  const lineLength = randInt(config.lineLength, random);
-  const strokeWidth = randInt(config.strokeWidth, random);
+  const lineSpacing = Math.max(2, Math.round(shortSide * randFloat(config.lineSpacingPercent, random)));
+  const lineLength = Math.round(shortSide * randFloat(config.lineLengthPercent, random));
+  const strokeWidth = Math.max(1, Math.round(lineSpacing * 0.2));
 
   // Fill with lightest palette color
   const sortedPalette = [...palette].sort(
@@ -40,7 +42,7 @@ const crosshatch = ({ canvas, image, seed = Date.now() }) => {
       const avgColor = getAverageColorInBlock(imageData, x, y, lineSpacing, canvas.width, canvas.height);
       const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
       const nearestColor = findNearestColor(avgColor, palette);
-      const numStrokes = Math.floor((1 - luminance) * 4);
+      const numStrokes = Math.min(4, Math.floor((1 - luminance) * 5));
       const lines = batches.get(nearestColor);
 
       for (let s = 0; s < numStrokes; s++) {

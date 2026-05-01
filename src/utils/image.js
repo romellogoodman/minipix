@@ -14,16 +14,16 @@ export const getAverageColorInBlock = (
   startY,
   blockSize,
   imageWidth,
-  imageHeight
+  imageHeight,
+  blockH = blockSize
 ) => {
   let r = 0,
     g = 0,
     b = 0,
     count = 0;
 
-  // Calculate actual block boundaries (handle edge cases)
   const endX = Math.min(startX + blockSize, imageWidth);
-  const endY = Math.min(startY + blockSize, imageHeight);
+  const endY = Math.min(startY + blockH, imageHeight);
 
   // Sum all pixel values in the block
   for (let y = startY; y < endY; y++) {

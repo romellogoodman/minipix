@@ -42,9 +42,7 @@ function renderHalftone({ canvas, image, seed = Date.now() }, forcedMode) {
     }
 
     case "classicDots": {
-      const adaptiveSize = calculateAdaptivePixelSize(image.width, image.height, random);
-      const { min, max } = config.classicDots.blockSize;
-      const blockSize = Math.min(max, Math.max(min, adaptiveSize));
+      const blockSize = calculateAdaptivePixelSize(image.width, image.height, random);
       const shape = SHAPES[Math.floor(random() * SHAPES.length)];
 
       for (let y = 0; y < canvas.height; y += blockSize) {
@@ -60,19 +58,20 @@ function renderHalftone({ canvas, image, seed = Date.now() }, forcedMode) {
     }
 
     case "lines": {
-      const adaptiveSize = calculateAdaptivePixelSize(image.width, image.height, random);
-      const { min, max } = config.lines.blockSize;
-      const blockSize = Math.min(max, Math.max(min, adaptiveSize));
+      const blockSize = calculateAdaptivePixelSize(image.width, image.height, random);
       const horizontal = random() < 0.5;
+      const cssCache = new Map(palette.map((c) => [c, `rgb(${c.r}, ${c.g}, ${c.b})`]));
+      let lastFill;
 
       for (let y = 0; y < canvas.height; y += blockSize) {
         for (let x = 0; x < canvas.width; x += blockSize) {
           const avgColor = getAverageColorInBlock(imageData, x, y, blockSize, canvas.width, canvas.height);
           const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
           const nearestColor = findNearestColor(avgColor, palette);
-          const lineWeight = (1 - luminance) * blockSize * config.lines.lineWeightMultiplier;
+          const lineWeight = (1 - luminance) * blockSize;
 
-          ctx.fillStyle = `rgb(${nearestColor.r}, ${nearestColor.g}, ${nearestColor.b})`;
+          const fill = cssCache.get(nearestColor);
+          if (fill !== lastFill) { ctx.fillStyle = fill; lastFill = fill; }
           if (horizontal) {
             ctx.fillRect(x, y + (blockSize - lineWeight) / 2, blockSize, lineWeight);
           } else {

@@ -13,9 +13,8 @@ const radialBlur = ({ canvas, image, seed = Date.now() }) => {
 
   for (let i = 0; i < numSamples; i++) {
     const scale = 1 + (i / numSamples) * blurStrength;
-    // First sample at full opacity establishes the base; subsequent samples
-    // blend at 1/N. Avoids the (1-1/N)^N ≈ 37% white residue of the old code.
-    ctx.globalAlpha = i === 0 ? 1 : 1 / numSamples;
+    // Running average: after i+1 draws each sample contributes exactly 1/(i+1).
+    ctx.globalAlpha = 1 / (i + 1);
     ctx.setTransform(scale, 0, 0, scale, centerX * (1 - scale), centerY * (1 - scale));
     ctx.drawImage(image, 0, 0);
   }
