@@ -11,8 +11,12 @@ import pixelSort from "./renderers/pixelSort.js";
 import posterize from "./renderers/posterize.js";
 import sketch from "./renderers/sketch.js";
 import vhs from "./renderers/vhs.js";
+import risograph from "./renderers/risograph.js";
+import neonEdge from "./renderers/neonEdge.js";
+import photocopy from "./renderers/photocopy.js";
+import melt from "./renderers/melt.js";
 
-const renderers = { ripple, spiral, waves, crt, dither, duotone, filmGrain, oilPaint, pixelSort, posterize, sketch, vhs };
+const renderers = { ripple, spiral, waves, crt, dither, duotone, filmGrain, oilPaint, pixelSort, posterize, sketch, vhs, risograph, neonEdge, photocopy, melt };
 
 self.onmessage = function (e) {
   const { type, rendererName, imageData, width, height, config, seed, id } = e.data;

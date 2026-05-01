@@ -1,7 +1,16 @@
 // Renderer configuration
 export const rendererConfig = {
+  asciiMosaic: {
+    cellWidth: { min: 6, max: 16 },
+  },
   barSwap: {
     numBars: { min: 4, max: 50 },
+  },
+  circlePacking: {
+    attempts: { min: 3000, max: 8000 },
+    minRadiusPercent: 0.004,
+    maxRadiusPercent: 0.06,
+    padding: 1,
   },
   crosshatch: {
     numColors: { min: 3, max: 6 },
@@ -58,15 +67,42 @@ export const rendererConfig = {
       lineWeightMultiplier: 1,
     },
   },
+  lightLeak: {
+    numLeaks: { min: 1, max: 4 },
+    radiusPercent: { min: 0.4, max: 1.2 },
+    falloff: { min: 0.2, max: 0.5 },
+  },
+  lowPoly: {
+    cells: { min: 10, max: 40 },
+    jitter: { min: 0.4, max: 0.9 },
+  },
   kaleidoscope: {
     squareCount: { min: 2, max: 20 },
     sourceOffsetPercent: { min: 0, max: 1 }, // where to sample from in non-square images
     fillCanvasProbability: 0.5, // chance to stretch to fill vs maintain square
   },
+  melt: {
+    scalePercent: { min: 0.01, max: 0.08 },
+    baseFrequency: { min: 0.003, max: 0.02 },
+    numOctaves: { min: 2, max: 4 },
+  },
+  neonEdge: {
+    threshold: { min: 0.08, max: 0.2 },
+    darken: { min: 0.1, max: 0.3 },
+    glowRadius: { min: 2, max: 5 },
+    numHues: { min: 1, max: 3 },
+  },
   oilPaint: {
     radius: { min: 3, max: 6 },
     levels: { min: 4, max: 10 },
     saturation: { min: 1.2, max: 1.6 },
+  },
+  photocopy: {
+    threshold: { min: 0.4, max: 0.6 },
+    noise: { min: 0.1, max: 0.25 },
+    generations: { min: 1, max: 5 },
+    smear: { min: 0, max: 3 },
+    bandHeight: { min: 4, max: 30 },
   },
   pixelated: {},
   pixelSort: {
@@ -81,6 +117,11 @@ export const rendererConfig = {
     numSamples: { min: 10, max: 60 },
     blurStrength: { min: 0.02, max: 0.6 },
     centerVariation: { min: 0.2, max: 0.8 },
+  },
+  risograph: {
+    numLayers: { min: 2, max: 4 },
+    grain: { min: 0.1, max: 0.3 },
+    misregistration: { min: 0.003, max: 0.015 },
   },
   ripple: {
     numRipples: { min: 1, max: 4 },
