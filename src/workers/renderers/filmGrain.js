@@ -1,8 +1,6 @@
-import { createSeededRandom, randomNumber, map } from "../utils.js";
+import { randomNumber, map } from "../utils.js";
 
-export default function filmGrain(imageData, width, height, config, seed) {
-  const random = createSeededRandom(seed);
-  const outputData = new Uint8ClampedArray(imageData.length);
+export default function filmGrain({ imageData, width, height, config, random, outputData }) {
 
   const grainIntensity = map(random(), 0, 1, config.grainIntensity.min, config.grainIntensity.max);
   const tintStrength = map(random(), 0, 1, config.tintStrength.min, config.tintStrength.max);
@@ -90,6 +88,4 @@ export default function filmGrain(imageData, width, height, config, seed) {
       outputData[i + 3] = 255;
     }
   }
-
-  return outputData;
 }

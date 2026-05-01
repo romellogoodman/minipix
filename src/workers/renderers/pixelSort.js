@@ -1,8 +1,7 @@
-import { createSeededRandom, map } from "../utils.js";
+import { map } from "../utils.js";
 
-export default function pixelSort(imageData, width, height, config, seed) {
-  const random = createSeededRandom(seed);
-  const outputData = new Uint8ClampedArray(imageData);
+export default function pixelSort({ imageData, width, height, config, random, outputData }) {
+  outputData.set(imageData);
 
   const threshold = map(random(), 0, 1, config.threshold.min, config.threshold.max);
   const sortLengthPercent = map(random(), 0, 1, config.sortLength.min, config.sortLength.max);
@@ -90,6 +89,4 @@ export default function pixelSort(imageData, width, height, config, seed) {
       }
     }
   }
-
-  return outputData;
 }

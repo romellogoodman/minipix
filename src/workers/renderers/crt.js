@@ -1,8 +1,6 @@
-import { createSeededRandom, randomNumber, map } from "../utils.js";
+import { randomNumber, map } from "../utils.js";
 
-export default function crt(imageData, width, height, config, seed) {
-  const random = createSeededRandom(seed);
-  const outputData = new Uint8ClampedArray(imageData.length);
+export default function crt({ imageData, width, height, config, random, outputData }) {
 
   // Randomize parameters within config ranges
   const scanlineIntensity = map(
@@ -254,6 +252,4 @@ export default function crt(imageData, width, height, config, seed) {
       outputData[dstIdx + 3] = 255;
     }
   }
-
-  return outputData;
 }

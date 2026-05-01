@@ -58,10 +58,6 @@ export const rendererConfig = {
       lineWeightMultiplier: 1,
     },
   },
-  halftoneBayer: {},
-  halftoneClassicDots: {},
-  halftoneFloydSteinberg: {},
-  halftoneLines: {},
   kaleidoscope: {
     squareCount: { min: 2, max: 20 },
     sourceOffsetPercent: { min: 0, max: 1 }, // where to sample from in non-square images
@@ -82,8 +78,8 @@ export const rendererConfig = {
     levels: { min: 2, max: 8 },
   },
   radialBlur: {
-    numSamples: { min: 10, max: 100 },
-    blurStrength: { min: 0.02, max: 1.5 },
+    numSamples: { min: 10, max: 60 },
+    blurStrength: { min: 0.02, max: 0.6 },
     centerVariation: { min: 0.2, max: 0.8 },
   },
   ripple: {

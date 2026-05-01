@@ -1,8 +1,6 @@
-import { createSeededRandom, map } from "../utils.js";
+import { map } from "../utils.js";
 
-export default function spiral(imageData, width, height, config, seed) {
-  const random = createSeededRandom(seed);
-  const outputData = new Uint8ClampedArray(imageData.length);
+export default function spiral({ imageData, width, height, config, random, outputData }) {
 
   const spiralStrength = map(
     random(),
@@ -52,6 +50,4 @@ export default function spiral(imageData, width, height, config, seed) {
       outputData[dstIdx + 3] = 255;
     }
   }
-
-  return outputData;
 }

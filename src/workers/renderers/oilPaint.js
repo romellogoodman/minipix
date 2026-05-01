@@ -1,8 +1,6 @@
-import { createSeededRandom, randomNumber, map } from "../utils.js";
+import { randomNumber, map } from "../utils.js";
 
-export default function oilPaint(imageData, width, height, config, seed) {
-  const random = createSeededRandom(seed);
-  const outputData = new Uint8ClampedArray(imageData.length);
+export default function oilPaint({ imageData, width, height, config, random, outputData }) {
 
   const radius = randomNumber(config.radius.min, config.radius.max, random);
   const levels = randomNumber(config.levels.min, config.levels.max, random);
@@ -85,6 +83,4 @@ export default function oilPaint(imageData, width, height, config, seed) {
       outputData[dstIdx + 3] = 255;
     }
   }
-
-  return outputData;
 }

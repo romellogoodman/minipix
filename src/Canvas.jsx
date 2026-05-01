@@ -3,13 +3,30 @@ import { renderQueue } from "./renderQueue";
 
 const requestIdle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
 
-function Canvas({ image, renderFn, seed, onDownload, downloadMeta }) {
+function downloadCanvas(canvas, filename, mimeType = "image/png") {
+  const quality = mimeType === "image/jpeg" ? 0.95 : undefined;
+  canvas.toBlob(
+    (blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    },
+    mimeType,
+    quality
+  );
+}
+
+function Canvas({ image, renderFn, seed, rendererName, hash, filename, mimeType }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [isRendered, setIsRendered] = useState(false);
+  // "pending" | "done" | "error"
+  const [renderState, setRenderState] = useState("pending");
 
-  // IntersectionObserver to detect when canvas is in viewport
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -20,47 +37,41 @@ function Canvas({ image, renderFn, seed, onDownload, downloadMeta }) {
           setIsVisible(true);
         }
       },
-      {
-        rootMargin: "100px", // Start rendering slightly before visible
-        threshold: 0.01,
-      }
+      { rootMargin: "100px", threshold: 0.01 }
     );
 
     observer.observe(container);
-
-    return () => {
-      observer.unobserve(container);
-    };
+    return () => observer.unobserve(container);
   }, []);
 
-  // Render once the canvas enters the viewport
   useEffect(() => {
-    if (!isVisible || isRendered || !canvasRef.current || !renderFn) {
-      return;
-    }
+    if (!isVisible || !canvasRef.current || !renderFn) return;
 
     let cancelled = false;
+    let cancelQueue = null;
+    let workerPromise = null;
 
     const doRender = async () => {
       if (cancelled || !canvasRef.current) return;
       try {
         const result = renderFn({ canvas: canvasRef.current, image, seed });
-        if (result instanceof Promise) await result;
-        if (!cancelled) setIsRendered(true);
+        if (result instanceof Promise) {
+          workerPromise = result;
+          await result;
+        }
+        if (!cancelled) setRenderState("done");
       } catch (error) {
-        console.error("Rendering error:", error);
+        if (error?.message !== "cancelled") {
+          console.error("Rendering error:", error);
+          if (!cancelled) setRenderState("error");
+        }
       }
     };
 
     if (renderFn.isAsync) {
-      // Worker renderers are already gated by the worker pool — no need to
-      // also occupy a renderQueue slot (that would block sync renderers while
-      // we idle waiting on a worker).
       doRender();
     } else {
-      // Sync renderers run on the main thread; limit concurrency and defer
-      // to idle time so scroll stays smooth.
-      renderQueue.request(
+      cancelQueue = renderQueue.request(
         () =>
           new Promise((resolve) => {
             requestIdle(() => {
@@ -72,16 +83,17 @@ function Canvas({ image, renderFn, seed, onDownload, downloadMeta }) {
 
     return () => {
       cancelled = true;
+      if (cancelQueue) cancelQueue();
+      if (workerPromise?.cancel) workerPromise.cancel();
     };
-  }, [isVisible, isRendered, renderFn, image, seed]);
+  }, [isVisible, renderFn, image, seed]);
 
   const handleClick = () => {
-    if (onDownload && canvasRef.current) {
-      onDownload(canvasRef.current, downloadMeta);
+    if (canvasRef.current && renderState === "done") {
+      downloadCanvas(canvasRef.current, filename, mimeType);
     }
   };
 
-  // Handle keyboard activation for accessibility
   const handleKeyDown = (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -89,33 +101,24 @@ function Canvas({ image, renderFn, seed, onDownload, downloadMeta }) {
     }
   };
 
-  // Calculate aspect ratio for placeholder
   const aspectRatio = image ? image.width / image.height : 1;
-  const maxWidth = 600; // matches CSS max-width
-  const maxHeight = 600;
-
-  let width, height;
-  if (aspectRatio > 1) {
-    // Landscape
-    width = maxWidth;
-    height = maxWidth / aspectRatio;
-  } else {
-    // Portrait or square
-    height = maxHeight;
-    width = maxHeight * aspectRatio;
-  }
+  const maxDim = 600;
+  const width = aspectRatio > 1 ? maxDim : maxDim * aspectRatio;
+  const height = aspectRatio > 1 ? maxDim / aspectRatio : maxDim;
 
   return (
     <div
       ref={containerRef}
-      style={{
-        position: "relative",
-        width: `${width}px`,
-        height: `${height}px`,
-        minHeight: `${height}px`,
-      }}
+      className="canvas__container"
+      style={{ width: `${width}px`, height: `${height}px` }}
     >
-      {!isRendered && <div className="canvas__skeleton" />}
+      {renderState === "pending" && <div className="canvas__skeleton" />}
+      {renderState === "error" && (
+        <div className="canvas__error">
+          render failed
+          <span className="canvas__error-name">{rendererName}</span>
+        </div>
+      )}
       <canvas
         ref={canvasRef}
         className="canvas"
@@ -123,9 +126,14 @@ function Canvas({ image, renderFn, seed, onDownload, downloadMeta }) {
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="button"
-        aria-label="Click to download rendered image"
-        style={{ opacity: isRendered ? 1 : 0, transition: "opacity 0.3s" }}
+        aria-label={`${rendererName} rendering, seed ${hash}. Press to download.`}
+        style={{ opacity: renderState === "done" ? 1 : 0 }}
       />
+      {renderState === "done" && (
+        <span className="canvas__badge" aria-hidden="true">
+          {rendererName} · {hash}
+        </span>
+      )}
     </div>
   );
 }

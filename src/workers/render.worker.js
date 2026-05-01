@@ -1,3 +1,4 @@
+import { createSeededRandom } from "./utils.js";
 import ripple from "./renderers/ripple.js";
 import spiral from "./renderers/spiral.js";
 import waves from "./renderers/waves.js";
@@ -13,11 +14,22 @@ import vhs from "./renderers/vhs.js";
 
 const renderers = { ripple, spiral, waves, crt, dither, duotone, filmGrain, oilPaint, pixelSort, posterize, sketch, vhs };
 
-// Handle messages from main thread
 self.onmessage = function (e) {
   const { type, rendererName, imageData, width, height, config, seed, id } = e.data;
-  if (type === "render" && renderers[rendererName]) {
-    const result = renderers[rendererName](imageData, width, height, config, seed);
-    self.postMessage({ id, result: result.buffer, width, height }, [result.buffer]);
+  if (type !== "render") return;
+
+  const renderer = renderers[rendererName];
+  if (!renderer) {
+    self.postMessage({ id, error: `Unknown renderer: ${rendererName}` });
+    return;
+  }
+
+  try {
+    const random = createSeededRandom(seed);
+    const outputData = new Uint8ClampedArray(imageData.length);
+    renderer({ imageData, width, height, config, random, outputData });
+    self.postMessage({ id, result: outputData.buffer, width, height }, [outputData.buffer]);
+  } catch (err) {
+    self.postMessage({ id, error: String(err?.message || err) });
   }
 };

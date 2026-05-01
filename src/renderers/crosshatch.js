@@ -1,6 +1,6 @@
 import {
-  createSeededRandom,
-  randomNumber,
+  setupRenderer,
+  randInt,
   extractDominantColors,
   getLuminance,
   getAverageColorInBlock,
@@ -10,44 +10,19 @@ import { rendererConfig } from "./config.js";
 
 const crosshatch = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
+  const { ctx, random } = setupRenderer(canvas, image, seed);
 
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const random = createSeededRandom(seed);
-
-  ctx.save();
-
-  // Draw image to get pixel data
   ctx.drawImage(image, 0, 0);
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
   const config = rendererConfig.crosshatch;
-  const numColors = randomNumber(
-    config.numColors.min,
-    config.numColors.max,
-    random
-  );
+  const numColors = randInt(config.numColors, random);
   const palette = extractDominantColors(imageData, numColors, 10);
-  const lineSpacing = randomNumber(
-    config.lineSpacing.min,
-    config.lineSpacing.max,
-    random
-  );
-  const lineLength = randomNumber(
-    config.lineLength.min,
-    config.lineLength.max,
-    random
-  );
-  const strokeWidth = randomNumber(
-    config.strokeWidth.min,
-    config.strokeWidth.max,
-    random
-  );
+  const lineSpacing = randInt(config.lineSpacing, random);
+  const lineLength = randInt(config.lineLength, random);
+  const strokeWidth = randInt(config.strokeWidth, random);
 
-  // Fill with lightest color from palette
+  // Fill with lightest palette color
   const sortedPalette = [...palette].sort(
     (a, b) => getLuminance(b.r, b.g, b.b) - getLuminance(a.r, a.g, a.b)
   );
@@ -57,63 +32,39 @@ const crosshatch = ({ canvas, image, seed = Date.now() }) => {
   ctx.lineWidth = strokeWidth;
   ctx.lineCap = "round";
 
-  // Pre-compute block averages in a grid to avoid redundant calculations
-  const gridCols = Math.ceil(canvas.width / lineSpacing);
-  const gridRows = Math.ceil(canvas.height / lineSpacing);
-  const blockCache = new Array(gridRows);
+  // Batch strokes by palette color so each color is one beginPath/stroke.
+  const batches = new Map(palette.map((c) => [c, []]));
 
-  for (let row = 0; row < gridRows; row++) {
-    blockCache[row] = new Array(gridCols);
-    for (let col = 0; col < gridCols; col++) {
-      const x = col * lineSpacing;
-      const y = row * lineSpacing;
-      const avgColor = getAverageColorInBlock(
-        imageData,
-        x,
-        y,
-        lineSpacing,
-        canvas.width,
-        canvas.height
-      );
+  for (let y = 0; y < canvas.height; y += lineSpacing) {
+    for (let x = 0; x < canvas.width; x += lineSpacing) {
+      const avgColor = getAverageColorInBlock(imageData, x, y, lineSpacing, canvas.width, canvas.height);
       const luminance = getLuminance(avgColor.r, avgColor.g, avgColor.b);
       const nearestColor = findNearestColor(avgColor, palette);
-      blockCache[row][col] = { avgColor, luminance, nearestColor };
-    }
-  }
-
-  // Draw crosshatch strokes based on cached luminance
-  for (let row = 0; row < gridRows; row++) {
-    for (let col = 0; col < gridCols; col++) {
-      const x = col * lineSpacing;
-      const y = row * lineSpacing;
-      const { luminance, nearestColor } = blockCache[row][col];
-
-      ctx.strokeStyle = `rgb(${nearestColor.r}, ${nearestColor.g}, ${nearestColor.b})`;
-
-      // More strokes for darker areas
       const numStrokes = Math.floor((1 - luminance) * 4);
+      const lines = batches.get(nearestColor);
 
       for (let s = 0; s < numStrokes; s++) {
         const angle = (s * Math.PI) / 4 + (random() - 0.5) * 0.3;
         const cx = x + lineSpacing / 2 + (random() - 0.5) * lineSpacing * 0.5;
         const cy = y + lineSpacing / 2 + (random() - 0.5) * lineSpacing * 0.5;
-        const len = lineLength * (0.5 + random() * 0.5);
-
-        ctx.beginPath();
-        ctx.moveTo(
-          cx - (Math.cos(angle) * len) / 2,
-          cy - (Math.sin(angle) * len) / 2
-        );
-        ctx.lineTo(
-          cx + (Math.cos(angle) * len) / 2,
-          cy + (Math.sin(angle) * len) / 2
-        );
-        ctx.stroke();
+        const halfLen = (lineLength * (0.5 + random() * 0.5)) / 2;
+        const cos = Math.cos(angle) * halfLen;
+        const sin = Math.sin(angle) * halfLen;
+        lines.push(cx - cos, cy - sin, cx + cos, cy + sin);
       }
     }
   }
 
-  ctx.restore();
+  for (const [color, lines] of batches) {
+    if (lines.length === 0) continue;
+    ctx.strokeStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+    ctx.beginPath();
+    for (let i = 0; i < lines.length; i += 4) {
+      ctx.moveTo(lines[i], lines[i + 1]);
+      ctx.lineTo(lines[i + 2], lines[i + 3]);
+    }
+    ctx.stroke();
+  }
 };
 
 crosshatch.displayName = "crosshatch";

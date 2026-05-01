@@ -1,43 +1,22 @@
-import { createSeededRandom, randomNumber, map } from "../utils/index.js";
+import { setupRenderer, randInt, randFloat, randomNumber } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
 const glitch = ({ canvas, image, seed = Date.now() }) => {
   if (!image) return;
+  const { ctx, random } = setupRenderer(canvas, image, seed);
 
-  const ctx = canvas.getContext("2d");
-  canvas.width = image.width;
-  canvas.height = image.height;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const random = createSeededRandom(seed);
-
-  ctx.save();
-
-  // Draw original image first
   ctx.drawImage(image, 0, 0);
 
   const config = rendererConfig.glitch;
-  const numSlices = randomNumber(
-    config.numSlices.min,
-    config.numSlices.max,
-    random
-  );
-  const maxOffset = map(
-    random(),
-    0,
-    1,
-    config.maxOffset.min,
-    config.maxOffset.max
-  );
+  const numSlices = randInt(config.numSlices, random);
+  const maxOffset = randFloat(config.maxOffset, random);
   const shouldInvert = random() < config.invertProbability;
 
-  // Create horizontal glitch slices
   for (let i = 0; i < numSlices; i++) {
     const sliceY = Math.floor(random() * canvas.height);
     const sliceHeight = randomNumber(2, Math.floor(canvas.height / 10), random);
     const offset = Math.floor((random() - 0.5) * 2 * canvas.width * maxOffset);
 
-    // Get slice data
     const sliceData = ctx.getImageData(
       0,
       sliceY,
@@ -45,14 +24,10 @@ const glitch = ({ canvas, image, seed = Date.now() }) => {
       Math.min(sliceHeight, canvas.height - sliceY)
     );
 
-    // Color channel shift
     if (random() < config.colorShiftProbability) {
-      const shiftAmount = randomNumber(
-        config.colorShiftAmount.min,
-        config.colorShiftAmount.max,
-        random
-      );
-      const channelToShift = Math.floor(random() * 3); // R, G, or B
+      const shiftAmount =
+        randInt(config.colorShiftAmount, random) * (random() < 0.5 ? -1 : 1);
+      const channelToShift = Math.floor(random() * 3);
 
       for (let p = 0; p < sliceData.data.length; p += 4) {
         const shiftedIdx = p + shiftAmount * 4;
@@ -63,16 +38,14 @@ const glitch = ({ canvas, image, seed = Date.now() }) => {
       }
     }
 
-    // Invert colors (50/50 to enable, then 50/50 per slice)
     if (shouldInvert && random() < 0.5) {
       for (let p = 0; p < sliceData.data.length; p += 4) {
-        sliceData.data[p] = 255 - sliceData.data[p]; // R
-        sliceData.data[p + 1] = 255 - sliceData.data[p + 1]; // G
-        sliceData.data[p + 2] = 255 - sliceData.data[p + 2]; // B
+        sliceData.data[p] = 255 - sliceData.data[p];
+        sliceData.data[p + 1] = 255 - sliceData.data[p + 1];
+        sliceData.data[p + 2] = 255 - sliceData.data[p + 2];
       }
     }
 
-    // Draw slice with horizontal offset (wrapping)
     ctx.putImageData(sliceData, offset, sliceY);
     if (offset > 0) {
       ctx.putImageData(sliceData, offset - canvas.width, sliceY);
@@ -80,8 +53,6 @@ const glitch = ({ canvas, image, seed = Date.now() }) => {
       ctx.putImageData(sliceData, offset + canvas.width, sliceY);
     }
   }
-
-  ctx.restore();
 };
 
 glitch.displayName = "glitch";

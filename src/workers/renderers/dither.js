@@ -1,174 +1,81 @@
-import { createSeededRandom, randomNumber } from "../utils.js";
+import { randomNumber, extractDominantColors, findNearestColor } from "../utils.js";
 
-export default function dither(imageData, width, height, config, seed) {
-  const random = createSeededRandom(seed);
-  const outputData = new Uint8ClampedArray(imageData.length);
-
+export default function dither({ imageData, width, height, config, random, outputData }) {
   const numColors = randomNumber(config.numColors.min, config.numColors.max, random);
+  const palette = extractDominantColors({ data: imageData, width, height }, numColors);
 
-  // Extract a palette using k-means-style sampling
-  const palette = [];
-  const sampleStep = Math.max(1, Math.floor(imageData.length / 4 / 1000));
-  const samples = [];
-  for (let i = 0; i < imageData.length; i += sampleStep * 4) {
-    samples.push([imageData[i], imageData[i + 1], imageData[i + 2]]);
-  }
-  // Initialize centroids from random samples
-  for (let i = 0; i < numColors; i++) {
-    const idx = Math.floor(random() * samples.length);
-    palette.push([...samples[idx]]);
-  }
-  // Run k-means for a few iterations
-  for (let iter = 0; iter < 5; iter++) {
-    const sums = palette.map(() => [0, 0, 0]);
-    const counts = new Array(palette.length).fill(0);
-    for (const sample of samples) {
-      let minDist = Infinity;
-      let best = 0;
-      for (let p = 0; p < palette.length; p++) {
-        const dr = sample[0] - palette[p][0];
-        const dg = sample[1] - palette[p][1];
-        const db = sample[2] - palette[p][2];
-        const dist = dr * dr + dg * dg + db * db;
-        if (dist < minDist) { minDist = dist; best = p; }
-      }
-      sums[best][0] += sample[0];
-      sums[best][1] += sample[1];
-      sums[best][2] += sample[2];
-      counts[best]++;
-    }
-    for (let p = 0; p < palette.length; p++) {
-      if (counts[p] > 0) {
-        palette[p][0] = sums[p][0] / counts[p];
-        palette[p][1] = sums[p][1] / counts[p];
-        palette[p][2] = sums[p][2] / counts[p];
-      }
-    }
-  }
-
-  const findNearest = (r, g, b) => {
-    let minDist = Infinity;
-    let best = 0;
-    for (let p = 0; p < palette.length; p++) {
-      const dr = r - palette[p][0];
-      const dg = g - palette[p][1];
-      const db = b - palette[p][2];
-      const dist = dr * dr + dg * dg + db * db;
-      if (dist < minDist) { minDist = dist; best = p; }
-    }
-    return best;
-  };
-
-  // Pick dithering mode
   const modes = ["atkinson", "ordered", "blueNoise"];
   const mode = modes[Math.floor(random() * modes.length)];
 
+  const putNearest = (idx, r, g, b) => {
+    const c = findNearestColor({ r, g, b }, palette);
+    outputData[idx] = c.r;
+    outputData[idx + 1] = c.g;
+    outputData[idx + 2] = c.b;
+    outputData[idx + 3] = 255;
+    return c;
+  };
+
   if (mode === "atkinson") {
-    // Atkinson dithering - diffuses 3/4 of error for sharper results
-    const errR = new Float32Array(width * height);
-    const errG = new Float32Array(width * height);
-    const errB = new Float32Array(width * height);
+    const err = new Float32Array(width * height * 3);
+    const offsets = [[1, 0], [2, 0], [-1, 1], [0, 1], [1, 1], [0, 2]];
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = (y * width + x) * 4;
-        const pixIdx = y * width + x;
+        const ei = (y * width + x) * 3;
 
-        const r = Math.max(0, Math.min(255, imageData[idx] + errR[pixIdx]));
-        const g = Math.max(0, Math.min(255, imageData[idx + 1] + errG[pixIdx]));
-        const b = Math.max(0, Math.min(255, imageData[idx + 2] + errB[pixIdx]));
+        const r = imageData[idx] + err[ei];
+        const g = imageData[idx + 1] + err[ei + 1];
+        const b = imageData[idx + 2] + err[ei + 2];
+        const c = putNearest(idx, r, g, b);
 
-        const best = findNearest(r, g, b);
-        outputData[idx] = palette[best][0];
-        outputData[idx + 1] = palette[best][1];
-        outputData[idx + 2] = palette[best][2];
-        outputData[idx + 3] = 255;
-
-        // Atkinson diffuses 1/8 of error to 6 neighbors (total 6/8 = 3/4)
-        const eR = (r - palette[best][0]) / 8;
-        const eG = (g - palette[best][1]) / 8;
-        const eB = (b - palette[best][2]) / 8;
-
-        const offsets = [
-          [1, 0], [2, 0],
-          [-1, 1], [0, 1], [1, 1],
-          [0, 2],
-        ];
+        const eR = (r - c.r) / 8, eG = (g - c.g) / 8, eB = (b - c.b) / 8;
         for (const [dx, dy] of offsets) {
-          const nx = x + dx;
-          const ny = y + dy;
+          const nx = x + dx, ny = y + dy;
           if (nx >= 0 && nx < width && ny < height) {
-            const nIdx = ny * width + nx;
-            errR[nIdx] += eR;
-            errG[nIdx] += eG;
-            errB[nIdx] += eB;
+            const ni = (ny * width + nx) * 3;
+            err[ni] += eR; err[ni + 1] += eG; err[ni + 2] += eB;
           }
         }
       }
     }
   } else if (mode === "ordered") {
-    // Ordered dithering with configurable Bayer matrix size
-    const bayerExp = randomNumber(config.bayerSize.min, config.bayerSize.max, random);
-    const bayerN = 1 << bayerExp; // 8 or 16
-
-    // Generate Bayer matrix recursively
+    const bayerN = 1 << randomNumber(config.bayerSize.min, config.bayerSize.max, random);
     const buildBayer = (size) => {
-      const matrix = new Float32Array(size * size);
-      if (size === 2) {
-        matrix[0] = 0; matrix[1] = 2;
-        matrix[2] = 3; matrix[3] = 1;
-        return matrix;
-      }
+      const m = new Float32Array(size * size);
+      if (size === 2) { m[0] = 0; m[1] = 2; m[2] = 3; m[3] = 1; return m; }
       const half = size >> 1;
       const sub = buildBayer(half);
+      const quad = [0, 2, 3, 1];
       for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
-          const subVal = sub[(y % half) * half + (x % half)];
-          const quadrant = (y < half ? 0 : 1) * 2 + (x < half ? 0 : 1);
-          const offsets = [0, 2, 3, 1];
-          matrix[y * size + x] = 4 * subVal + offsets[quadrant];
+          const q = (y < half ? 0 : 1) * 2 + (x < half ? 0 : 1);
+          m[y * size + x] = 4 * sub[(y % half) * half + (x % half)] + quad[q];
         }
       }
-      return matrix;
+      return m;
     };
     const bayer = buildBayer(bayerN);
-    const bayerScale = 1 / (bayerN * bayerN);
+    const scale = 1 / (bayerN * bayerN);
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = (y * width + x) * 4;
-        const threshold = (bayer[(y % bayerN) * bayerN + (x % bayerN)] * bayerScale - 0.5) * 128;
-
-        const r = Math.max(0, Math.min(255, imageData[idx] + threshold));
-        const g = Math.max(0, Math.min(255, imageData[idx + 1] + threshold));
-        const b = Math.max(0, Math.min(255, imageData[idx + 2] + threshold));
-
-        const best = findNearest(r, g, b);
-        outputData[idx] = palette[best][0];
-        outputData[idx + 1] = palette[best][1];
-        outputData[idx + 2] = palette[best][2];
-        outputData[idx + 3] = 255;
+        const t = (bayer[(y % bayerN) * bayerN + (x % bayerN)] * scale - 0.5) * 128;
+        putNearest(idx, imageData[idx] + t, imageData[idx + 1] + t, imageData[idx + 2] + t);
       }
     }
   } else {
-    // Blue noise dithering - organic, non-repetitive pattern
-    const scale = randomNumber(config.blueNoiseScale.min, config.blueNoiseScale.max, random);
-
-    // Generate blue noise texture using void-and-cluster approximation
-    const noiseSize = scale;
+    const noiseSize = randomNumber(config.blueNoiseScale.min, config.blueNoiseScale.max, random);
     const noise = new Float32Array(noiseSize * noiseSize);
+    for (let i = 0; i < noise.length; i++) noise[i] = random();
 
-    // Initialize with random values
-    for (let i = 0; i < noise.length; i++) {
-      noise[i] = random();
-    }
-
-    // Apply several passes of local energy minimization to approximate blue noise
+    // Void-and-cluster approximation: push each cell away from its 5×5 neighbor mean.
     for (let pass = 0; pass < 3; pass++) {
       for (let y = 0; y < noiseSize; y++) {
         for (let x = 0; x < noiseSize; x++) {
-          let sum = 0;
-          let count = 0;
+          let sum = 0, count = 0;
           for (let dy = -2; dy <= 2; dy++) {
             for (let dx = -2; dx <= 2; dx++) {
               if (dx === 0 && dy === 0) continue;
@@ -178,13 +85,8 @@ export default function dither(imageData, width, height, config, seed) {
               count++;
             }
           }
-          const avg = sum / count;
-          const current = noise[y * noiseSize + x];
-          // Push away from neighbors' average
-          noise[y * noiseSize + x] = current + (current - avg) * 0.3;
-          // Re-normalize to 0-1
-          if (noise[y * noiseSize + x] < 0) noise[y * noiseSize + x] = 0;
-          if (noise[y * noiseSize + x] > 1) noise[y * noiseSize + x] = 1;
+          const i = y * noiseSize + x;
+          noise[i] = Math.max(0, Math.min(1, noise[i] + (noise[i] - sum / count) * 0.3));
         }
       }
     }
@@ -192,20 +94,9 @@ export default function dither(imageData, width, height, config, seed) {
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const idx = (y * width + x) * 4;
-        const threshold = (noise[(y % noiseSize) * noiseSize + (x % noiseSize)] - 0.5) * 128;
-
-        const r = Math.max(0, Math.min(255, imageData[idx] + threshold));
-        const g = Math.max(0, Math.min(255, imageData[idx + 1] + threshold));
-        const b = Math.max(0, Math.min(255, imageData[idx + 2] + threshold));
-
-        const best = findNearest(r, g, b);
-        outputData[idx] = palette[best][0];
-        outputData[idx + 1] = palette[best][1];
-        outputData[idx + 2] = palette[best][2];
-        outputData[idx + 3] = 255;
+        const t = (noise[(y % noiseSize) * noiseSize + (x % noiseSize)] - 0.5) * 128;
+        putNearest(idx, imageData[idx] + t, imageData[idx + 1] + t, imageData[idx + 2] + t);
       }
     }
   }
-
-  return outputData;
 }

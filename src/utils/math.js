@@ -38,6 +38,24 @@ export function randomNumber(min, max, randomFn = Math.random) {
 }
 
 /**
+ * Random integer in a {min, max} range (inclusive).
+ * @param {{min: number, max: number}} range
+ * @param {function(): number} [randomFn=Math.random]
+ */
+export function randInt(range, randomFn = Math.random) {
+  return Math.floor(randomFn() * (range.max - range.min + 1)) + range.min;
+}
+
+/**
+ * Random float in a {min, max} range.
+ * @param {{min: number, max: number}} range
+ * @param {function(): number} [randomFn=Math.random]
+ */
+export function randFloat(range, randomFn = Math.random) {
+  return randomFn() * (range.max - range.min) + range.min;
+}
+
+/**
  * Remaps a number from one range to another range.
  * @param {number} value - The value to remap
  * @param {number} start1 - The lower bound of the input range

@@ -6,13 +6,17 @@ function useDragAndDrop(onFilesDrop) {
   const dragCounter = useRef(0);
 
   useEffect(() => {
+    const hasFiles = (e) => e.dataTransfer?.types?.includes("Files");
+
     const handleDragEnter = (e) => {
+      if (!hasFiles(e)) return;
       e.preventDefault();
       dragCounter.current++;
       setIsDragging(true);
     };
 
     const handleDragOver = (e) => {
+      if (!hasFiles(e)) return;
       e.preventDefault();
     };
 
@@ -25,12 +29,13 @@ function useDragAndDrop(onFilesDrop) {
     };
 
     const handleDrop = (e) => {
+      if (!hasFiles(e)) return;
       e.preventDefault();
       dragCounter.current = 0;
       setIsDragging(false);
 
       const files = Array.from(e.dataTransfer.files);
-      onFilesDrop(files);
+      if (files.length > 0) onFilesDrop(files);
     };
 
     document.body.addEventListener("dragenter", handleDragEnter);

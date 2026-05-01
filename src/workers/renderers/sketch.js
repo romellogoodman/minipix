@@ -1,8 +1,6 @@
-import { createSeededRandom, randomNumber } from "../utils.js";
+import { randomNumber } from "../utils.js";
 
-export default function sketch(imageData, width, height, config, seed) {
-  const random = createSeededRandom(seed);
-  const outputData = new Uint8ClampedArray(imageData.length);
+export default function sketch({ imageData, width, height, config, random, outputData }) {
 
   const lineThickness = randomNumber(config.lineThickness.min, config.lineThickness.max, random);
   const edgeThreshold = randomNumber(config.edgeThreshold.min, config.edgeThreshold.max, random);
@@ -104,6 +102,4 @@ export default function sketch(imageData, width, height, config, seed) {
       }
     }
   }
-
-  return outputData;
 }

@@ -1,7 +1,7 @@
 // Worker pool for parallel rendering
 // Manages a pool of Web Workers for pixel-intensive operations
 
-const TASK_TIMEOUT_MS = 30000; // 30 second timeout for worker tasks
+const TASK_TIMEOUT_MS = 30000;
 
 class WorkerPool {
   constructor(maxWorkers = navigator.hardwareConcurrency || 4) {
@@ -11,11 +11,19 @@ class WorkerPool {
     this.queue = [];
     this.taskId = 0;
     this.callbacks = new Map();
-    this.workerTaskMap = new Map(); // Track which task each worker is processing
+    this.workerTaskMap = new Map();
+  }
+
+  removeWorker(worker) {
+    worker.terminate();
+    const wi = this.workers.indexOf(worker);
+    if (wi > -1) this.workers.splice(wi, 1);
+    const ai = this.available.indexOf(worker);
+    if (ai > -1) this.available.splice(ai, 1);
+    this.workerTaskMap.delete(worker);
   }
 
   getWorker() {
-    // Return available worker or create new one if under limit
     if (this.available.length > 0) {
       return this.available.pop();
     }
@@ -27,47 +35,41 @@ class WorkerPool {
       );
 
       worker.onmessage = (e) => {
-        const { id, result, width, height } = e.data;
+        const { id, result, width, height, error } = e.data;
         const callback = this.callbacks.get(id);
 
         if (callback) {
-          // Convert buffer back to Uint8ClampedArray
-          const outputData = new Uint8ClampedArray(result);
-          callback.resolve({ data: outputData, width, height });
           this.callbacks.delete(id);
+          if (error) {
+            callback.reject(new Error(error));
+          } else {
+            callback.resolve({ data: new Uint8ClampedArray(result), width, height });
+          }
         }
 
-        // Clear task tracking for this worker
         this.workerTaskMap.delete(worker);
 
-        // Return worker to available pool
-        this.available.push(worker);
-
-        // Process next task in queue
-        this.processQueue();
+        // Only return to the pool if this worker wasn't removed (e.g. by a
+        // timeout that fired before a late message arrived).
+        if (this.workers.includes(worker)) {
+          this.available.push(worker);
+          this.processQueue();
+        }
       };
 
       worker.onerror = (error) => {
         console.error("Worker error:", error);
 
-        // Get the task ID this worker was processing and reject its promise
         const taskId = this.workerTaskMap.get(worker);
         if (taskId !== undefined) {
           const callback = this.callbacks.get(taskId);
           if (callback) {
-            callback.reject(new Error(`Worker error: ${error.message}`));
             this.callbacks.delete(taskId);
+            callback.reject(new Error(`Worker error: ${error.message}`));
           }
-          this.workerTaskMap.delete(worker);
         }
 
-        // Remove the failed worker and create fresh ones as needed
-        const index = this.workers.indexOf(worker);
-        if (index > -1) {
-          this.workers.splice(index, 1);
-        }
-
-        // Process next task in queue (will create new worker if needed)
+        this.removeWorker(worker);
         this.processQueue();
       };
 
@@ -92,21 +94,12 @@ class WorkerPool {
     const { rendererName, imageData, width, height, seed, config, resolve, reject } = task;
     const id = this.taskId++;
 
-    // Set timeout for this task
     const timeoutId = setTimeout(() => {
       const callback = this.callbacks.get(id);
       if (callback) {
-        callback.reject(new Error("Worker task timed out"));
         this.callbacks.delete(id);
-        this.workerTaskMap.delete(worker);
-
-        // Terminate and replace the stuck worker
-        worker.terminate();
-        const index = this.workers.indexOf(worker);
-        if (index > -1) {
-          this.workers.splice(index, 1);
-        }
-
+        callback.reject(new Error("Worker task timed out"));
+        this.removeWorker(worker);
         this.processQueue();
       }
     }, TASK_TIMEOUT_MS);
@@ -123,42 +116,51 @@ class WorkerPool {
     });
     this.workerTaskMap.set(worker, id);
 
-    // Use the buffer directly for true zero-copy transfer
-    // Note: After transfer, imageData becomes unusable in main thread
-    const buffer = imageData.buffer;
     worker.postMessage(
       {
         type: "render",
         id,
         rendererName,
-        imageData: imageData,
+        imageData,
         width,
         height,
         config,
         seed,
       },
-      [buffer]
+      [imageData.buffer]
     );
   }
 
   render(rendererName, imageData, width, height, seed, config) {
-    return new Promise((resolve, reject) => {
-      const task = { rendererName, imageData, width, height, seed, config, resolve, reject };
+    let task;
+    const promise = new Promise((resolve, reject) => {
+      task = { rendererName, imageData, width, height, seed, config, resolve, reject };
 
       const worker = this.getWorker();
       if (worker) {
         this.executeTask(worker, task);
       } else {
-        // All workers busy, add to queue
         this.queue.push(task);
       }
     });
+
+    promise.cancel = () => {
+      const qi = this.queue.indexOf(task);
+      if (qi > -1) {
+        this.queue.splice(qi, 1);
+        task.reject(new Error("cancelled"));
+      }
+    };
+
+    return promise;
   }
 
   terminate() {
-    // Reject all pending callbacks
     for (const callback of this.callbacks.values()) {
       callback.reject(new Error("Worker pool terminated"));
+    }
+    for (const task of this.queue) {
+      task.reject(new Error("Worker pool terminated"));
     }
 
     this.workers.forEach((worker) => worker.terminate());
@@ -170,5 +172,4 @@ class WorkerPool {
   }
 }
 
-// Singleton instance
 export const workerPool = new WorkerPool();

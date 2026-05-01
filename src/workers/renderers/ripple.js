@@ -1,8 +1,6 @@
-import { createSeededRandom, randomNumber, map } from "../utils.js";
+import { randomNumber, map } from "../utils.js";
 
-export default function ripple(imageData, width, height, config, seed) {
-  const random = createSeededRandom(seed);
-  const outputData = new Uint8ClampedArray(imageData.length);
+export default function ripple({ imageData, width, height, config, random, outputData }) {
 
   const numRipples = randomNumber(
     config.numRipples.min,
@@ -53,6 +51,8 @@ export default function ripple(imageData, width, height, config, seed) {
     ripple.y += offsetToCenter.y;
   }
 
+  const maxRadiusSq = maxInfluenceRadius * maxInfluenceRadius;
+
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       let offsetX = 0;
@@ -61,12 +61,8 @@ export default function ripple(imageData, width, height, config, seed) {
       for (const ripple of ripples) {
         const dx = x - ripple.x;
         const dy = y - ripple.y;
-
-        // Use squared distance for initial culling (avoid expensive sqrt)
         const distSq = dx * dx + dy * dy;
-        const maxRadiusSq = maxInfluenceRadius * maxInfluenceRadius;
 
-        // Skip ripples too far away to have meaningful effect
         if (distSq > maxRadiusSq) continue;
         if (distSq === 0) continue;
 
@@ -89,6 +85,4 @@ export default function ripple(imageData, width, height, config, seed) {
       outputData[dstIdx + 3] = 255;
     }
   }
-
-  return outputData;
 }

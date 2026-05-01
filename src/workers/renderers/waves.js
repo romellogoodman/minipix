@@ -1,8 +1,6 @@
-import { createSeededRandom, randomNumber, map } from "../utils.js";
+import { randomNumber, map } from "../utils.js";
 
-export default function waves(imageData, width, height, config, seed) {
-  const random = createSeededRandom(seed);
-  const outputData = new Uint8ClampedArray(imageData.length);
+export default function waves({ imageData, width, height, config, random, outputData }) {
 
   const amplitude = randomNumber(
     config.amplitude.min,
@@ -45,6 +43,4 @@ export default function waves(imageData, width, height, config, seed) {
       outputData[dstIdx + 3] = 255;
     }
   }
-
-  return outputData;
 }

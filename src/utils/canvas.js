@@ -1,23 +1,16 @@
-import { randomNumber } from "./math.js";
+import { randomNumber, createSeededRandom } from "./math.js";
 
 /**
- * Applies random horizontal and/or vertical flipping to a canvas context.
- * @param {CanvasRenderingContext2D} ctx - The canvas rendering context to transform
- * @param {number} width - The width of the canvas
- * @param {number} height - The height of the canvas
- * @param {function(): number} [randomFn=Math.random] - Optional random function to use
- * @returns {{flipX: boolean, flipY: boolean}} Object indicating which axes were flipped
+ * Shared setup for sync canvas renderers: sizes the canvas to the image,
+ * draws it, and returns the 2D context plus a seeded RNG.
+ * @returns {{ctx: CanvasRenderingContext2D, random: () => number}}
  */
-export const applyRandomFlip = (ctx, width, height, randomFn = Math.random) => {
-  const flipX = randomFn() < 0.5;
-  const flipY = randomFn() < 0.5;
-
-  if (flipX || flipY) {
-    ctx.translate(flipX ? width : 0, flipY ? height : 0);
-    ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
-  }
-
-  return { flipX, flipY };
+export const setupRenderer = (canvas, image, seed) => {
+  const ctx = canvas.getContext("2d");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const random = createSeededRandom(seed);
+  return { ctx, random };
 };
 
 /**

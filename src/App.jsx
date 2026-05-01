@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import "./App.scss";
 import Canvas from "./Canvas";
 import * as renderers from "./renderers";
@@ -9,34 +9,16 @@ import useDragAndDrop from "./hooks/useDragAndDrop";
 import useInfiniteScroll from "./hooks/useInfiniteScroll";
 import { Upload } from "feather-icons-react";
 
-// Generate a consistent hash from seed using full 32-bit range
 function generateSeedHash(seed) {
   return (seed >>> 0).toString(36).padStart(7, "0");
 }
 
-function downloadCanvas(canvas, { img, rendererName, hash, index }) {
-  const mimeType = img.mimeType || "image/png";
-  const quality = mimeType === "image/jpeg" ? 0.95 : undefined;
-
-  canvas.toBlob(
-    (blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-
-      const extension = mimeType === "image/jpeg" ? "jpg" : "png";
-      const base = img.filename
-        ? img.filename.replace(/\.(jpe?g|png)$/i, "")
-        : `canvas-${index + 1}`;
-      link.download = `${base}-minipix-${rendererName}-${hash}.${extension}`;
-
-      link.click();
-      URL.revokeObjectURL(url);
-    },
-    mimeType,
-    quality
-  );
+function buildFilename(img, rendererName, hash, index) {
+  const extension = img.mimeType === "image/jpeg" ? "jpg" : "png";
+  const base = img.filename
+    ? img.filename.replace(/\.(jpe?g|png)$/i, "")
+    : `canvas-${index + 1}`;
+  return `${base}-minipix-${rendererName}-${hash}.${extension}`;
 }
 
 function App() {
@@ -49,13 +31,11 @@ function App() {
   const { visibleCount: visibleCanvasCount, reset: resetScroll } =
     useInfiniteScroll(sentinelRef, availableImages.length > 0);
 
-  // Get all enabled renderers from config (memoized)
   const enabledRenderers = useMemo(
     () => Object.keys(rendererConfig).map((name) => renderers[name]),
     []
   );
 
-  // Parse query parameter for hardcoded renderer(s) - supports comma-separated list (memoized)
   const filteredRenderers = useMemo(() => {
     const queryParams = new URLSearchParams(window.location.search);
     const rendererParam = queryParams.get("renderer");
@@ -63,13 +43,14 @@ function App() {
     const matched = rendererParam
       .split(",")
       .map((name) => renderers[name.trim()])
-      .filter(Boolean);
+      .filter((r) => typeof r === "function");
     return matched.length > 0 ? matched : null;
   }, []);
 
   const handleFileChange = (event) => {
     const files = Array.from(event.target.files);
     loadFiles(files);
+    event.target.value = "";
   };
 
   const handleUploadClick = () => {
@@ -95,16 +76,20 @@ function App() {
       const imageIndex = Math.floor(random() * availableImages.length);
       const seed = Math.floor(random() * 0xffffffff);
       const rendererIndex = Math.floor(random() * rendererPool.length);
+      const image = availableImages[imageIndex];
+      const renderer = rendererPool[rendererIndex];
+      const hash = generateSeedHash(seed);
 
       return {
-        image: availableImages[imageIndex],
+        image,
         seed,
-        renderer: rendererPool[rendererIndex],
+        renderer,
+        rendererName: renderer.displayName,
+        hash,
+        filename: buildFilename(image, renderer.displayName, hash, index),
       };
     });
   }, [visibleCanvasCount, availableImages, rendererPool]);
-
-  const handleDownload = useCallback((canvas, meta) => downloadCanvas(canvas, meta), []);
 
   return (
     <>
@@ -143,23 +128,23 @@ function App() {
                 .map((img) => {
                   const isAvailable = availableImageIds.has(img.id);
                   return (
-                  <button
-                    key={img.id}
-                    className={`nav__thumbnail ${
-                      isAvailable
-                        ? "nav__thumbnail--active"
-                        : "nav__thumbnail--inactive"
-                    }`}
-                    onClick={() => handleToggleImage(img)}
-                    aria-label={`${isAvailable ? "Disable" : "Enable"} ${img.filename || "image"}`}
-                    aria-pressed={isAvailable}
-                    type="button"
-                    style={{
-                      backgroundImage: `url(${img.element.src})`,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                    }}
-                  />
+                    <button
+                      key={img.id}
+                      className={`nav__thumbnail ${
+                        isAvailable
+                          ? "nav__thumbnail--active"
+                          : "nav__thumbnail--inactive"
+                      }`}
+                      onClick={() => handleToggleImage(img)}
+                      aria-label={`${isAvailable ? "Disable" : "Enable"} ${img.filename || "image"}`}
+                      aria-pressed={isAvailable}
+                      type="button"
+                      style={{
+                        backgroundImage: `url(${img.element.src})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    />
                   );
                 })}
             </div>
@@ -169,23 +154,21 @@ function App() {
 
       {canvasAssignments.length > 0 && (
         <>
-          <div className="canvas-grid" role="grid" aria-label="Generated artwork grid">
-            {canvasAssignments.map(({ image: img, seed, renderer }, index) => {
-              const hash = generateSeedHash(seed);
-
-              return (
-                <div key={`${seed}-${index}`} className="canvas-grid__item" role="gridcell">
-                  <Canvas
-                    image={img.element}
-                    renderFn={renderer}
-                    seed={seed}
-                    onDownload={handleDownload}
-                    downloadMeta={{ img, rendererName: renderer.displayName, hash, index }}
-                  />
-                </div>
-              );
-            })}
-          </div>
+          <ul className="canvas-grid" aria-label="Generated artwork">
+            {canvasAssignments.map(({ image: img, seed, renderer, rendererName, hash, filename }, index) => (
+              <li key={`${img.id}-${seed}-${index}`} className="canvas-grid__item">
+                <Canvas
+                  image={img.element}
+                  renderFn={renderer}
+                  seed={seed}
+                  rendererName={rendererName}
+                  hash={hash}
+                  filename={filename}
+                  mimeType={img.mimeType}
+                />
+              </li>
+            ))}
+          </ul>
           <div ref={sentinelRef} style={{ height: "1px" }} />
         </>
       )}

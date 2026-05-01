@@ -1,8 +1,6 @@
-import { createSeededRandom, randomNumber, map } from "../utils.js";
+import { randomNumber, map } from "../utils.js";
 
-export default function vhs(imageData, width, height, config, seed) {
-  const random = createSeededRandom(seed);
-  const outputData = new Uint8ClampedArray(imageData.length);
+export default function vhs({ imageData, width, height, config, random, outputData }) {
 
   const trackingNoise = map(random(), 0, 1, config.trackingNoise.min, config.trackingNoise.max);
   const colorBleed = randomNumber(config.colorBleed.min, config.colorBleed.max, random);
@@ -69,6 +67,4 @@ export default function vhs(imageData, width, height, config, seed) {
       outputData[dstIdx + 3] = 255;
     }
   }
-
-  return outputData;
 }

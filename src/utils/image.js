@@ -81,7 +81,7 @@ export const colorDistance = (color1, color2) => {
   const dr = color1.r - color2.r;
   const dg = color1.g - color2.g;
   const db = color1.b - color2.b;
-  return Math.sqrt(dr * dr + dg * dg + db * db);
+  return dr * dr + dg * dg + db * db;
 };
 
 /**
@@ -174,7 +174,6 @@ export const extractDominantColors = (
 
   // Iteratively split buckets until we have numColors
   while (buckets.length < numColors) {
-    // Find largest bucket
     let largestBucket = buckets[0];
     let largestIndex = 0;
 
@@ -185,15 +184,15 @@ export const extractDominantColors = (
       }
     }
 
-    // Split the largest bucket
-    const [bucket1, bucket2] = splitBucket(largestBucket);
+    // Can't split a bucket with ≤1 pixel; stop early rather than produce NaN.
+    if (largestBucket.length <= 1) break;
 
-    // Replace with two new buckets
+    const [bucket1, bucket2] = splitBucket(largestBucket);
     buckets.splice(largestIndex, 1, bucket1, bucket2);
   }
 
-  // Calculate average color for each bucket
-  return buckets.map((bucket) => {
+  // Calculate average color for each non-empty bucket
+  return buckets.filter((b) => b.length > 0).map((bucket) => {
     let r = 0,
       g = 0,
       b = 0;
@@ -276,11 +275,10 @@ export const applyBayerDithering = (imageData, palette) => {
 export const applyFloydSteinbergDithering = (imageData, palette) => {
   const { width, height, data } = imageData;
   const output = new ImageData(width, height);
+  // Accumulate diffusion in floats so fractional / negative error isn't lost
+  // to Uint8ClampedArray truncation and clamping.
+  const error = new Float32Array(width * height * 3);
 
-  // Copy original data to output and create error buffer
-  output.data.set(data);
-
-  // Error diffusion coefficients (right, bottom-left, bottom, bottom-right)
   const diffusion = [
     { dx: 1, dy: 0, weight: 7 / 16 },
     { dx: -1, dy: 1, weight: 3 / 16 },
@@ -291,48 +289,33 @@ export const applyFloydSteinbergDithering = (imageData, palette) => {
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * 4;
+      const eidx = (y * width + x) * 3;
 
-      // Get current pixel (with accumulated error)
       const oldPixel = {
-        r: output.data[idx],
-        g: output.data[idx + 1],
-        b: output.data[idx + 2],
+        r: data[idx] + error[eidx],
+        g: data[idx + 1] + error[eidx + 1],
+        b: data[idx + 2] + error[eidx + 2],
       };
 
-      // Find nearest palette color
       const newPixel = findNearestColor(oldPixel, palette);
 
-      // Set quantized pixel
       output.data[idx] = newPixel.r;
       output.data[idx + 1] = newPixel.g;
       output.data[idx + 2] = newPixel.b;
       output.data[idx + 3] = 255;
 
-      // Calculate quantization error
-      const errorR = oldPixel.r - newPixel.r;
-      const errorG = oldPixel.g - newPixel.g;
-      const errorB = oldPixel.b - newPixel.b;
+      const errR = oldPixel.r - newPixel.r;
+      const errG = oldPixel.g - newPixel.g;
+      const errB = oldPixel.b - newPixel.b;
 
-      // Diffuse error to neighboring pixels
       for (const { dx, dy, weight } of diffusion) {
         const nx = x + dx;
         const ny = y + dy;
-
-        if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-          const nidx = (ny * width + nx) * 4;
-          output.data[nidx] = Math.max(
-            0,
-            Math.min(255, output.data[nidx] + errorR * weight)
-          );
-          output.data[nidx + 1] = Math.max(
-            0,
-            Math.min(255, output.data[nidx + 1] + errorG * weight)
-          );
-          output.data[nidx + 2] = Math.max(
-            0,
-            Math.min(255, output.data[nidx + 2] + errorB * weight)
-          );
-        }
+        if (nx < 0 || nx >= width || ny >= height) continue;
+        const nidx = (ny * width + nx) * 3;
+        error[nidx] += errR * weight;
+        error[nidx + 1] += errG * weight;
+        error[nidx + 2] += errB * weight;
       }
     }
   }

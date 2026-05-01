@@ -1,9 +1,6 @@
-import { createSeededRandom, map } from "../utils.js";
+import { map } from "../utils.js";
 
-export default function duotone(imageData, width, height, config, seed) {
-  const random = createSeededRandom(seed);
-  const outputData = new Uint8ClampedArray(imageData.length);
-
+export default function duotone({ imageData, config, random, outputData }) {
   // Generate two contrasting colors using HSL
   const hue1 = map(random(), 0, 1, config.hueShift.min, config.hueShift.max);
   const hue2 = (hue1 + 180 + (random() - 0.5) * 60) % 360; // Complementary with variation
@@ -31,6 +28,4 @@ export default function duotone(imageData, width, height, config, seed) {
     outputData[i + 2] = Math.round(color1[2] + (color2[2] - color1[2]) * lum);
     outputData[i + 3] = 255;
   }
-
-  return outputData;
 }
