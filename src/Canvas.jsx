@@ -1,26 +1,8 @@
 import { useRef, useEffect, useState, memo } from "react";
 import { renderQueue } from "./renderQueue";
+import { downloadCanvas } from "./utils/download.js";
 
 const requestIdle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
-
-function downloadCanvas(canvas, filename, mimeType = "image/png") {
-  const quality = mimeType === "image/jpeg" ? 0.95 : undefined;
-  canvas.toBlob(
-    (blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      link.click();
-      // Defer revoke: revoking synchronously after click() can abort the
-      // download in some browsers before they have read the blob.
-      setTimeout(() => URL.revokeObjectURL(url), 0);
-    },
-    mimeType,
-    quality
-  );
-}
 
 function Canvas({ image, renderFn, seed, rendererName, hash, filename, mimeType }) {
   const canvasRef = useRef(null);
@@ -37,13 +19,16 @@ function Canvas({ image, renderFn, seed, rendererName, hash, filename, mimeType 
       (entries) => {
         if (entries[0].isIntersecting) {
           setIsVisible(true);
+          // Visibility only flips on once; stop observing so scrolling a long
+          // grid doesn't keep firing callbacks for already-rendered canvases.
+          observer.disconnect();
         }
       },
       { rootMargin: "100px", threshold: 0.01 }
     );
 
     observer.observe(container);
-    return () => observer.unobserve(container);
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {

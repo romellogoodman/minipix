@@ -4,22 +4,11 @@ import Canvas from "./Canvas";
 import * as renderers from "./renderers";
 import { rendererConfig } from "./renderers";
 import { createSeededRandom } from "./utils/math";
+import { generateSeedHash, buildFilename } from "./utils/download.js";
 import useImageLoader from "./hooks/useImageLoader";
 import useDragAndDrop from "./hooks/useDragAndDrop";
 import useInfiniteScroll from "./hooks/useInfiniteScroll";
 import { Upload } from "feather-icons-react";
-
-function generateSeedHash(seed) {
-  return (seed >>> 0).toString(36).padStart(7, "0");
-}
-
-function buildFilename(img, rendererName, hash, index) {
-  const extension = img.mimeType === "image/jpeg" ? "jpg" : "png";
-  const base = img.filename
-    ? img.filename.replace(/\.(jpe?g|png)$/i, "")
-    : `canvas-${index + 1}`;
-  return `${base}-minipix-${rendererName}-${hash}.${extension}`;
-}
 
 function App() {
   const fileInputRef = useRef(null);
@@ -82,6 +71,9 @@ function App() {
 
   const rendererPool = filteredRenderers || enabledRenderers;
 
+  // Newest-first thumbnails; memoized so the copy isn't rebuilt every render.
+  const thumbnailImages = useMemo(() => [...allImages].reverse(), [allImages]);
+
   // Assignments are seeded per-index (mixed with a per-load session seed) so
   // that growing visibleCanvasCount extends the list rather than regenerating
   // it. Within one page load canvas N always gets the same seed, image, and
@@ -141,31 +133,28 @@ function App() {
               >
                 <Upload size={16} />
               </button>
-              {allImages
-                .slice()
-                .reverse()
-                .map((img) => {
-                  const isAvailable = availableImageIds.has(img.id);
-                  return (
-                    <button
-                      key={img.id}
-                      className={`nav__thumbnail ${
-                        isAvailable
-                          ? "nav__thumbnail--active"
-                          : "nav__thumbnail--inactive"
-                      }`}
-                      onClick={() => handleToggleImage(img)}
-                      aria-label={`${isAvailable ? "Disable" : "Enable"} ${img.filename || "image"}`}
-                      aria-pressed={isAvailable}
-                      type="button"
-                      style={{
-                        backgroundImage: `url(${img.element.src})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                    />
-                  );
-                })}
+              {thumbnailImages.map((img) => {
+                const isAvailable = availableImageIds.has(img.id);
+                return (
+                  <button
+                    key={img.id}
+                    className={`nav__thumbnail ${
+                      isAvailable
+                        ? "nav__thumbnail--active"
+                        : "nav__thumbnail--inactive"
+                    }`}
+                    onClick={() => handleToggleImage(img)}
+                    aria-label={`${isAvailable ? "Disable" : "Enable"} ${img.filename || "image"}`}
+                    aria-pressed={isAvailable}
+                    type="button"
+                    style={{
+                      backgroundImage: `url(${img.element.src})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>

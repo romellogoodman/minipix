@@ -2,25 +2,49 @@ This is a computational collage app built with React. It allows users to upload 
 
 Minipix is a generative art tool that:
 
-- Accepts multiple image uploads (PNG/JPEG)
+- Accepts multiple image uploads (PNG/JPEG) via file picker or drag-and-drop
 - Displays an infinite scroll grid of computational collages
 - Randomly assigns uploaded images and rendering functions to each canvas
 - Uses seeded randomness for reproducible artwork
 - Allows toggling individual images on/off from the generation pool
 - Supports downloading individual canvas outputs with descriptive filenames including seed hash
+- Includes a Node CLI (`npm run render`) for batch rendering with node-canvas
 
 ## Project Structure
 
 ```
 src/
-├── main.jsx           # React entry point
-├── App.jsx            # Main App component - handles image upload and grid layout
-├── App.scss           # App component styles
-├── Canvas.jsx         # Canvas component - renders individual canvases with lazy loading
-├── renderers.js       # Rendering algorithms for image manipulation
-├── render.worker.js   # Web Worker for pixel-intensive rendering operations
-├── workerPool.js      # Worker pool manager for parallel rendering
-└── utils.js           # Utility functions including seeded PRNG
+├── main.jsx                       # React entry point (StrictMode + ErrorBoundary)
+├── App.jsx                        # Main App component - upload UI, canvas assignments, grid
+├── App.scss                       # App component styles
+├── Canvas.jsx                     # Canvas component - lazy loading, render lifecycle, download
+├── ErrorBoundary.jsx              # Top-level error boundary
+├── renderQueue.js                 # Limits concurrent main-thread (sync) renders
+├── hooks/
+│   ├── useImageLoader.js          # Default + uploaded image loading, availability toggling
+│   ├── useDragAndDrop.js          # Window-level drag-and-drop upload
+│   └── useInfiniteScroll.js       # IntersectionObserver sentinel, 20 canvases per page
+├── renderers/
+│   ├── index.js                   # Barrel: exports all renderers + rendererConfig
+│   ├── config.js                  # rendererConfig parameter ranges for every renderer
+│   ├── createWorkerRenderer.js    # Factory wrapping worker renderers (+ source pixel cache)
+│   └── <name>.js                  # One file per sync (main-thread) renderer
+├── workers/
+│   ├── pool.js                    # WorkerPool: on-demand workers, task queue, timeouts
+│   ├── render.worker.js           # Web Worker entry: dispatches to worker renderers
+│   ├── utils.js                   # Re-exports shared utils for the worker bundle
+│   └── renderers/<name>.js        # One file per worker (pixel-loop) renderer
+├── utils/
+│   ├── index.js                   # Barrel for renderer utilities
+│   ├── math.js                    # mulberry32/createSeededRandom, randInt, randFloat, map
+│   ├── canvas.js                  # setupRenderer, calculateAdaptivePixelSize, drawHalftoneDot
+│   ├── image.js                   # Color extraction, luminance, dithering, block averaging
+│   └── download.js                # Seed hash, download filename, canvas download (browser only)
+└── scss/modern-reset.scss
+
+scripts/
+├── render.js                      # CLI entry (`npm run render -- --file=...`), node-canvas
+└── cli-renderers.js               # Imports renderer modules directly for Node use
 ```
 
 ## Architecture
@@ -29,139 +53,85 @@ src/
 
 Main application component that manages:
 
-- Image upload and state (`allImages`, `availableImages`)
-- Image availability toggling via thumbnail interface
-- Random image and renderer selection (or hardcoded via query parameter)
-- Infinite scroll canvas grid rendering with 20 canvases per page
-- Unique seed generation for each canvas (0xFFFFFFFF range)
-- Canvas download functionality with descriptive filenames: `{originalname}-minipix-{renderer}-{hash}.{ext}`
-- Filters enabled renderers using `rendererConfig` object
+- Image upload via hidden file input and drag-and-drop (`useImageLoader`, `useDragAndDrop`)
+- Infinite scroll paging via `useInfiniteScroll` (20 canvases per page)
+- A per-page-load `sessionSeed`; canvas assignments (image, renderer, seed) are derived
+  deterministically from `sessionSeed ^ index`, so scrolling extends the grid without
+  reshuffling already-rendered canvases
+- Download filenames built with `buildFilename` from `utils/download.js`:
+  `{originalname}-minipix-{renderer}-{hash}.{ext}`
+- The renderer pool comes from `Object.keys(rendererConfig)` mapped to the barrel exports
 
 **Query Parameters:**
-- `renderer`: Specify renderer(s) by name (e.g., `?renderer=spiral` or `?renderer=ripple,waves,spiral`)
-  - Supports comma-separated list for multiple renderers
-  - If invalid or not provided, random selection from all enabled renderers is used
+- `renderer`: Specify renderer(s) by name (e.g., `?renderer=spiral` or `?renderer=ripple,waves,spiral`).
+  Comma-separated list supported; invalid names fall back to the full pool.
+- `seed`: Reproduce a shared artwork. Accepts the base36 hash from a filename or a decimal
+  seed; applied to the first canvas only.
 
 ### Canvas.jsx
 
 Reusable canvas component with performance optimizations:
 
-- Accepts `renderFn`, `image`, `seed`, and `onClick` props
-- Implements lazy loading via IntersectionObserver
-- Uses render queue to limit concurrent renders
-- Supports both sync and async renderer functions
-- Handles click events for canvas download
+- Accepts `renderFn`, `image`, `seed`, `rendererName`, `hash`, `filename`, `mimeType` props
+- Lazy loads via IntersectionObserver (starts 100px before entering the viewport, then
+  disconnects the observer once visible)
+- Sync renderers go through `renderQueue` (max 3 concurrent) inside `requestIdleCallback`
+  to avoid blocking scroll; async (worker) renderers bypass the queue
+- Tracks `pending | done | error` render state for skeleton/error UI
+- Click (or Enter/Space) downloads the canvas via `utils/download.js`
 
-**Lazy Loading:**
-```javascript
-// Starts loading 100px before canvas enters viewport
-const observer = new IntersectionObserver(
-  (entries) => {
-    if (entries[0].isIntersecting) {
-      setIsVisible(true);
-    }
-  },
-  { rootMargin: "100px", threshold: 0.01 }
-);
-```
+### Renderers
 
-**Render Queue:**
-- Limits concurrent renders to `Math.max(4, navigator.hardwareConcurrency)`
-- Queues additional renders and processes them as slots free up
-- Uses `requestIdleCallback` to avoid blocking scroll/UI
+Each renderer lives in its own file and is re-exported from `src/renderers/index.js`.
 
-### renderers.js
+**Sync (main-thread) renderers** in `src/renderers/`: asciiMosaic, barSwap, circlePacking,
+crosshatch, glitch, gridSwap, halftone (plus forced-mode variants halftoneBayer,
+halftoneClassicDots, halftoneFloydSteinberg, halftoneLines), kaleidoscope, lightLeak,
+lowPoly, pixelated, radialBlur, scooch, stacked, stackedCircle, subdivision.
 
-Collection of rendering algorithms exported as named functions:
+**Worker-based (async) renderers** in `src/workers/renderers/`: crt, dither, duotone,
+filmGrain, melt, neonEdge, oilPaint, photocopy, pixelSort, posterize, ripple, risograph,
+sketch, spiral, vhs, waves. The browser-facing wrappers are created in
+`src/renderers/index.js` via `createWorkerRenderer(name)`.
 
-**Canvas-based renderers (sync):**
-- `barSwap`: Shuffles horizontal or vertical bars
-- `gridSwap`: Shuffles grid tiles with aspect-ratio adaptation
-- `pixelated`: Adaptive block-based pixelation effect
-- `scooch`: Wraps edge slice to opposite side
-- `stacked`: Creates layered effect with 2-20 stacks at varying scales
-- `stackedCircle`: Circular clipped stacks with optional rotation
-- `subdivision`: Recursive fragmentation with binary space partitioning
-- `halftone`: Multiple halftone modes (bayer, floyd-steinberg, classic dots, lines)
-- `kaleidoscope`: Mirrored square grid effect
-- `crosshatch`: Pen-stroke crosshatching based on luminance
-- `glitch`: Horizontal slice displacement with color channel shifting
-- `radialBlur`: Zoom blur effect from random center point
+**Renderer Configuration (`src/renderers/config.js`):**
+- `rendererConfig` has one entry per renderer; its keys define the random selection pool
+- Each entry holds configurable parameters, usually `{ min, max }` ranges
 
-**Worker-based renderers (async):**
-- `ripple`: Concentric wave distortion from random points
-- `spiral`: Rotational twist effect (oscillating or one-direction)
-- `waves`: Sinusoidal displacement (horizontal or vertical)
-
-**Renderer Configuration:**
-- `rendererConfig` object at the top of the file controls each renderer's parameters
-- Each renderer entry includes configurable min/max ranges
-- Example config structure:
-  ```javascript
-  export const rendererConfig = {
-    barSwap: {
-      numBars: { min: 4, max: 50 },
-    },
-    spiral: {
-      spiralStrength: { min: 0.1, max: 5 },
-      oscillationFrequency: { min: 0.0025, max: 0.03 },
-      oscillationProbability: 0.5,
-    },
-    // ...
-  };
-  ```
-
-**Renderer Function Signature:**
-- Sync renderers: `({ canvas, image, seed = Date.now() }) => void`
-- Async renderers: `async ({ canvas, image, seed = Date.now() }) => Promise<void>`
-- Async renderers have `rendererName.isAsync = true` flag
-- `seed` parameter controls all randomness within the renderer using seeded PRNG
+**Renderer Function Signatures:**
+- Sync renderers: `({ canvas, image, seed = Date.now() }) => void`, with a
+  `displayName` property used in filenames and badges
+- Worker renderer modules: `({ imageData, width, height, config, random, outputData }) => void`,
+  writing into the provided `outputData` buffer
+- Worker wrappers have `renderer.isAsync = true`; the returned promise carries a
+  `cancel()` for dequeueing unstarted work
+- `setupRenderer(canvas, image, seed)` in `utils/canvas.js` does the shared sync setup
+  (size canvas to image, create seeded RNG)
 - Canvas dimensions are set to original image dimensions (preserves aspect ratio and resolution)
 
-### render.worker.js
-
-Web Worker for pixel-intensive rendering operations:
-
-- Runs pixel manipulation off the main thread
-- Contains implementations for `ripple`, `spiral`, and `waves` renderers
-- Receives ImageData buffer via transferable objects (zero-copy)
-- Returns processed pixel buffer back to main thread
-
-### workerPool.js
+### workers/pool.js
 
 Manages a pool of Web Workers for parallel rendering:
 
-- Creates workers on-demand up to `navigator.hardwareConcurrency` limit
-- Reuses idle workers for subsequent renders
-- Queues tasks when all workers are busy
-- Uses transferable objects to avoid copying image data
+- Creates workers on-demand up to `navigator.hardwareConcurrency` (default 4)
+- Reuses idle workers; queues tasks when all are busy
+- 30s task timeout; errored/timed-out workers are terminated and replaced
+- Pixel buffers move via transferable objects (zero-copy) in both directions
 
-**Usage:**
-```javascript
-const result = await workerPool.render(
-  "ripple",           // renderer name
-  sourceData.data,    // Uint8ClampedArray pixel data
-  canvas.width,
-  canvas.height,
-  seed,
-  rendererConfig.ripple
-);
-```
+`createWorkerRenderer` caches each image's source pixels in a small LRU so repeat
+renders of the same image copy a buffer instead of re-running `drawImage` +
+`getImageData` (a slow GPU readback) on the main thread.
 
-### utils.js
+### utils/
 
-Utility functions for rendering:
-
-- `mulberry32(seed)`: Mulberry32 PRNG implementation for seeded randomness
-- `createSeededRandom(seed)`: Creates a seeded random function from a seed value
-- `randomNumber(min, max, randomFn)`: Generates random integers with optional seeded random function
-- `map(value, inMin, inMax, outMin, outMax)`: Linear interpolation/mapping
-- `calculateAdaptivePixelSize(width, height, randomFn)`: Calculates pixelation block size
-- `shuffleArray(array, randomFn)`: Fisher-Yates shuffle with optional seeded randomness
-- `extractDominantColors(imageData, numColors, sampleStep)`: K-means color extraction
-- `getLuminance(r, g, b)`: Calculate perceived brightness
-- `findNearestColor(color, palette)`: Find closest palette match
-- All functions accept optional `randomFn` parameter (defaults to `Math.random`)
+- `math.js`: `mulberry32`/`createSeededRandom`, `randomNumber(min, max, randomFn)`,
+  `randInt(range, randomFn)`, `randFloat(range, randomFn)`, `map(...)` — shared with workers and CLI
+- `image.js`: `extractDominantColors` (median cut), `getLuminance`, `findNearestColor`,
+  `getAverageColorInBlock`, `shuffleArray`, Bayer and Floyd-Steinberg dithering
+- `canvas.js`: `setupRenderer`, `calculateAdaptivePixelSize`, `drawHalftoneDot`
+- `download.js`: `generateSeedHash`, `buildFilename`, `downloadCanvas` — browser-only,
+  do not import from worker or CLI code
+- All randomness helpers accept an optional `randomFn` (defaults to `Math.random`)
 
 ## CSS/SCSS Conventions
 
@@ -175,100 +145,51 @@ Utility functions for rendering:
 Minipix uses seeded randomness to make artwork reproducible:
 
 - Each canvas receives a unique random seed (0x00000000 to 0xFFFFFFFF)
-- Seeds are converted to 6-character base36 hashes for filenames
-- Same seed + renderer = identical visual output every time
-- Seed controls only renderer's internal randomness (not image/renderer selection)
-- Uses Mulberry32 PRNG algorithm for consistent cross-platform results
-
-**Implementation:**
-```javascript
-// Generate seed in App.jsx
-const seed = Math.floor(Math.random() * 0xFFFFFFFF);
-
-// Create seeded random function in renderer
-const random = createSeededRandom(seed);
-
-// Use in place of Math.random()
-const value = randomNumber(min, max, random);
-```
+- Seeds are converted to base36 hashes for filenames (`generateSeedHash`)
+- Same seed + renderer = identical visual output every time — preserve this when
+  optimizing renderer internals (keep the math and the RNG call order identical)
+- Uses Mulberry32 PRNG for consistent cross-platform results
 
 ## Adding New Renderers
 
-To add a new rendering algorithm:
+### Sync (main-thread) renderers
 
-1. Add configuration entry to `rendererConfig` object at top of `renderers.js`:
-   ```javascript
-   rendererName: {
-     parameterName: { min: value, max: value },
-     // ... other configurable parameters
-   }
-   ```
+1. Add a config entry to `rendererConfig` in `src/renderers/config.js` (its presence
+   enables the renderer in the random pool)
+2. Create `src/renderers/<name>.js`:
 
-2. Export a new renderer function in `renderers.js`:
    ```javascript
-   export const rendererName = ({ canvas, image, seed = Date.now() }) => {
+   import { setupRenderer, randInt } from "../utils/index.js";
+   import { rendererConfig } from "./config.js";
+
+   const myRenderer = ({ canvas, image, seed = Date.now() }) => {
      if (!image) return;
-     const ctx = canvas.getContext("2d");
-     canvas.width = image.width;
-     canvas.height = image.height;
-
-     // Create seeded random function
-     const random = createSeededRandom(seed);
-
-     // Use config values
-     const config = rendererConfig.rendererName;
-     const paramValue = randomNumber(config.parameterName.min, config.parameterName.max, random);
-
+     const { ctx, random } = setupRenderer(canvas, image, seed);
+     const config = rendererConfig.myRenderer;
      // Rendering logic using random() instead of Math.random()
    };
+
+   myRenderer.displayName = "myRenderer";
+   export default myRenderer;
    ```
 
-3. Keep renderers in alphabetical order by function name for easier navigation and maintenance
+3. Export it from `src/renderers/index.js` (keep exports alphabetical)
+4. Add it to `scripts/cli-renderers.js` so the CLI can use it
 
-4. The function will automatically be included in the random selection pool
-
-### Adding Worker-Based Renderers
+### Worker-based renderers
 
 For pixel-intensive renderers that loop through every pixel:
 
-1. Add the pixel manipulation logic to `render.worker.js`:
+1. Add the config entry to `src/renderers/config.js`
+2. Create `src/workers/renderers/<name>.js`:
+
    ```javascript
-   const renderers = {
-     // ... existing renderers
-     newRenderer: (imageData, width, height, config, seed) => {
-       const random = createSeededRandom(seed);
-       const outputData = new Uint8ClampedArray(imageData.length);
-       // ... pixel manipulation
-       return outputData;
-     },
-   };
+   export default function myRenderer({ imageData, width, height, config, random, outputData }) {
+     // pixel manipulation writing into outputData
+   }
    ```
 
-2. Create an async wrapper in `renderers.js`:
-   ```javascript
-   export const newRenderer = async ({ canvas, image, seed = Date.now() }) => {
-     if (!image) return;
-     const ctx = canvas.getContext("2d");
-     canvas.width = image.width;
-     canvas.height = image.height;
-     ctx.drawImage(image, 0, 0);
-     const sourceData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-
-     const result = await workerPool.render(
-       "newRenderer",
-       sourceData.data,
-       canvas.width,
-       canvas.height,
-       seed,
-       rendererConfig.newRenderer
-     );
-
-     const outputData = ctx.createImageData(canvas.width, canvas.height);
-     outputData.data.set(result.data);
-     ctx.putImageData(outputData, 0, 0);
-   };
-
-   newRenderer.isAsync = true;
-   ```
-
-3. Add the renderer name to the `canOffload` check in `workerPool.js` if needed
+3. Register it in the `renderers` map in `src/workers/render.worker.js`
+4. Add `export const myRenderer = createWorkerRenderer("myRenderer");` to
+   `src/renderers/index.js`
+5. Add it to `scripts/cli-renderers.js` (worker renderers run synchronously there)

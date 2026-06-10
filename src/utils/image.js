@@ -17,22 +17,22 @@ export const getAverageColorInBlock = (
   imageHeight,
   blockH = blockSize
 ) => {
+  const data = imageData.data;
   let r = 0,
     g = 0,
-    b = 0,
-    count = 0;
+    b = 0;
 
   const endX = Math.min(startX + blockSize, imageWidth);
   const endY = Math.min(startY + blockH, imageHeight);
+  const count = (endX - startX) * (endY - startY);
 
   // Sum all pixel values in the block
   for (let y = startY; y < endY; y++) {
-    for (let x = startX; x < endX; x++) {
-      const index = (y * imageWidth + x) * 4;
-      r += imageData.data[index];
-      g += imageData.data[index + 1];
-      b += imageData.data[index + 2];
-      count++;
+    let index = (y * imageWidth + startX) * 4;
+    for (let x = startX; x < endX; x++, index += 4) {
+      r += data[index];
+      g += data[index + 1];
+      b += data[index + 2];
     }
   }
 
@@ -84,18 +84,17 @@ export const colorDistance = (color1, color2) => {
   return dr * dr + dg * dg + db * db;
 };
 
-/**
- * Finds the nearest color from a palette to a given color.
- * @param {{r: number, g: number, b: number}} color - The target color to match
- * @param {Array<{r: number, g: number, b: number}>} palette - Array of available colors
- * @returns {{r: number, g: number, b: number}} The nearest color from the palette
- */
-export const findNearestColor = (color, palette) => {
+// Scalar variant of findNearestColor for per-pixel loops, where allocating a
+// {r, g, b} object per pixel is measurable on multi-megapixel images.
+const findNearestColorRGB = (r, g, b, palette) => {
   let minDist = Infinity;
   let nearest = palette[0];
 
   for (const paletteColor of palette) {
-    const dist = colorDistance(color, paletteColor);
+    const dr = r - paletteColor.r;
+    const dg = g - paletteColor.g;
+    const db = b - paletteColor.b;
+    const dist = dr * dr + dg * dg + db * db;
     if (dist < minDist) {
       minDist = dist;
       nearest = paletteColor;
@@ -104,6 +103,15 @@ export const findNearestColor = (color, palette) => {
 
   return nearest;
 };
+
+/**
+ * Finds the nearest color from a palette to a given color.
+ * @param {{r: number, g: number, b: number}} color - The target color to match
+ * @param {Array<{r: number, g: number, b: number}>} palette - Array of available colors
+ * @returns {{r: number, g: number, b: number}} The nearest color from the palette
+ */
+export const findNearestColor = (color, palette) =>
+  findNearestColorRGB(color.r, color.g, color.b, palette);
 
 /**
  * Extracts dominant colors from an image using the median cut algorithm.
@@ -234,26 +242,21 @@ export const applyBayerDithering = (imageData, palette) => {
   const ditherStrength = 32; // Adjustable strength
 
   for (let y = 0; y < height; y++) {
+    const bayerRow = BAYER_4X4[y % matrixSize];
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * 4;
 
-      // Get original pixel
-      const r = data[idx];
-      const g = data[idx + 1];
-      const b = data[idx + 2];
-
       // Get Bayer threshold
-      const threshold = BAYER_4X4[y % matrixSize][x % matrixSize] / 16;
+      const threshold = bayerRow[x % matrixSize] / 16;
       const dither = (threshold - 0.5) * ditherStrength;
 
       // Apply dither and find nearest color
-      const dithered = {
-        r: Math.max(0, Math.min(255, r + dither)),
-        g: Math.max(0, Math.min(255, g + dither)),
-        b: Math.max(0, Math.min(255, b + dither)),
-      };
-
-      const nearest = findNearestColor(dithered, palette);
+      const nearest = findNearestColorRGB(
+        Math.max(0, Math.min(255, data[idx] + dither)),
+        Math.max(0, Math.min(255, data[idx + 1] + dither)),
+        Math.max(0, Math.min(255, data[idx + 2] + dither)),
+        palette
+      );
 
       // Set output pixel
       output.data[idx] = nearest.r;
@@ -291,22 +294,20 @@ export const applyFloydSteinbergDithering = (imageData, palette) => {
       const idx = (y * width + x) * 4;
       const eidx = (y * width + x) * 3;
 
-      const oldPixel = {
-        r: data[idx] + error[eidx],
-        g: data[idx + 1] + error[eidx + 1],
-        b: data[idx + 2] + error[eidx + 2],
-      };
+      const oldR = data[idx] + error[eidx];
+      const oldG = data[idx + 1] + error[eidx + 1];
+      const oldB = data[idx + 2] + error[eidx + 2];
 
-      const newPixel = findNearestColor(oldPixel, palette);
+      const newPixel = findNearestColorRGB(oldR, oldG, oldB, palette);
 
       output.data[idx] = newPixel.r;
       output.data[idx + 1] = newPixel.g;
       output.data[idx + 2] = newPixel.b;
       output.data[idx + 3] = 255;
 
-      const errR = oldPixel.r - newPixel.r;
-      const errG = oldPixel.g - newPixel.g;
-      const errB = oldPixel.b - newPixel.b;
+      const errR = oldR - newPixel.r;
+      const errG = oldG - newPixel.g;
+      const errB = oldB - newPixel.b;
 
       for (const { dx, dy, weight } of diffusion) {
         const nx = x + dx;
