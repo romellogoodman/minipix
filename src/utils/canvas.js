@@ -6,7 +6,7 @@ import { randomNumber, createSeededRandom } from "./math.js";
  * @returns {{ctx: CanvasRenderingContext2D, random: () => number}}
  */
 export const setupRenderer = (canvas, image, seed) => {
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
   canvas.width = image.width;
   canvas.height = image.height;
   const random = createSeededRandom(seed);

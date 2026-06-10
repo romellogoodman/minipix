@@ -6,7 +6,7 @@ const createWorkerRenderer = (name) => {
   const renderer = ({ canvas, image, seed = Date.now() }) => {
     if (!image) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     canvas.width = image.width;
     canvas.height = image.height;
 
