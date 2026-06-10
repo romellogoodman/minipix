@@ -13,7 +13,9 @@ function downloadCanvas(canvas, filename, mimeType = "image/png") {
       link.href = url;
       link.download = filename;
       link.click();
-      URL.revokeObjectURL(url);
+      // Defer revoke: revoking synchronously after click() can abort the
+      // download in some browsers before they have read the blob.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
     },
     mimeType,
     quality
