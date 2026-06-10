@@ -84,14 +84,18 @@ npm run render -- --help
 | `--format=<png\|jpeg>` | Output format | `png` |
 | `--quality=<0-1>` | JPEG quality (0-1) | 0.92 |
 | `--compression=<0-9>` | PNG compression level (0-9) | 6 |
-| `--no-parallel` | Disable parallel rendering | parallel enabled |
+
+When `--count` is greater than 1 with a fixed `--seed`, each image uses
+`seed + index` so the outputs are distinct and reproducible.
 
 #### Available Renderers
 
 **Geometric**
 - `barSwap` - Shuffles horizontal or vertical bars
+- `circlePacking` - Fills the canvas with sampled-color circles
 - `gridSwap` - Shuffles grid tiles with aspect-ratio adaptation
 - `kaleidoscope` - Mirrored kaleidoscope effect
+- `lowPoly` - Low-polygon triangulation
 - `pixelated` - Adaptive block-based pixelation
 - `scooch` - Wraps edge slices to opposite side
 - `stacked` - Layered effect with varying scales
@@ -104,11 +108,13 @@ npm run render -- --help
 - `halftoneClassicDots` - Classic halftone dots
 - `halftoneFloydSteinberg` - Floyd-Steinberg dithering
 - `halftoneLines` - Line-based halftone
+- `dither` - Multi-mode dithering with an extracted palette
 - `crosshatch` - Crosshatch drawing style
 - `posterize` - Reduce colors to discrete bands
 
 **Distortion**
 - `glitch` - Horizontal slice displacement with color inversion
+- `melt` - Downward pixel melting
 - `pixelSort` - Glitch art pixel reordering by luminance
 - `radialBlur` - Zoom blur from center point
 - `ripple` - Concentric wave distortion
@@ -119,10 +125,15 @@ npm run render -- --help
 - `crt` - CRT monitor effect with scanlines, curvature, bloom
 - `duotone` - Two-color gradient mapping
 - `filmGrain` - Vintage film with grain, vignette, scratches
+- `lightLeak` - Analog light-leak overlay
+- `risograph` - Risograph print effect
 - `vhs` - VHS tape degradation effect
 
 **Artistic**
+- `asciiMosaic` - ASCII character mosaic
+- `neonEdge` - Neon edge-detection glow
 - `oilPaint` - Kuwahara filter painterly effect
+- `photocopy` - High-contrast photocopy effect
 - `sketch` - Pencil drawing with edge detection and hatching
 
 #### Performance Tips
