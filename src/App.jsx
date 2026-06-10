@@ -47,6 +47,18 @@ function App() {
     return matched.length > 0 ? matched : null;
   }, []);
 
+  // Optional ?seed= param to reproduce a specific artwork from a shared
+  // filename. Accepts the base36 hash used in filenames (e.g. "00009ix") or a
+  // plain decimal seed. When present, the first canvas uses this exact seed.
+  const seedOverride = useMemo(() => {
+    const seedParam = new URLSearchParams(window.location.search).get("seed");
+    if (!seedParam) return null;
+    const decimal = /^\d+$/.test(seedParam)
+      ? Number(seedParam)
+      : parseInt(seedParam, 36);
+    return Number.isFinite(decimal) ? decimal >>> 0 : null;
+  }, []);
+
   const handleFileChange = (event) => {
     const files = Array.from(event.target.files);
     loadFiles(files);
@@ -74,7 +86,8 @@ function App() {
     return Array.from({ length: visibleCanvasCount }, (_, index) => {
       const random = createSeededRandom(index * 0x9e3779b1);
       const imageIndex = Math.floor(random() * availableImages.length);
-      const seed = Math.floor(random() * 0xffffffff);
+      const baseSeed = Math.floor(random() * 0xffffffff);
+      const seed = index === 0 && seedOverride !== null ? seedOverride : baseSeed;
       const rendererIndex = Math.floor(random() * rendererPool.length);
       const image = availableImages[imageIndex];
       const renderer = rendererPool[rendererIndex];
@@ -89,7 +102,7 @@ function App() {
         filename: buildFilename(image, renderer.displayName, hash, index),
       };
     });
-  }, [visibleCanvasCount, availableImages, rendererPool]);
+  }, [visibleCanvasCount, availableImages, rendererPool, seedOverride]);
 
   return (
     <>
