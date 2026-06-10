@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import "./App.scss";
 import Canvas from "./Canvas";
 import * as renderers from "./renderers";
@@ -59,6 +59,11 @@ function App() {
     return Number.isFinite(decimal) ? decimal >>> 0 : null;
   }, []);
 
+  // A fresh random base per page load so the grid layout differs every visit.
+  // Stable for the lifetime of the mount, so scrolling extends the grid rather
+  // than reshuffling already-rendered canvases.
+  const [sessionSeed] = useState(() => Math.floor(Math.random() * 0xffffffff));
+
   const handleFileChange = (event) => {
     const files = Array.from(event.target.files);
     loadFiles(files);
@@ -77,14 +82,15 @@ function App() {
 
   const rendererPool = filteredRenderers || enabledRenderers;
 
-  // Assignments are seeded per-index so that growing visibleCanvasCount extends
-  // the list rather than regenerating it. Canvas N always gets the same seed,
-  // image, and renderer regardless of how far the user has scrolled.
+  // Assignments are seeded per-index (mixed with a per-load session seed) so
+  // that growing visibleCanvasCount extends the list rather than regenerating
+  // it. Within one page load canvas N always gets the same seed, image, and
+  // renderer regardless of scroll; each new page load gets a fresh layout.
   const canvasAssignments = useMemo(() => {
     if (availableImages.length === 0 || rendererPool.length === 0) return [];
 
     return Array.from({ length: visibleCanvasCount }, (_, index) => {
-      const random = createSeededRandom(index * 0x9e3779b1);
+      const random = createSeededRandom((sessionSeed ^ (index * 0x9e3779b1)) >>> 0);
       const imageIndex = Math.floor(random() * availableImages.length);
       const baseSeed = Math.floor(random() * 0xffffffff);
       const seed = index === 0 && seedOverride !== null ? seedOverride : baseSeed;
@@ -102,7 +108,7 @@ function App() {
         filename: buildFilename(image, renderer.displayName, hash, index),
       };
     });
-  }, [visibleCanvasCount, availableImages, rendererPool, seedOverride]);
+  }, [visibleCanvasCount, availableImages, rendererPool, seedOverride, sessionSeed]);
 
   return (
     <>
