@@ -1,13 +1,22 @@
 #!/usr/bin/env node
 
-import { createCanvas, loadImage, ImageData } from 'canvas';
 import fs from 'fs';
+import { mkdir, writeFile } from 'fs/promises';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-// Get directory name in ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// `canvas` is an optional dependency: it is only needed by this CLI, not by the
+// web app. Load it lazily so a missing install produces a helpful message
+// instead of a raw module-resolution stack trace.
+let createCanvas, loadImage, ImageData;
+try {
+  ({ createCanvas, loadImage, ImageData } = await import('canvas'));
+} catch {
+  console.error(
+    'Error: the "canvas" package is required to run the CLI but is not installed.\n' +
+    'Install it with:  npm install canvas'
+  );
+  process.exit(1);
+}
 
 // Polyfill document.createElement for renderers that use temporary canvases
 globalThis.document = {
@@ -22,8 +31,31 @@ globalThis.document = {
 // Polyfill ImageData for renderers that use it
 globalThis.ImageData = ImageData;
 
-// Import renderers and config
-import * as renderers from '../src/renderers.js';
+// Import the CLI renderer registry after the polyfills are in place.
+const { getRendererNames, hasRenderer, renderToCanvas } = await import('./cli-renderers.js');
+
+// Match the web app's filename hash (src/App.jsx).
+function generateSeedHash(seed) {
+  return (seed >>> 0).toString(36).padStart(7, '0');
+}
+
+// Parse a numeric CLI argument, validating it is finite and within range.
+function parseNumber(raw, { name, integer, min, max }) {
+  const value = integer ? parseInt(raw, 10) : parseFloat(raw);
+  if (!Number.isFinite(value)) {
+    console.error(`Error: --${name} must be a number (got "${raw}")`);
+    process.exit(1);
+  }
+  if (integer && !Number.isInteger(value)) {
+    console.error(`Error: --${name} must be an integer (got "${raw}")`);
+    process.exit(1);
+  }
+  if ((min !== undefined && value < min) || (max !== undefined && value > max)) {
+    console.error(`Error: --${name} must be between ${min} and ${max} (got ${value})`);
+    process.exit(1);
+  }
+  return value;
+}
 
 // Parse command line arguments
 function parseArgs() {
@@ -37,7 +69,6 @@ function parseArgs() {
     format: 'png',
     quality: 0.92,
     compression: 6,
-    parallel: true,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -46,21 +77,19 @@ function parseArgs() {
     if (arg.startsWith('--file=')) {
       options.file = arg.split('=')[1];
     } else if (arg.startsWith('--count=')) {
-      options.count = parseInt(arg.split('=')[1], 10);
+      options.count = parseNumber(arg.split('=')[1], { name: 'count', integer: true, min: 1, max: 10000 });
     } else if (arg.startsWith('--renderer=')) {
       options.renderer = arg.split('=')[1];
     } else if (arg.startsWith('--seed=')) {
-      options.seed = parseInt(arg.split('=')[1], 10);
+      options.seed = parseNumber(arg.split('=')[1], { name: 'seed', integer: true, min: 0, max: 0xffffffff });
     } else if (arg.startsWith('--output=')) {
       options.output = arg.split('=')[1];
     } else if (arg.startsWith('--format=')) {
       options.format = arg.split('=')[1].toLowerCase();
     } else if (arg.startsWith('--quality=')) {
-      options.quality = parseFloat(arg.split('=')[1]);
+      options.quality = parseNumber(arg.split('=')[1], { name: 'quality', integer: false, min: 0, max: 1 });
     } else if (arg.startsWith('--compression=')) {
-      options.compression = parseInt(arg.split('=')[1], 10);
-    } else if (arg === '--no-parallel') {
-      options.parallel = false;
+      options.compression = parseNumber(arg.split('=')[1], { name: 'compression', integer: true, min: 0, max: 9 });
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -79,63 +108,44 @@ Usage: npm run render -- --file=<path> [options]
 Options:
   --file=<path>          Path to the image file (required)
   --count=<number>       Number of variations to generate (default: 1)
-  --renderer=<name>      Specific renderer to use (default: random enabled renderers)
-  --seed=<number>        Seed value for reproducible output (default: random)
+  --renderer=<name>      Specific renderer to use (default: random renderer per image)
+  --seed=<number>        Base seed for reproducible output (default: random)
   --output=<path>        Output directory (default: ./output)
   --format=<png|jpeg>    Output format (default: png)
   --quality=<0-1>        JPEG quality 0-1 (default: 0.92, only for JPEG)
   --compression=<0-9>    PNG compression 0-9 (default: 6, only for PNG)
-  --no-parallel          Disable parallel rendering (default: parallel enabled)
   -h, --help             Show this help message
 
-Performance Tips:
-  - Use --format=jpeg for ~5-10x faster file writing
-  - Parallel rendering is enabled by default for multiple images
-  - Lower --compression (e.g., 3) for faster PNG writes
-  - JPEG quality 0.85-0.95 provides good balance of speed/quality
+Notes:
+  - Rendering is CPU-bound and runs on a single thread; images are produced
+    sequentially. File writes are async.
+  - With --count > 1 and a fixed --seed, each image uses seed + index so the
+    outputs are distinct and reproducible.
 
 Available Renderers:
-${getEnabledRenderers().map(name => `  ${name}`).join('\n')}
+${getRendererNames().map(name => `  ${name}`).join('\n')}
 
 Examples:
   npm run render -- --file=image.jpg --count=10 --format=jpeg
   npm run render -- --file=image.jpg --renderer=barSwap --count=3
   npm run render -- --file=image.jpg --seed=12345 --format=png --compression=3
-  npm run render -- --file=image.jpg --output=./my-renders --no-parallel
   `);
 }
 
-// Get list of available renderers
-function getEnabledRenderers() {
-  // Get all renderer functions (exclude rendererConfig itself)
-  return Object.keys(renderers)
-    .filter(name => name !== 'rendererConfig' && typeof renderers[name] === 'function');
-}
-
-// Get renderer function by name
-function getRenderer(name) {
-  return renderers[name];
-}
-
-// Render a single image
+// Render a single image and write it to disk.
 async function renderSingle(image, basename, rendererName, seed, options, index) {
-  const rendererFn = getRenderer(rendererName);
-  const seedHash = seed.toString(36).padStart(6, '0');
+  const seedHash = generateSeedHash(seed);
 
-  // Create canvas
   const canvas = createCanvas(image.width, image.height);
 
-  // Run renderer
   const startTime = Date.now();
-  rendererFn({ canvas, image, seed });
+  await renderToCanvas(rendererName, { canvas, image, seed, ImageData });
   const renderTime = Date.now() - startTime;
 
-  // Generate output filename
   const ext = options.format === 'jpeg' ? 'jpg' : 'png';
   const outputFilename = `${basename}-minipix-${rendererName}-${seedHash}.${ext}`;
   const outputPath = path.join(options.output, outputFilename);
 
-  // Save to file with appropriate format
   let buffer;
   const writeStartTime = Date.now();
 
@@ -145,7 +155,7 @@ async function renderSingle(image, basename, rendererName, seed, options, index)
     buffer = canvas.toBuffer('image/png', { compressionLevel: options.compression });
   }
 
-  fs.writeFileSync(outputPath, buffer);
+  await writeFile(outputPath, buffer);
   const writeTime = Date.now() - writeStartTime;
   const totalTime = Date.now() - startTime;
 
@@ -165,100 +175,67 @@ async function renderSingle(image, basename, rendererName, seed, options, index)
 async function render() {
   const options = parseArgs();
 
-  // Validate required options
   if (!options.file) {
     console.error('Error: --file parameter is required');
     printHelp();
     process.exit(1);
   }
 
-  // Validate format
   if (!['png', 'jpeg'].includes(options.format)) {
     console.error('Error: --format must be either "png" or "jpeg"');
     process.exit(1);
   }
 
-  // Check if file exists
   if (!fs.existsSync(options.file)) {
     console.error(`Error: File not found: ${options.file}`);
     process.exit(1);
   }
 
-  // Create output directory if it doesn't exist
-  if (!fs.existsSync(options.output)) {
-    fs.mkdirSync(options.output, { recursive: true });
-  }
+  await mkdir(options.output, { recursive: true });
 
-  // Load image
   console.log(`Loading image: ${options.file}`);
   const image = await loadImage(options.file);
   console.log(`Image loaded: ${image.width}x${image.height}`);
 
-  // Get base filename without extension
   const basename = path.basename(options.file, path.extname(options.file));
 
-  // Get enabled renderers
-  const enabledRenderers = getEnabledRenderers();
-  if (enabledRenderers.length === 0) {
-    console.error('Error: No renderers are enabled');
+  const rendererNames = getRendererNames();
+
+  if (options.renderer && !hasRenderer(options.renderer)) {
+    console.error(`Error: Renderer '${options.renderer}' is not available`);
+    console.log(`Available renderers: ${rendererNames.join(', ')}`);
     process.exit(1);
   }
 
-  // Validate renderer if specified
-  if (options.renderer) {
-    if (!enabledRenderers.includes(options.renderer)) {
-      console.error(`Error: Renderer '${options.renderer}' is not available or not enabled`);
-      console.log(`Available renderers: ${enabledRenderers.join(', ')}`);
-      process.exit(1);
-    }
-  }
-
-  console.log(`\nGenerating ${options.count} render(s) ${options.parallel ? 'in parallel' : 'sequentially'}...`);
-  const overallStartTime = Date.now();
-
-  // Prepare render jobs
+  // Prepare render jobs. When a base seed is given, derive per-job seeds
+  // (seed + index) so multiple counts produce distinct, reproducible output
+  // instead of all overwriting one file.
   const jobs = [];
   for (let i = 0; i < options.count; i++) {
     const rendererName = options.renderer ||
-      enabledRenderers[Math.floor(Math.random() * enabledRenderers.length)];
-    const seed = options.seed !== null ? options.seed : Math.floor(Math.random() * 0xFFFFFFFF);
+      rendererNames[Math.floor(Math.random() * rendererNames.length)];
+    const seed = options.seed !== null
+      ? (options.seed + i) >>> 0
+      : Math.floor(Math.random() * 0xffffffff);
 
     jobs.push({ rendererName, seed, index: i });
   }
 
-  // Execute renders
-  let results;
-  if (options.parallel) {
-    // Parallel execution
-    const promises = jobs.map(job =>
-      renderSingle(image, basename, job.rendererName, job.seed, options, job.index)
-    );
-    results = await Promise.all(promises);
-  } else {
-    // Sequential execution
-    results = [];
-    for (const job of jobs) {
-      const result = await renderSingle(image, basename, job.rendererName, job.seed, options, job.index);
-      results.push(result);
-      console.log(`[${result.index}/${options.count}] ${result.rendererName} - ${result.totalTime}ms (render: ${result.renderTime}ms, write: ${result.writeTime}ms)`);
-    }
+  console.log(`\nGenerating ${options.count} render(s)...`);
+  const overallStartTime = Date.now();
+
+  const results = [];
+  for (const job of jobs) {
+    const result = await renderSingle(image, basename, job.rendererName, job.seed, options, job.index);
+    results.push(result);
+    console.log(`[${result.index}/${options.count}] ${result.rendererName} - ${result.totalTime}ms (render: ${result.renderTime}ms, write: ${result.writeTime}ms)`);
   }
 
   const overallTime = Date.now() - overallStartTime;
 
-  // Print summary
   console.log(`\n${'='.repeat(60)}`);
   console.log('RENDER SUMMARY');
   console.log('='.repeat(60));
-
-  if (options.parallel) {
-    // Show all results sorted by index
-    results.sort((a, b) => a.index - b.index);
-    results.forEach(result => {
-      const sizeMB = (result.fileSize / 1024 / 1024).toFixed(2);
-      console.log(`[${result.index}/${options.count}] ${result.rendererName} - ${result.totalTime}ms (${sizeMB}MB)`);
-    });
-  }
 
   const totalRenderTime = results.reduce((sum, r) => sum + r.renderTime, 0);
   const totalWriteTime = results.reduce((sum, r) => sum + r.writeTime, 0);
