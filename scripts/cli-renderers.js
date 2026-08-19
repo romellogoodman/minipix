@@ -13,10 +13,12 @@ import { rendererConfig } from "../src/renderers/config.js";
 import { createSeededRandom } from "../src/utils/math.js";
 
 // Sync (main-thread) renderers
+import arrowField from "../src/renderers/arrowField.js";
 import asciiMosaic from "../src/renderers/asciiMosaic.js";
 import barSwap from "../src/renderers/barSwap.js";
 import circlePacking from "../src/renderers/circlePacking.js";
 import crosshatch from "../src/renderers/crosshatch.js";
+import echo from "../src/renderers/echo.js";
 import glitch from "../src/renderers/glitch.js";
 import gridSwap from "../src/renderers/gridSwap.js";
 import halftone, {
@@ -31,6 +33,7 @@ import lowPoly from "../src/renderers/lowPoly.js";
 import pixelated from "../src/renderers/pixelated.js";
 import radialBlur from "../src/renderers/radialBlur.js";
 import scooch from "../src/renderers/scooch.js";
+import smear from "../src/renderers/smear.js";
 import stacked from "../src/renderers/stacked.js";
 import stackedCircle from "../src/renderers/stackedCircle.js";
 import subdivision from "../src/renderers/subdivision.js";
@@ -41,6 +44,7 @@ import dither from "../src/workers/renderers/dither.js";
 import duotone from "../src/workers/renderers/duotone.js";
 import filmGrain from "../src/workers/renderers/filmGrain.js";
 import melt from "../src/workers/renderers/melt.js";
+import motionMask from "../src/workers/renderers/motionMask.js";
 import neonEdge from "../src/workers/renderers/neonEdge.js";
 import oilPaint from "../src/workers/renderers/oilPaint.js";
 import photocopy from "../src/workers/renderers/photocopy.js";
@@ -50,14 +54,17 @@ import ripple from "../src/workers/renderers/ripple.js";
 import risograph from "../src/workers/renderers/risograph.js";
 import sketch from "../src/workers/renderers/sketch.js";
 import spiral from "../src/workers/renderers/spiral.js";
+import velocityBlur from "../src/workers/renderers/velocityBlur.js";
 import vhs from "../src/workers/renderers/vhs.js";
 import waves from "../src/workers/renderers/waves.js";
 
 const syncRenderers = {
+  arrowField,
   asciiMosaic,
   barSwap,
   circlePacking,
   crosshatch,
+  echo,
   glitch,
   gridSwap,
   halftone,
@@ -71,6 +78,7 @@ const syncRenderers = {
   pixelated,
   radialBlur,
   scooch,
+  smear,
   stacked,
   stackedCircle,
   subdivision,
@@ -82,6 +90,7 @@ const workerRenderers = {
   duotone,
   filmGrain,
   melt,
+  motionMask,
   neonEdge,
   oilPaint,
   photocopy,
@@ -91,6 +100,7 @@ const workerRenderers = {
   risograph,
   sketch,
   spiral,
+  velocityBlur,
   vhs,
   waves,
 };

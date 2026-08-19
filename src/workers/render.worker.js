@@ -15,8 +15,13 @@ import risograph from "./renderers/risograph.js";
 import neonEdge from "./renderers/neonEdge.js";
 import photocopy from "./renderers/photocopy.js";
 import melt from "./renderers/melt.js";
+import motionMask from "./renderers/motionMask.js";
+import velocityBlur from "./renderers/velocityBlur.js";
 
-const renderers = { ripple, spiral, waves, crt, dither, duotone, filmGrain, oilPaint, pixelSort, posterize, sketch, vhs, risograph, neonEdge, photocopy, melt };
+const renderers = {
+  ripple, spiral, waves, crt, dither, duotone, filmGrain, oilPaint, pixelSort, posterize, sketch, vhs,
+  risograph, neonEdge, photocopy, melt, motionMask, velocityBlur,
+};
 
 self.onmessage = function (e) {
   const { type, rendererName, imageData, width, height, config, seed, id } = e.data;

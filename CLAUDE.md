@@ -38,7 +38,9 @@ src/
 │   ├── index.js                   # Barrel for renderer utilities
 │   ├── math.js                    # mulberry32/createSeededRandom, randInt, randFloat, map
 │   ├── canvas.js                  # setupRenderer, calculateAdaptivePixelSize, drawHalftoneDot
-│   ├── image.js                   # Color extraction, luminance, dithering, block averaging
+│   ├── image.js                   # Color extraction, luminance, dithering, block averaging, color ramps
+│   ├── noise.js                   # Seeded 2D gradient noise + fbm (shared with workers and CLI)
+│   ├── field.js                   # Low-res analysis: downsample, orientation field, saliency, blob finder
 │   └── download.js                # Seed hash, download filename, canvas download (browser only)
 └── scss/modern-reset.scss
 
@@ -84,15 +86,23 @@ Reusable canvas component with performance optimizations:
 
 Each renderer lives in its own file and is re-exported from `src/renderers/index.js`.
 
-**Sync (main-thread) renderers** in `src/renderers/`: asciiMosaic, barSwap, circlePacking,
-crosshatch, glitch, gridSwap, halftone (plus forced-mode variants halftoneBayer,
-halftoneClassicDots, halftoneFloydSteinberg, halftoneLines), kaleidoscope, lightLeak,
-lowPoly, pixelated, radialBlur, scooch, stacked, stackedCircle, subdivision.
+**Sync (main-thread) renderers** in `src/renderers/`: arrowField, asciiMosaic, barSwap,
+circlePacking, crosshatch, echo, glitch, gridSwap, halftone (plus forced-mode variants
+halftoneBayer, halftoneClassicDots, halftoneFloydSteinberg, halftoneLines), kaleidoscope,
+lightLeak, lowPoly, pixelated, radialBlur, scooch, smear, stacked, stackedCircle,
+subdivision.
 
 **Worker-based (async) renderers** in `src/workers/renderers/`: crt, dither, duotone,
-filmGrain, melt, neonEdge, oilPaint, photocopy, pixelSort, posterize, ripple, risograph,
-sketch, spiral, vhs, waves. The browser-facing wrappers are created in
-`src/renderers/index.js` via `createWorkerRenderer(name)`.
+filmGrain, melt, motionMask, neonEdge, oilPaint, photocopy, pixelSort, posterize, ripple,
+risograph, sketch, spiral, velocityBlur, vhs, waves. The browser-facing wrappers are
+created in `src/renderers/index.js` via `createWorkerRenderer(name)`.
+
+**"Motion"-inspired renderers** (after Maxime Heckel's *Shading Motion*) treat the still
+image the way that article treats video: `arrowField` uses a structure-tensor orientation
+field as a stand-in for optical flow, `motionMask` frame-differences the image against
+shifted copies of itself, and `velocityBlur`/`smear`/`echo` blur or stack the image along
+synthetic velocity trajectories (`velocityBlur`'s "blobs" mode uses `findBlobs` to pick
+moving regions).
 
 **Renderer Configuration (`src/renderers/config.js`):**
 - `rendererConfig` has one entry per renderer; its keys define the random selection pool
@@ -127,7 +137,14 @@ renders of the same image copy a buffer instead of re-running `drawImage` +
 - `math.js`: `mulberry32`/`createSeededRandom`, `randomNumber(min, max, randomFn)`,
   `randInt(range, randomFn)`, `randFloat(range, randomFn)`, `map(...)` — shared with workers and CLI
 - `image.js`: `extractDominantColors` (median cut), `getLuminance`, `findNearestColor`,
-  `getAverageColorInBlock`, `shuffleArray`, Bayer and Floyd-Steinberg dithering
+  `getAverageColorInBlock`, `shuffleArray`, Bayer and Floyd-Steinberg dithering,
+  `COLOR_RAMPS` / `sampleRamp` / `buildRampLUT` for heat-map style colouring
+- `noise.js`: `createNoise2D(random)` (Perlin-style gradient noise; consumes 255 RNG calls
+  when built)
+- `field.js`: `downsampleImage` (block-average to ≤N px), `computeOrientationField`
+  (structure tensor → tangent/normal/coherence/strength), `computeSaliency`
+  (edges/bright/dark/saturation/detail), `findBlobs` (mean-shift blob tracking on a weight
+  map; consumes 3 RNG calls per blob), `sobel`, `boxBlurPlane`, `fitSize`
 - `canvas.js`: `setupRenderer`, `calculateAdaptivePixelSize`, `drawHalftoneDot`
 - `download.js`: `generateSeedHash`, `buildFilename`, `downloadCanvas` — browser-only,
   do not import from worker or CLI code

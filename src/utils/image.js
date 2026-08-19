@@ -323,3 +323,49 @@ export const applyFloydSteinbergDithering = (imageData, palette) => {
 
   return output;
 };
+
+/**
+ * Colour ramps for mapping a 0..1 scalar (edge energy, "motion" masks) to
+ * colour, in the spirit of a thermal / motion-heatmap view. Each ramp is a
+ * list of evenly spaced RGB stops.
+ */
+export const COLOR_RAMPS = {
+  heat: [[0, 0, 0], [0, 0, 140], [0, 180, 255], [255, 240, 0], [255, 60, 0], [255, 255, 255]],
+  thermal: [[10, 0, 30], [80, 0, 120], [220, 50, 50], [255, 170, 0], [255, 255, 180]],
+  ice: [[0, 0, 0], [0, 40, 90], [0, 150, 200], [170, 240, 255], [255, 255, 255]],
+  toxic: [[0, 0, 0], [20, 60, 0], [90, 200, 0], [220, 255, 60], [255, 255, 255]],
+  magenta: [[0, 0, 0], [60, 0, 60], [200, 0, 160], [255, 120, 220], [255, 255, 255]],
+};
+
+/**
+ * Linearly interpolate a ramp at t (clamped to 0..1).
+ * @param {number[][]} ramp - array of [r, g, b] stops
+ * @param {number} t
+ * @returns {number[]} [r, g, b]
+ */
+export const sampleRamp = (ramp, t) => {
+  const clamped = t <= 0 ? 0 : t >= 1 ? 1 : t;
+  const pos = clamped * (ramp.length - 1);
+  const i = Math.min(ramp.length - 2, Math.floor(pos));
+  const f = pos - i;
+  const a = ramp[i], b = ramp[i + 1];
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+};
+
+/**
+ * Bake a ramp into a flat RGB lookup table so per-pixel colouring is a
+ * single indexed read.
+ * @param {number[][]} ramp
+ * @param {number} [size=256]
+ * @returns {Uint8ClampedArray} size * 3 bytes
+ */
+export const buildRampLUT = (ramp, size = 256) => {
+  const lut = new Uint8ClampedArray(size * 3);
+  for (let i = 0; i < size; i++) {
+    const [r, g, b] = sampleRamp(ramp, i / (size - 1));
+    lut[i * 3] = r;
+    lut[i * 3 + 1] = g;
+    lut[i * 3 + 2] = b;
+  }
+  return lut;
+};

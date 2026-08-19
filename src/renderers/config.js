@@ -1,5 +1,11 @@
 // Renderer configuration
 export const rendererConfig = {
+  arrowField: {
+    cols: { min: 24, max: 64 },
+    darken: { min: 0.5, max: 0.85 },
+    hueProbability: 0.5, // colour arrows by direction vs single accent
+    tangentProbability: 0.5, // arrows along edges vs across them
+  },
   asciiMosaic: {
     cols: { min: 60, max: 160 },
   },
@@ -37,6 +43,16 @@ export const rendererConfig = {
   duotone: {
     hueShift: { min: 0, max: 360 },
     saturationBoost: { min: 0.8, max: 1.2 },
+  },
+  echo: {
+    numCopies: { min: 3, max: 10 },
+    stepPercent: { min: 0.01, max: 0.06 },
+    rotationStep: { min: 1, max: 8 }, // degrees per copy
+    scaleStep: { min: 0.01, max: 0.05 }, // scale change per copy
+    decay: { min: 0.5, max: 0.85 },
+    rotateProbability: 0.4,
+    zoomProbability: 0.3,
+    mirrorProbability: 0.35, // ghosts on both sides of the original
   },
   filmGrain: {
     grainIntensity: { min: 0.1, max: 0.5 },
@@ -77,6 +93,14 @@ export const rendererConfig = {
     scalePercent: { min: 0.01, max: 0.08 },
     baseFrequency: { min: 0.003, max: 0.02 },
     numOctaves: { min: 2, max: 4 },
+  },
+  motionMask: {
+    numEchoes: { min: 2, max: 6 },
+    stepPercent: { min: 0.002, max: 0.012 }, // shift per echo, % of short side
+    threshold: { min: 0.04, max: 0.15 },
+    gain: { min: 2.5, max: 6 }, // contrast applied to differences above threshold
+    decay: { min: 0.55, max: 0.85 },
+    dim: { min: 0, max: 0.35 }, // how much of the original shows through
   },
   neonEdge: {
     threshold: { min: 0.08, max: 0.2 },
@@ -125,6 +149,14 @@ export const rendererConfig = {
     numScooches: { min: 1, max: 8 },
     scoochPercent: { min: 0.05, max: 0.5 },
   },
+  smear: {
+    numSamples: { min: 12, max: 40 },
+    distancePercent: { min: 0.05, max: 0.3 },
+    rotation: { min: 5, max: 40 }, // degrees, for rotational smears
+    rotateProbability: 0.35,
+    curveProbability: 0.5, // curved vs straight trajectory
+    sharpness: { min: 0, max: 0.5 }, // share of the sharp original kept in the average
+  },
   sketch: {
     lineThickness: { min: 1, max: 5 },
     edgeThreshold: { min: 30, max: 100 },
@@ -149,6 +181,12 @@ export const rendererConfig = {
     skipProbability: { min: 0.3, max: 0.6 },
     splitPercent: { min: 0.3, max: 0.7 },
     minSize: 10,
+  },
+  velocityBlur: {
+    numSamples: { min: 12, max: 24 },
+    speedPercent: { min: 0.02, max: 0.09 },
+    numBands: { min: 4, max: 16 },
+    numBlobs: { min: 2, max: 6 },
   },
   vhs: {
     trackingNoise: { min: 0.02, max: 0.1 },

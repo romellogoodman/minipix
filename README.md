@@ -121,6 +121,13 @@ When `--count` is greater than 1 with a fixed `--seed`, each image uses
 - `spiral` - Rotational twist effect
 - `waves` - Sinusoidal displacement
 
+**Motion** (still-image takes on motion-graphics techniques)
+- `arrowField` - Vector-field overlay: arrows follow the image's edge orientation
+- `echo` - Discrete strobe-frame ghosts stepping, rotating, or zooming away
+- `motionMask` - Self-differencing edge mask with fading echoes, heat-map coloured
+- `smear` - Long-exposure smear along a slide, curve, or rotation with a soft shutter
+- `velocityBlur` - Per-region motion blur (pan, rotate, bands, or moving blobs)
+
 **Vintage & Film**
 - `crt` - CRT monitor effect with scanlines, curvature, bloom
 - `duotone` - Two-color gradient mapping
