@@ -2,17 +2,21 @@
 
 A generative art tool for creating computational collages from images using various rendering algorithms with seeded randomness for reproducible results.
 
+Try it at [minipix.romellogoodman.com](https://minipix.romellogoodman.com).
+
 ## Features
 
 - Upload multiple images (PNG/JPEG) via drag-and-drop or file selection
-- Generate infinite variations using 25+ different rendering algorithms
+- Generate infinite variations using 40+ different rendering algorithms
 - Seeded randomness for reproducible artwork
 - Configurable renderer parameters
 - Download individual canvases with descriptive filenames including seed hash
 - Toggle images on/off from the generation pool
 - Responsive layout with infinite scroll
+- Pixel-heavy renderers run in a pool of Web Workers to keep scrolling smooth
 - **CLI rendering** with node-canvas for batch processing
-- Parallel rendering for fast generation of multiple variations
+
+The default image is [*Tree Pæony*](https://www.getty.edu/art/collection/object/108QM6) by Ogawa Kazumasa (1896), public domain (CC0), via the J. Paul Getty Museum's Open Content Program.
 
 ## Getting Started
 
@@ -36,8 +40,15 @@ npm run render -- --file=image.jpg --count=5
 
 1. **Upload Images**: Drag and drop images onto the page or click the upload button
 2. **Toggle Images**: Click thumbnails in the sidebar to enable/disable images
-3. **Download**: Click any canvas to download with format: `{imagename}-minipix-{renderer}-{seed}.jpg`
-4. **Reproduce**: Use the seed in the filename to recreate exact results
+3. **Download**: Click any canvas to download it as `{imagename}-minipix-{renderer}-{hash}.{ext}` (JPEG uploads save as `.jpg`, everything else as `.png`)
+4. **Reproduce**: Use the hash in the filename to recreate exact results (see query parameters below)
+
+#### Query Parameters
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `renderer` | Limit the grid to one or more renderers (comma-separated). Invalid names fall back to the full pool. | `?renderer=ripple,waves,spiral` |
+| `seed` | Reproduce a shared artwork. Accepts the base36 hash from a filename or a decimal seed; applied to the first canvas only. | `?renderer=spiral&seed=00009ix` |
 
 ### CLI Rendering
 
@@ -64,9 +75,6 @@ npm run render -- --file=image.jpg --format=png --compression=3
 
 # Custom output directory
 npm run render -- --file=image.jpg --output=./my-renders
-
-# Sequential rendering (disable parallel processing)
-npm run render -- --file=image.jpg --count=5 --no-parallel
 
 # Show available renderers and options
 npm run render -- --help
@@ -146,7 +154,6 @@ When `--count` is greater than 1 with a fixed `--seed`, each image uses
 #### Performance Tips
 
 - Use `--format=jpeg` for ~5-10x faster file writing
-- Parallel rendering is enabled by default for multiple images
 - Lower `--compression` (e.g., 3) for faster PNG writes
 - JPEG quality 0.85-0.95 provides good balance of speed/quality
 
@@ -154,5 +161,9 @@ When `--count` is greater than 1 with a fixed `--seed`, each image uses
 
 Each canvas uses a unique random seed that controls all randomization within the renderer. This means:
 - Same seed = identical visual output
-- Filenames include the seed as a 6-character hash
+- Filenames include the seed as a 7-character base36 hash
 - Easy to share and recreate specific variations
+
+## License
+
+[MIT](LICENSE)
