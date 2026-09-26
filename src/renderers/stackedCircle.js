@@ -1,10 +1,9 @@
 import { setupRenderer, randInt, map } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
-const stackedCircle = ({ canvas, image, seed = Date.now() }) => {
+const stackedCircle = ({ canvas, image, seed = Date.now(), config = rendererConfig.stackedCircle }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
-  const config = rendererConfig.stackedCircle;
 
   const isUniform = random() < 0.5;
   const numStacks = randInt(config.numStacks, random);

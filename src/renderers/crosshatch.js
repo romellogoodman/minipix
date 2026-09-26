@@ -9,14 +9,13 @@ import {
 } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
-const crosshatch = ({ canvas, image, seed = Date.now() }) => {
+const crosshatch = ({ canvas, image, seed = Date.now(), config = rendererConfig.crosshatch }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
 
   ctx.drawImage(image, 0, 0);
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-  const config = rendererConfig.crosshatch;
   const shortSide = Math.min(canvas.width, canvas.height);
   const numColors = randInt(config.numColors, random);
   const palette = extractDominantColors(imageData, numColors, 10);

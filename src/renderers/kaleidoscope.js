@@ -1,10 +1,9 @@
 import { setupRenderer, randInt, randFloat } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
-const kaleidoscope = ({ canvas, image, seed = Date.now() }) => {
+const kaleidoscope = ({ canvas, image, seed = Date.now(), config = rendererConfig.kaleidoscope }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
-  const config = rendererConfig.kaleidoscope;
 
   const imgSize = Math.min(image.width, image.height);
   const sourceOffsetPercent = randFloat(config.sourceOffsetPercent, random);

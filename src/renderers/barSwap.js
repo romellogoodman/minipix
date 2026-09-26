@@ -1,12 +1,12 @@
 import { setupRenderer, randInt, shuffleArray } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
-const barSwap = ({ canvas, image, seed = Date.now() }) => {
+const barSwap = ({ canvas, image, seed = Date.now(), config = rendererConfig.barSwap }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
 
   const isVertical = random() < 0.5;
-  const numBars = randInt(rendererConfig.barSwap.numBars, random);
+  const numBars = randInt(config.numBars, random);
 
   const barIndices = Array.from({ length: numBars }, (_, i) => i);
   const shuffledIndices = shuffleArray(barIndices, random);

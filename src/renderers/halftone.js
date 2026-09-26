@@ -15,10 +15,9 @@ import { rendererConfig } from "./config.js";
 const MODES = ["bayer", "floydSteinberg", "classicDots", "lines"];
 const SHAPES = ["circle", "square", "diamond"];
 
-function renderHalftone({ canvas, image, seed = Date.now() }, forcedMode) {
+function renderHalftone({ canvas, image, seed = Date.now(), config = rendererConfig.halftone }, forcedMode) {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
-  const config = rendererConfig.halftone;
 
   ctx.drawImage(image, 0, 0, image.width, image.height);
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);

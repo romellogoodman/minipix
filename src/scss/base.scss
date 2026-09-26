@@ -1,0 +1,386 @@
+:root {
+  color-scheme: light;
+
+  --color-bg: #ffffff;
+  --color-well: #f3f2ef;
+  --color-field: #f5f5f4;
+  --color-field-hi: #ececea;
+  --color-line: #e4e3e0;
+  --color-line-strong: #c9c8c4;
+  --color-text: #1a1a1a;
+  --color-text-2: #6b6a67;
+  --color-text-3: #9d9c98;
+  --color-btn: #1a1a1a;
+  --color-btn-text: #ffffff;
+  --color-accent: #1a1a1a;
+  --color-focus: #6b6a67;
+  --color-ring: rgba(26, 26, 26, 0.08);
+  --color-error: #b03a2e;
+  --color-skeleton: #e6e5e1;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", "Segoe UI",
+    system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --font-size-base: 13px;
+  --font-size-sm: 11px;
+
+  --spacing-unit: 8px;
+  --spacing-2x: 16px;
+  --spacing-3x: 24px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  --z-overlay: 1000;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: var(--font-size-base) / 1.4 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+:is(button, [tabindex], select, input):focus-visible {
+  outline: 1.5px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+// Fields get a border + soft ring that follows their own radius instead of an
+// offset outline (Chrome also shows :focus-visible on selects after a click).
+:is(.select__native, .input):focus-visible {
+  outline: none;
+  border-color: var(--color-line-strong);
+  box-shadow: 0 0 0 3px var(--color-ring);
+}
+
+/* ---------- shell ---------- */
+
+// The app fills the viewport and scrolls inside its own regions.
+.app {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- canvas ---------- */
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transition: opacity 300ms var(--ease);
+
+  &__container {
+    position: relative;
+    max-width: 100%;
+    background: var(--color-field);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 120ms var(--ease);
+
+  }
+
+  &__skeleton {
+    position: absolute;
+    inset: 0;
+    background: var(--color-skeleton);
+    animation: skeleton-pulse 2s ease-in-out infinite;
+  }
+
+  &__error {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--color-error);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+  }
+
+  &__error-name {
+    color: var(--color-text-2);
+    font-family: var(--font-mono);
+  }
+
+  &__badge {
+    position: absolute;
+    bottom: var(--spacing-unit);
+    left: var(--spacing-unit);
+    padding: 3px var(--spacing-unit);
+    background: rgba(26, 26, 26, 0.85);
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: var(--font-size-sm);
+    border-radius: 4px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms var(--ease);
+  }
+
+  &__container:hover &__badge {
+    opacity: 1;
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* ---------- select / input ---------- */
+
+.select {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-unit);
+
+  &__label {
+    flex: none;
+    width: 52px;
+    color: var(--color-text-2);
+    font-size: var(--font-size-sm);
+  }
+
+  &__native {
+    flex: 1;
+    min-width: 0;
+    appearance: none;
+    font: inherit;
+    color: var(--color-text);
+    background: var(--color-field);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius);
+    padding: 8px 28px 8px 12px;
+    cursor: pointer;
+    text-overflow: ellipsis;
+
+    &:hover {
+      background: var(--color-field-hi);
+    }
+  }
+
+  &__chevron {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid var(--color-text-2);
+    border-bottom: 1.5px solid var(--color-text-2);
+    transform: translateY(-70%) rotate(45deg);
+    pointer-events: none;
+  }
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-family: var(--font-mono);
+  color: var(--color-text);
+  background: var(--color-field);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+
+  &:hover {
+    background: var(--color-field-hi);
+  }
+
+  &--invalid {
+    border-color: var(--color-error);
+  }
+}
+
+/* ---------- slider ---------- */
+
+.slider {
+  &__input {
+    appearance: none;
+    width: 100%;
+    height: 16px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+
+    &::-webkit-slider-runnable-track {
+      height: 2px;
+      background: var(--color-line-strong);
+      border-radius: 1px;
+    }
+
+    &::-webkit-slider-thumb {
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      margin-top: -5px;
+      border-radius: 50%;
+      background: var(--color-accent);
+    }
+
+    &::-moz-range-track {
+      height: 2px;
+      background: var(--color-line-strong);
+      border-radius: 1px;
+    }
+
+    &::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border: 0;
+      border-radius: 50%;
+      background: var(--color-accent);
+    }
+  }
+}
+
+/* ---------- buttons ---------- */
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: center;
+  font-weight: 500;
+  background: var(--color-field);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  transition: background 120ms var(--ease);
+
+  &:hover:not(:disabled) {
+    background: var(--color-field-hi);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  &--primary {
+    background: var(--color-btn);
+    color: var(--color-btn-text);
+    border-color: var(--color-btn);
+
+    &:hover:not(:disabled) {
+      background: #333;
+    }
+  }
+
+  &--text {
+    background: none;
+    border-color: transparent;
+    padding: 4px 0;
+
+    &:hover:not(:disabled) {
+      background: none;
+      text-decoration: underline;
+    }
+  }
+}
+
+/* ---------- drag overlay ---------- */
+
+.dropzone-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  place-items: center;
+  padding: var(--spacing-3x);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: var(--spacing-3x);
+    border: 1px dashed var(--color-text);
+    border-radius: var(--radius-lg);
+  }
+
+  &__content {
+    font-size: 15px;
+    font-weight: 600;
+  }
+}
+
+/* ---------- field ---------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-unit);
+
+  &__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--spacing-unit);
+  }
+
+  &__label {
+    font-weight: 600;
+  }
+
+  &__aside {
+    color: var(--color-text-2);
+    font-size: var(--font-size-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__hint {
+    color: var(--color-text-2);
+    font-size: var(--font-size-sm);
+    overflow-wrap: anywhere;
+  }
+
+  &__status {
+    color: var(--color-text-2);
+    font-size: var(--font-size-sm);
+    min-height: 1.2em;
+  }
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-unit);
+}
+
+
+.links {
+  display: flex;
+  gap: var(--spacing-2x);
+
+  .btn {
+    width: auto;
+  }
+}

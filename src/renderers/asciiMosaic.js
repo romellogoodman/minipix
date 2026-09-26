@@ -8,10 +8,9 @@ const RAMPS = [
   " ▁▂▃▄▅▆▇█",
 ];
 
-const asciiMosaic = ({ canvas, image, seed = Date.now() }) => {
+const asciiMosaic = ({ canvas, image, seed = Date.now(), config = rendererConfig.asciiMosaic }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
-  const config = rendererConfig.asciiMosaic;
 
   ctx.drawImage(image, 0, 0);
   const src = ctx.getImageData(0, 0, canvas.width, canvas.height);

@@ -1,10 +1,9 @@
 import { setupRenderer, randInt, randFloat } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
-const scooch = ({ canvas, image, seed = Date.now() }) => {
+const scooch = ({ canvas, image, seed = Date.now(), config = rendererConfig.scooch }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
-  const config = rendererConfig.scooch;
   const w = canvas.width;
   const h = canvas.height;
 

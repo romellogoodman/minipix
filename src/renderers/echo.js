@@ -8,10 +8,9 @@ import { rendererConfig } from "./config.js";
  * reads like stacked frames of a strobe photograph rather than a continuous
  * blur.
  */
-const echo = ({ canvas, image, seed = Date.now() }) => {
+const echo = ({ canvas, image, seed = Date.now(), config = rendererConfig.echo }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
-  const config = rendererConfig.echo;
   const { width, height } = canvas;
   const shortSide = Math.min(width, height);
 

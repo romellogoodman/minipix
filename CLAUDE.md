@@ -3,27 +3,34 @@ This is a computational collage app built with React. It allows users to upload 
 Minipix is a generative art tool that:
 
 - Accepts multiple image uploads (PNG/JPEG) via file picker or drag-and-drop
-- Displays an infinite scroll grid of computational collages
-- Randomly assigns uploaded images and rendering functions to each canvas
+- Presents a single-canvas studio (after the brand-shader study in ~/code/research-monorepo):
+  one large output on a stage, a filmstrip of recent variations, and a stepped control panel
+- Lets users pick source, renderer, and seed, and pin individual renderer parameters
 - Uses seeded randomness for reproducible artwork
-- Allows toggling individual images on/off from the generation pool
-- Supports downloading individual canvas outputs with descriptive filenames including seed hash
+- Supports downloading/copying the output with descriptive filenames including seed hash,
+  plus saving/loading settings as JSON
 - Includes a Node CLI (`npm run render`) for batch rendering with node-canvas
+
+Earlier grid-based layout explorations (baseline grid, contact sheet, board, matrix) are
+preserved on the `ui-explorations` branch.
 
 ## Project Structure
 
 ```
 src/
 ├── main.jsx                       # React entry point (StrictMode + ErrorBoundary)
-├── App.jsx                        # Main App component - upload UI, canvas assignments, grid
-├── App.scss                       # App component styles
-├── Canvas.jsx                     # Canvas component - lazy loading, render lifecycle, download
+├── App.jsx                        # Studio: stage, filmstrip history, stepped panel, keyboard shortcuts
+├── App.scss                       # Studio styles (scss/base.scss holds shared tokens + controls)
+├── catalog.js                     # Renderer groups + descriptions, parameter specs, buildConfig
+├── Canvas.jsx                     # Canvas component - lazy loading, render lifecycle, fit sizing
 ├── ErrorBoundary.jsx              # Top-level error boundary
 ├── renderQueue.js                 # Limits concurrent main-thread (sync) renders
+├── components/
+│   └── controls.jsx               # Field, Select, DropZone, SeedInput
 ├── hooks/
-│   ├── useImageLoader.js          # Default + uploaded image loading, availability toggling
+│   ├── useImageLoader.js          # Default + uploaded image loading
 │   ├── useDragAndDrop.js          # Window-level drag-and-drop upload
-│   └── useInfiniteScroll.js       # IntersectionObserver sentinel, 20 canvases per page
+│   └── useExport.js               # download / copy image / copy link + status flash
 ├── renderers/
 │   ├── index.js                   # Barrel: exports all renderers + rendererConfig
 │   ├── config.js                  # rendererConfig parameter ranges for every renderer
@@ -41,8 +48,11 @@ src/
 │   ├── image.js                   # Color extraction, luminance, dithering, block averaging, color ramps
 │   ├── noise.js                   # Seeded 2D gradient noise + fbm (shared with workers and CLI)
 │   ├── field.js                   # Low-res analysis: downsample, orientation field, saliency, blob finder
-│   └── download.js                # Seed hash, download filename, canvas download (browser only)
-└── scss/modern-reset.scss
+│   ├── download.js                # Seed hash, seed parsing, filenames, download/copy (browser only)
+│   └── output.js                  # ALL_RENDERERS, describe(), URL param readers, shareLink (browser only)
+└── scss/
+    ├── base.scss                  # Design tokens + shared control styles (imported before App.scss)
+    └── modern-reset.scss
 
 scripts/
 ├── render.js                      # CLI entry (`npm run render -- --file=...`), node-canvas
@@ -51,36 +61,42 @@ scripts/
 
 ## Architecture
 
-### App.jsx
+### App.jsx (Studio)
 
-Main application component that manages:
-
-- Image upload via hidden file input and drag-and-drop (`useImageLoader`, `useDragAndDrop`)
-- Infinite scroll paging via `useInfiniteScroll` (20 canvases per page)
-- A per-page-load `sessionSeed`; canvas assignments (image, renderer, seed) are derived
-  deterministically from `sessionSeed ^ index`, so scrolling extends the grid without
-  reshuffling already-rendered canvases
+- Layout: `.studio__stage` (the well with one fitted `<Canvas>`, the filmstrip, a hint line)
+  and `.studio__panel` with numbered steps: Source (thumbnail row + upload tile), Renderer,
+  Variation (seed + parameters), Export
+- The edited variation is a draft `{ imageId, renderer, seed, overrides }`; the stage renders
+  it after a short debounce, and it joins the 12-slot filmstrip history once it settles.
+  Filmstrip thumbnails are downscaled snapshots of the finished stage canvas
+- Variation step: seed, Reroll (new seed + clears all pins), Lock seed (when off, changing
+  renderer rolls a new seed; when on, the seed is kept), then the parameter sliders
+- Parameters: `catalog.js` turns each `rendererConfig` entry into slider specs. Untouched
+  params stay "auto" (original random range); moving a slider pins it as `{ min: v, max: v }`,
+  which is passed to the renderer via `<Canvas config>`. Pins are remembered per renderer.
+  Pinning only narrows ranges — the RNG call order is unchanged, so unpinned output matches
+- Save/Load settings: JSON with renderer, seed, image filename, and pins
+- Keyboard: R reroll, D download, ←/→ step through the filmstrip
 - Download filenames built with `buildFilename` from `utils/download.js`:
   `{originalname}-minipix-{renderer}-{hash}.{ext}`
-- The renderer pool comes from `Object.keys(rendererConfig)` mapped to the barrel exports
 
 **Query Parameters:**
-- `renderer`: Specify renderer(s) by name (e.g., `?renderer=spiral` or `?renderer=ripple,waves,spiral`).
-  Comma-separated list supported; invalid names fall back to the full pool.
-- `seed`: Reproduce a shared artwork. Accepts the base36 hash from a filename or a decimal
-  seed; applied to the first canvas only.
+- `renderer`: Initial renderer (first valid name of a comma-separated list); otherwise random.
+- `seed`: Initial seed. Accepts the base36 hash from a filename or a decimal seed.
+  Copy link produces `?renderer=<name>&seed=<hash>` (pinned parameters are not included).
 
 ### Canvas.jsx
 
 Reusable canvas component with performance optimizations:
 
-- Accepts `renderFn`, `image`, `seed`, `rendererName`, `hash`, `filename`, `mimeType` props
+- Accepts `renderFn`, `image`, `seed`, `config` (optional override, memoize it), `rendererName`,
+  `hash`, `maxWidth`/`maxHeight` (fit box, never upscales), `scrollRoot`, `onRendered` props
 - Lazy loads via IntersectionObserver (starts 100px before entering the viewport, then
   disconnects the observer once visible)
 - Sync renderers go through `renderQueue` (max 3 concurrent) inside `requestIdleCallback`
   to avoid blocking scroll; async (worker) renderers bypass the queue
 - Tracks `pending | done | error` render state for skeleton/error UI
-- Click (or Enter/Space) downloads the canvas via `utils/download.js`
+- `onRendered(canvasEl)` hands the finished canvas to App for export and filmstrip snapshots
 
 ### Renderers
 
@@ -109,7 +125,7 @@ moving regions).
 - Each entry holds configurable parameters, usually `{ min, max }` ranges
 
 **Renderer Function Signatures:**
-- Sync renderers: `({ canvas, image, seed = Date.now() }) => void`, with a
+- Sync renderers: `({ canvas, image, seed = Date.now(), config = rendererConfig.<name> }) => void`, with a
   `displayName` property used in filenames and badges
 - Worker renderer modules: `({ imageData, width, height, config, random, outputData }) => void`,
   writing into the provided `outputData` buffer
@@ -146,7 +162,7 @@ renders of the same image copy a buffer instead of re-running `drawImage` +
   (edges/bright/dark/saturation/detail), `findBlobs` (mean-shift blob tracking on a weight
   map; consumes 3 RNG calls per blob), `sobel`, `boxBlurPlane`, `fitSize`
 - `canvas.js`: `setupRenderer`, `calculateAdaptivePixelSize`, `drawHalftoneDot`
-- `download.js`: `generateSeedHash`, `buildFilename`, `downloadCanvas` — browser-only,
+- `download.js`: `generateSeedHash`, `parseSeed`, `buildFilename`, `downloadCanvas`, `copyCanvas` — browser-only,
   do not import from worker or CLI code
 - All randomness helpers accept an optional `randomFn` (defaults to `Math.random`)
 
@@ -154,8 +170,9 @@ renders of the same image copy a buffer instead of re-running `drawImage` +
 
 - Use BEM (Block Element Modifier) naming methodology for CSS classes
 - Follow the pattern: `.block__element--modifier`
-- Key BEM blocks: `.nav`, `.canvas-grid`, `.canvas`
-- Modifiers: `.nav__thumbnail--active`, `.nav__thumbnail--inactive`
+- Key BEM blocks: `.app`, `.studio`, `.field`, `.select`, `.drop`, `.btn`, `.canvas`
+- Design tokens (`--color-*`, `--spacing-*`, `--radius*`) live in `scss/base.scss` and mirror
+  the brand-shader study
 
 ## Seeded Randomness
 
@@ -179,10 +196,9 @@ Minipix uses seeded randomness to make artwork reproducible:
    import { setupRenderer, randInt } from "../utils/index.js";
    import { rendererConfig } from "./config.js";
 
-   const myRenderer = ({ canvas, image, seed = Date.now() }) => {
+   const myRenderer = ({ canvas, image, seed = Date.now(), config = rendererConfig.myRenderer }) => {
      if (!image) return;
      const { ctx, random } = setupRenderer(canvas, image, seed);
-     const config = rendererConfig.myRenderer;
      // Rendering logic using random() instead of Math.random()
    };
 
@@ -192,6 +208,7 @@ Minipix uses seeded randomness to make artwork reproducible:
 
 3. Export it from `src/renderers/index.js` (keep exports alphabetical)
 4. Add it to `scripts/cli-renderers.js` so the CLI can use it
+5. Give it a group and description in `src/catalog.js` (the renderer picker)
 
 ### Worker-based renderers
 
@@ -210,3 +227,4 @@ For pixel-intensive renderers that loop through every pixel:
 4. Add `export const myRenderer = createWorkerRenderer("myRenderer");` to
    `src/renderers/index.js`
 5. Add it to `scripts/cli-renderers.js` (worker renderers run synchronously there)
+6. Give it a group and description in `src/catalog.js`

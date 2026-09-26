@@ -3,10 +3,9 @@ import { rendererConfig } from "./config.js";
 
 const PALETTE = ["#ff6b35", "#f7931e", "#ff1744", "#ff4081", "#ffd54f", "#ff8a65"];
 
-const lightLeak = ({ canvas, image, seed = Date.now() }) => {
+const lightLeak = ({ canvas, image, seed = Date.now(), config = rendererConfig.lightLeak }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
-  const config = rendererConfig.lightLeak;
 
   ctx.drawImage(image, 0, 0);
 

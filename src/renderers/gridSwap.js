@@ -1,11 +1,10 @@
 import { setupRenderer, randInt, shuffleArray } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
-const gridSwap = ({ canvas, image, seed = Date.now() }) => {
+const gridSwap = ({ canvas, image, seed = Date.now(), config = rendererConfig.gridSwap }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
 
-  const config = rendererConfig.gridSwap;
   const aspectRatio = canvas.width / canvas.height;
   const baseGridSize = randInt(config.baseGridSize, random);
 

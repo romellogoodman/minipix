@@ -1,11 +1,10 @@
 import { setupRenderer, randInt, randFloat, map } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
-const stacked = ({ canvas, image, seed = Date.now() }) => {
+const stacked = ({ canvas, image, seed = Date.now(), config = rendererConfig.stacked }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
 
-  const config = rendererConfig.stacked;
   const numStacks = randInt(config.numStacks, random);
   const innerSize = randFloat({ min: 0.1, max: config.sizeFactor.min * 2 }, random);
 

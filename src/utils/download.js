@@ -51,3 +51,30 @@ export function downloadCanvas(canvas, filename, mimeType = "image/png") {
     quality
   );
 }
+
+/**
+ * Parses a seed typed or shared by a user: a plain decimal seed, or the base36
+ * hash used in filenames (e.g. "00009ix").
+ * @param {string} value - Seed text
+ * @returns {number|null} Unsigned 32-bit seed, or null if unparseable
+ */
+export function parseSeed(value) {
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) return null;
+  const seed = /^\d+$/.test(text) ? Number(text) : parseInt(text, 36);
+  return Number.isFinite(seed) && /^[0-9a-z]+$/.test(text) ? seed >>> 0 : null;
+}
+
+/**
+ * Copies a canvas's contents to the clipboard as a PNG.
+ * @param {HTMLCanvasElement} canvas - The canvas to copy
+ * @returns {Promise<void>}
+ */
+export function copyCanvas(canvas) {
+  // Pass the blob promise straight to ClipboardItem so Safari keeps the
+  // user-activation from the click that triggered this.
+  const blob = new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("empty canvas"))), "image/png")
+  );
+  return navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+}

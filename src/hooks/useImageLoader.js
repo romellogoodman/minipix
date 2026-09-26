@@ -1,32 +1,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+const DEFAULT_IMAGES = ["Tree-Peony-Kazumasa-Ogawa.jpg", "Earth-Infrared-ESA.jpg"];
+const DEFAULT_IMAGE_COUNT = DEFAULT_IMAGES.length;
+
 // Custom hook for loading images
 function useImageLoader() {
   const [allImages, setAllImages] = useState([]);
   const [availableImages, setAvailableImages] = useState([]);
-  const nextImageIdRef = useRef(0);
+  // Default images take ids 0..n-1; uploads continue after them.
+  const nextImageIdRef = useRef(DEFAULT_IMAGE_COUNT);
 
   // Load default images on mount
   useEffect(() => {
-    const imageNames = ["Tree-Peony-Kazumasa-Ogawa.jpg"];
     let cancelled = false;
-    const loadedImages = [];
+    // Indexed by position so the list keeps this order whatever loads first.
+    const loadedImages = new Array(DEFAULT_IMAGE_COUNT);
     let loadedCount = 0;
 
     const handleLoadComplete = () => {
       loadedCount++;
-      if (loadedCount === imageNames.length && loadedImages.length > 0 && !cancelled) {
-        setAllImages(loadedImages);
-        setAvailableImages(loadedImages);
+      if (loadedCount < DEFAULT_IMAGE_COUNT || cancelled) return;
+      const loaded = loadedImages.filter(Boolean);
+      // Prepend, so anything uploaded before the defaults finish loading is kept.
+      if (loaded.length > 0) {
+        setAllImages((prev) => [...loaded, ...prev]);
+        setAvailableImages((prev) => [...loaded, ...prev]);
       }
     };
 
-    imageNames.forEach((name) => {
+    DEFAULT_IMAGES.forEach((name, index) => {
       const img = new Image();
       img.onload = () => {
         if (cancelled) return;
-        const wrapped = { id: nextImageIdRef.current++, element: img, filename: name, mimeType: "image/jpeg" };
-        loadedImages.push(wrapped);
+        loadedImages[index] = { id: index, element: img, filename: name, mimeType: "image/jpeg" };
         handleLoadComplete();
       };
       img.onerror = () => {

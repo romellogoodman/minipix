@@ -1,10 +1,9 @@
 import { setupRenderer, randInt, randFloat } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
-const subdivision = ({ canvas, image, seed = Date.now() }) => {
+const subdivision = ({ canvas, image, seed = Date.now(), config = rendererConfig.subdivision }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
-  const config = rendererConfig.subdivision;
 
   const maxDepth = randInt(config.maxDepth, random);
   const skipProbability = randFloat(config.skipProbability, random);

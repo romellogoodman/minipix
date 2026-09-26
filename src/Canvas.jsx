@@ -1,10 +1,31 @@
 import { useRef, useEffect, useState, memo } from "react";
 import { renderQueue } from "./renderQueue";
-import { downloadCanvas } from "./utils/download.js";
 
 const requestIdle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
 
-function Canvas({ image, renderFn, seed, rendererName, hash, filename, mimeType }) {
+// Fits the image's aspect ratio inside maxWidth x maxHeight without upscaling
+// past its natural size.
+const fitDisplaySize = (image, maxWidth, maxHeight) => {
+  if (!image) return { width: maxWidth, height: maxHeight };
+  const scale = Math.min(maxWidth / image.width, maxHeight / image.height, 1);
+  return {
+    width: Math.floor(image.width * scale),
+    height: Math.floor(image.height * scale),
+  };
+};
+
+function Canvas({
+  image,
+  renderFn,
+  seed,
+  config,
+  rendererName,
+  hash,
+  maxWidth = 600,
+  maxHeight = 600,
+  scrollRoot = null,
+  onRendered,
+}) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -24,12 +45,12 @@ function Canvas({ image, renderFn, seed, rendererName, hash, filename, mimeType 
           observer.disconnect();
         }
       },
-      { rootMargin: "100px", threshold: 0.01 }
+      { root: scrollRoot, rootMargin: "100px", threshold: 0.01 }
     );
 
     observer.observe(container);
     return () => observer.disconnect();
-  }, []);
+  }, [scrollRoot]);
 
   useEffect(() => {
     if (!isVisible || !canvasRef.current || !renderFn) return;
@@ -41,7 +62,7 @@ function Canvas({ image, renderFn, seed, rendererName, hash, filename, mimeType 
     const doRender = async () => {
       if (cancelled || !canvasRef.current) return;
       try {
-        const result = renderFn({ canvas: canvasRef.current, image, seed });
+        const result = renderFn({ canvas: canvasRef.current, image, seed, config });
         if (result instanceof Promise) {
           workerPromise = result;
           await result;
@@ -73,31 +94,21 @@ function Canvas({ image, renderFn, seed, rendererName, hash, filename, mimeType 
       if (cancelQueue) cancelQueue();
       if (workerPromise?.cancel) workerPromise.cancel();
     };
-  }, [isVisible, renderFn, image, seed]);
+  }, [isVisible, renderFn, image, seed, config]);
 
-  const handleClick = () => {
-    if (canvasRef.current && renderState === "done") {
-      downloadCanvas(canvasRef.current, filename, mimeType);
-    }
-  };
+  // Hands the finished canvas to whoever exports it. Re-runs when the callback
+  // is attached later (e.g. this canvas becomes the selection after rendering).
+  useEffect(() => {
+    if (onRendered && renderState === "done") onRendered(canvasRef.current);
+  }, [onRendered, renderState]);
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      handleClick();
-    }
-  };
-
-  const aspectRatio = image ? image.width / image.height : 1;
-  const maxDim = 600;
-  const width = aspectRatio > 1 ? maxDim : maxDim * aspectRatio;
-  const height = aspectRatio > 1 ? maxDim / aspectRatio : maxDim;
+  const { width, height } = fitDisplaySize(image, maxWidth, maxHeight);
 
   return (
     <div
       ref={containerRef}
       className="canvas__container"
-      style={{ width: `${width}px`, height: `${height}px` }}
+      style={{ width: `${width}px`, aspectRatio: `${width} / ${height}` }}
     >
       {renderState === "pending" && <div className="canvas__skeleton" />}
       {renderState === "error" && (
@@ -109,11 +120,8 @@ function Canvas({ image, renderFn, seed, rendererName, hash, filename, mimeType 
       <canvas
         ref={canvasRef}
         className="canvas"
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        tabIndex={0}
-        role="button"
-        aria-label={`${rendererName} rendering, seed ${hash}. Press to download.`}
+        role="img"
+        aria-label={`${rendererName} rendering, seed ${hash}`}
         style={{ opacity: renderState === "done" ? 1 : 0 }}
       />
       {renderState === "done" && (

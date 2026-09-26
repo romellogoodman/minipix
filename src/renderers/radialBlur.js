@@ -1,11 +1,10 @@
 import { setupRenderer, randInt, randFloat } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
-const radialBlur = ({ canvas, image, seed = Date.now() }) => {
+const radialBlur = ({ canvas, image, seed = Date.now(), config = rendererConfig.radialBlur }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
 
-  const config = rendererConfig.radialBlur;
   const numSamples = randInt(config.numSamples, random);
   const blurStrength = randFloat(config.blurStrength, random);
   const centerX = canvas.width * randFloat(config.centerVariation, random);

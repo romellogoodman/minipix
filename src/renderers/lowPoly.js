@@ -1,10 +1,9 @@
 import { setupRenderer, randInt, randFloat } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
-const lowPoly = ({ canvas, image, seed = Date.now() }) => {
+const lowPoly = ({ canvas, image, seed = Date.now(), config = rendererConfig.lowPoly }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
-  const config = rendererConfig.lowPoly;
 
   ctx.drawImage(image, 0, 0);
   const src = ctx.getImageData(0, 0, canvas.width, canvas.height);

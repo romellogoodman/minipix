@@ -6,17 +6,21 @@ Try it at [minipix.romellogoodman.com](https://minipix.romellogoodman.com).
 
 ## Features
 
-- Upload multiple images (PNG/JPEG) via drag-and-drop or file selection
-- Generate infinite variations using 40+ different rendering algorithms
-- Seeded randomness for reproducible artwork
-- Configurable renderer parameters
-- Download individual canvases with descriptive filenames including seed hash
-- Toggle images on/off from the generation pool
-- Responsive layout with infinite scroll
-- Pixel-heavy renderers run in a pool of Web Workers to keep scrolling smooth
+- Single-canvas studio: pick a source, a renderer, and a seed, and see one large output
+- 37 rendering algorithms, grouped and described in the renderer picker
+- Seeded randomness for reproducible artwork, with a "lock seed" toggle
+- Per-renderer parameter sliders: leave a parameter on auto or pin it to a value
+- A filmstrip of your 12 most recent variations to step back through
+- Download or copy the output with a descriptive filename including the seed hash;
+  save and load settings as JSON
+- Upload your own images (PNG/JPEG) via drag-and-drop or file selection
+- Pixel-heavy renderers run in a pool of Web Workers to keep the UI responsive
 - **CLI rendering** with node-canvas for batch processing
 
-The default image is [*Tree Pæony*](https://www.getty.edu/art/collection/object/108QM6) by Ogawa Kazumasa (1896), public domain (CC0), via the J. Paul Getty Museum's Open Content Program.
+Example images:
+
+- [*Tree Pæony*](https://www.getty.edu/art/collection/object/108QM6) by Ogawa Kazumasa (1896), public domain (CC0), via the J. Paul Getty Museum's Open Content Program.
+- [*Surface and cloud-top temperatures from MTG-Sounder*](https://www.esa.int/ESA_Multimedia/Images/2026/01/Global_surface_and_cloud-top_temperatures_by_MTG-Sounder), ESA. Data by Thales and OHB under Eumetsat and ESA, visual by Eumetsat.
 
 ## Getting Started
 
@@ -38,17 +42,19 @@ npm run render -- --file=image.jpg --count=5
 
 ### Web Interface
 
-1. **Upload Images**: Drag and drop images onto the page or click the upload button
-2. **Toggle Images**: Click thumbnails in the sidebar to enable/disable images
-3. **Download**: Click any canvas to download it as `{imagename}-minipix-{renderer}-{hash}.{ext}` (JPEG uploads save as `.jpg`, everything else as `.png`)
-4. **Reproduce**: Use the hash in the filename to recreate exact results (see query parameters below)
+1. **Source**: Click an example thumbnail, or upload your own with the upload tile (or drop it anywhere on the page)
+2. **Renderer**: Choose a renderer; its description appears below the picker
+3. **Variation**: Type a seed or press **R** to reroll (a new seed, with every parameter back to auto). Turn on *Lock seed* to keep the seed while changing renderer. Drag a parameter slider to pin it; untouched ones stay on auto (their random range)
+4. **Export**: Press **D** or *Download* to save `{imagename}-minipix-{renderer}-{hash}.{ext}` (JPEG sources save as `.jpg`, everything else as `.png`), copy the image or a link, or save the settings as JSON
+
+Use **←/→** to step through the filmstrip of recent variations.
 
 #### Query Parameters
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
-| `renderer` | Limit the grid to one or more renderers (comma-separated). Invalid names fall back to the full pool. | `?renderer=ripple,waves,spiral` |
-| `seed` | Reproduce a shared artwork. Accepts the base36 hash from a filename or a decimal seed; applied to the first canvas only. | `?renderer=spiral&seed=00009ix` |
+| `renderer` | Start on this renderer (the first valid name of a comma-separated list). | `?renderer=spiral` |
+| `seed` | Start on this seed. Accepts the base36 hash from a filename or a decimal seed. | `?renderer=spiral&seed=00009ix` |
 
 ### CLI Rendering
 

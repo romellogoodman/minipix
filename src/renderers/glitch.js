@@ -1,13 +1,12 @@
 import { setupRenderer, randFloat, randInt, randomNumber } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
-const glitch = ({ canvas, image, seed = Date.now() }) => {
+const glitch = ({ canvas, image, seed = Date.now(), config = rendererConfig.glitch }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
 
   ctx.drawImage(image, 0, 0);
 
-  const config = rendererConfig.glitch;
   const numSlices = randInt(config.numSlices, random);
   const maxOffset = randFloat(config.maxOffset, random);
   const shouldInvert = random() < config.invertProbability;

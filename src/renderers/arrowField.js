@@ -16,10 +16,9 @@ const ACCENTS = ["#ffffff", "#ff3b30", "#39ff14", "#00e5ff", "#ffe600", "#ff2bd6
  * pointing either across edges (toward the brighter side) or along them.
  * Arrow length follows edge strength; flat cells collapse to dots.
  */
-const arrowField = ({ canvas, image, seed = Date.now() }) => {
+const arrowField = ({ canvas, image, seed = Date.now(), config = rendererConfig.arrowField }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
-  const config = rendererConfig.arrowField;
   const { width, height } = canvas;
 
   const cols = randInt(config.cols, random);

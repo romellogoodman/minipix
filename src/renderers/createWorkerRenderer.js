@@ -28,7 +28,7 @@ const getSourcePixels = (image) => {
 
 // Factory for worker-based async renderers
 const createWorkerRenderer = (name) => {
-  const renderer = ({ canvas, image, seed = Date.now() }) => {
+  const renderer = ({ canvas, image, seed = Date.now(), config = rendererConfig[name] }) => {
     if (!image) return;
 
     const ctx = canvas.getContext("2d");
@@ -44,7 +44,7 @@ const createWorkerRenderer = (name) => {
       canvas.width,
       canvas.height,
       seed,
-      rendererConfig[name]
+      config
     );
 
     const wrapped = promise.then((result) => {

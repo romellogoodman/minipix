@@ -8,10 +8,9 @@ import { rendererConfig } from "./config.js";
  * fades in and out softly instead of ending in a hard edge the way uniform
  * averaging would. Reads like a long exposure of a moving frame.
  */
-const smear = ({ canvas, image, seed = Date.now() }) => {
+const smear = ({ canvas, image, seed = Date.now(), config = rendererConfig.smear }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
-  const config = rendererConfig.smear;
   const { width, height } = canvas;
   const shortSide = Math.min(width, height);
 

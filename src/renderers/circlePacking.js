@@ -1,10 +1,9 @@
 import { setupRenderer, randInt, extractDominantColors, getLuminance } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
-const circlePacking = ({ canvas, image, seed = Date.now() }) => {
+const circlePacking = ({ canvas, image, seed = Date.now(), config = rendererConfig.circlePacking }) => {
   if (!image) return;
   const { ctx, random } = setupRenderer(canvas, image, seed);
-  const config = rendererConfig.circlePacking;
 
   ctx.drawImage(image, 0, 0);
   const src = ctx.getImageData(0, 0, canvas.width, canvas.height);
