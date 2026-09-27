@@ -1,6 +1,6 @@
 import { rendererConfig } from "./renderers";
 
-// Renderer groups for the Studio's renderer picker. Anything missing from these
+// Renderer groups for the renderer picker. Anything missing from these
 // lists (e.g. a renderer added later) lands in "Other".
 const GROUPS = [
   {
@@ -151,11 +151,8 @@ const INT_PARAMS = new Set([
 // independent min / max controls instead of a single pinned value.
 const SPAN_PARAMS = new Set(["stacked.sizeFactor", "stackedCircle.sizeFactor"]);
 
-const floatStep = (span) => {
-  const raw = span / 100;
-  const magnitude = 10 ** Math.floor(Math.log10(raw));
-  return magnitude;
-};
+// Power-of-ten step giving roughly 100 slider positions across `span`.
+const floatStep = (span) => 10 ** Math.floor(Math.log10(span / 100));
 
 /**
  * One control spec per config key of a renderer:
@@ -165,8 +162,7 @@ const floatStep = (span) => {
  * - number: other plain constant
  */
 export function paramSpecs(name) {
-  const config = rendererConfig[name] || {};
-  return Object.entries(config).map(([key, value]) => {
+  return Object.entries(rendererConfig[name]).map(([key, value]) => {
     const id = `${name}.${key}`;
     if (value && typeof value === "object") {
       if (SPAN_PARAMS.has(id)) {
@@ -186,10 +182,10 @@ export function paramSpecs(name) {
   });
 }
 
-// Renderer config with the Studio's pins applied. Only ranges change, so the
+// Renderer config with pins applied. Only ranges change, so the
 // renderer's RNG call order (and therefore the rest of the image) is intact.
 export function buildConfig(name, overrides) {
-  const config = { ...(rendererConfig[name] || {}) };
+  const config = { ...rendererConfig[name] };
   for (const spec of paramSpecs(name)) {
     if (!(spec.key in overrides)) continue;
     const v = overrides[spec.key];

@@ -11,7 +11,7 @@ export { default as crosshatch } from "./crosshatch.js";
 export { default as echo } from "./echo.js";
 export { default as glitch } from "./glitch.js";
 export { default as gridSwap } from "./gridSwap.js";
-export { default as halftone, halftoneBayer, halftoneClassicDots, halftoneFloydSteinberg, halftoneLines } from "./halftone.js";
+export { default as halftone } from "./halftone.js";
 export { default as kaleidoscope } from "./kaleidoscope.js";
 export { default as lightLeak } from "./lightLeak.js";
 export { default as lowPoly } from "./lowPoly.js";

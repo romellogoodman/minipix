@@ -44,7 +44,7 @@ export default function crt({ imageData, width, height, config, random, outputDa
     }
   }
 
-  // Pass 2: separable bloom blur on bright pixels. Reuse buffers across passes.
+  // Pass 2: separable box blur of the bright pixels only.
   const bloomR = new Float32Array(width * height);
   const bloomG = new Float32Array(width * height);
   const bloomB = new Float32Array(width * height);

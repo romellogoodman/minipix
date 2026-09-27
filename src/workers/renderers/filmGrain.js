@@ -1,24 +1,23 @@
-import { randomNumber, map } from "../utils.js";
+import { randomNumber, randFloat } from "../utils.js";
 
 export default function filmGrain({ imageData, width, height, config, random, outputData }) {
-
-  const grainIntensity = map(random(), 0, 1, config.grainIntensity.min, config.grainIntensity.max);
-  const tintStrength = map(random(), 0, 1, config.tintStrength.min, config.tintStrength.max);
-  const contrast = map(random(), 0, 1, config.contrast.min, config.contrast.max);
-  const vignetteStrength = map(random(), 0, 1, config.vignette.min, config.vignette.max);
+  const grainIntensity = randFloat(config.grainIntensity, random);
+  const tintStrength = randFloat(config.tintStrength, random);
+  const contrast = randFloat(config.contrast, random);
+  const vignetteStrength = randFloat(config.vignette, random);
   const scratchCount = randomNumber(config.scratchCount.min, config.scratchCount.max, random);
 
-  // Random vintage tint (sepia, cool blue, warm yellow, faded green)
+  // Colour-matrix tints: sepia, cool blue, warm yellow, faded green.
   const tintType = Math.floor(random() * 4);
   const tints = [
-    { r: [0.393, 0.769, 0.189], g: [0.349, 0.686, 0.168], b: [0.272, 0.534, 0.131] }, // sepia
-    { r: [0.3, 0.4, 0.5], g: [0.35, 0.5, 0.6], b: [0.4, 0.55, 0.7] }, // cool blue
-    { r: [0.5, 0.6, 0.2], g: [0.45, 0.55, 0.18], b: [0.3, 0.4, 0.15] }, // warm yellow
-    { r: [0.35, 0.6, 0.3], g: [0.4, 0.65, 0.35], b: [0.32, 0.5, 0.28] }, // faded green
+    { r: [0.393, 0.769, 0.189], g: [0.349, 0.686, 0.168], b: [0.272, 0.534, 0.131] },
+    { r: [0.3, 0.4, 0.5], g: [0.35, 0.5, 0.6], b: [0.4, 0.55, 0.7] },
+    { r: [0.5, 0.6, 0.2], g: [0.45, 0.55, 0.18], b: [0.3, 0.4, 0.15] },
+    { r: [0.35, 0.6, 0.3], g: [0.4, 0.65, 0.35], b: [0.32, 0.5, 0.28] },
   ];
   const tint = tints[tintType];
 
-  // Pre-compute scratch brightness per x-column (O(width) instead of O(width*scratches) per row)
+  // Scratches are vertical, so bake their brightness per column once.
   const scratchMap = new Float32Array(width);
   for (let i = 0; i < scratchCount; i++) {
     const scratchX = Math.floor(random() * width);
@@ -47,12 +46,10 @@ export default function filmGrain({ imageData, width, height, config, random, ou
       let g = imageData[i + 1];
       let b = imageData[i + 2];
 
-      // Apply contrast
       r = (r - 128) * contrast + 128;
       g = (g - 128) * contrast + 128;
       b = (b - 128) * contrast + 128;
 
-      // Apply vintage tint
       const tr = r * tint.r[0] + g * tint.r[1] + b * tint.r[2];
       const tg = r * tint.g[0] + g * tint.g[1] + b * tint.g[2];
       const tb = r * tint.b[0] + g * tint.b[1] + b * tint.b[2];
@@ -60,19 +57,18 @@ export default function filmGrain({ imageData, width, height, config, random, ou
       g = g + (tg - g) * tintStrength;
       b = b + (tb - b) * tintStrength;
 
-      // Add grain noise (per-channel for color variation)
+      // Per-channel grain, so the noise has some colour.
       r += (random() - 0.5) * grainScale;
       g += (random() - 0.5) * grainScale;
       b += (random() - 0.5) * grainScale;
 
-      // Apply vignette (pre-computed y component). Squared falloff, so no sqrt needed.
+      // Squared falloff, so no sqrt.
       const vx = x * invWidth - 1;
       const vignette = 1 - (vx * vx + vySq) * vignetteMultiplier;
       r *= vignette;
       g *= vignette;
       b *= vignette;
 
-      // Apply scratches (O(1) lookup)
       const scratchBrightness = scratchMap[x];
       r += scratchBrightness;
       g += scratchBrightness;

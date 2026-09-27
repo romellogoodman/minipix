@@ -94,8 +94,6 @@ button {
     max-width: 100%;
     background: var(--color-field);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-    transition: box-shadow 120ms var(--ease);
-
   }
 
   &__skeleton {
@@ -108,38 +106,11 @@ button {
   &__error {
     position: absolute;
     inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
+    display: grid;
+    place-items: center;
     color: var(--color-error);
     font-size: var(--font-size-sm);
     font-weight: 500;
-  }
-
-  &__error-name {
-    color: var(--color-text-2);
-    font-family: var(--font-mono);
-  }
-
-  &__badge {
-    position: absolute;
-    bottom: var(--spacing-unit);
-    left: var(--spacing-unit);
-    padding: 3px var(--spacing-unit);
-    background: rgba(26, 26, 26, 0.85);
-    color: #fff;
-    font-family: var(--font-mono);
-    font-size: var(--font-size-sm);
-    border-radius: 4px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 120ms var(--ease);
-  }
-
-  &__container:hover &__badge {
-    opacity: 1;
   }
 }
 
@@ -160,13 +131,6 @@ button {
   display: flex;
   align-items: center;
   gap: var(--spacing-unit);
-
-  &__label {
-    flex: none;
-    width: 52px;
-    color: var(--color-text-2);
-    font-size: var(--font-size-sm);
-  }
 
   &__native {
     flex: 1;
@@ -375,12 +339,49 @@ button {
   gap: var(--spacing-unit);
 }
 
-
 .links {
   display: flex;
   gap: var(--spacing-2x);
 
   .btn {
     width: auto;
+  }
+}
+
+/* ---------- error screen ---------- */
+
+.error-screen {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2x);
+  padding: var(--spacing-3x);
+  text-align: center;
+
+  &__title {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  &__text {
+    margin: 0;
+    color: var(--color-text-2);
+  }
+
+  .btn {
+    width: auto;
+  }
+
+  &__detail {
+    max-width: 100%;
+    overflow: auto;
+    padding: var(--spacing-2x);
+    background: var(--color-field);
+    border-radius: var(--radius);
+    color: var(--color-error);
+    font-size: var(--font-size-sm);
+    text-align: left;
   }
 }

@@ -14,7 +14,7 @@ import {
 } from "./utils/output.js";
 import { Upload } from "feather-icons-react";
 import { Field, SeedInput } from "./components/controls.jsx";
-import { generateSeedHash, parseSeed } from "./utils/download.js";
+import { downloadBlob, generateSeedHash, parseSeed } from "./utils/download.js";
 import {
   DESCRIPTIONS,
   buildConfig,
@@ -44,7 +44,7 @@ function useDebounced(value, delay) {
 }
 
 export default function App() {
-  const { allImages, availableImages, loadFiles } = useImageLoader();
+  const { images, loadFiles } = useImageLoader();
   const { isDragging } = useDragAndDrop(loadFiles);
   const { status, flash, download, copyImage, copyLink } = useExport();
 
@@ -60,11 +60,10 @@ export default function App() {
   );
   const [initialSeed] = useState(() => seedFromUrl() ?? randomSeed());
 
-  // The variation being edited. Null until the user changes something, in
-  // which case it falls back to the first available image.
+  // The variation being edited. Until the user changes something it is derived
+  // from the first image and the URL params.
   const [draftState, setDraftState] = useState(null);
-  const firstImage = availableImages[0] || allImages[0];
-  const firstImageId = firstImage?.id;
+  const firstImageId = images[0]?.id;
   const initialDraft = useMemo(
     () =>
       firstImageId === undefined
@@ -90,12 +89,12 @@ export default function App() {
   const imageCount = useRef(0);
   useEffect(() => {
     const previous = imageCount.current;
-    imageCount.current = allImages.length;
-    if (previous > 0 && allImages.length > previous) {
-      const newest = allImages[allImages.length - 1];
+    imageCount.current = images.length;
+    if (previous > 0 && images.length > previous) {
+      const newest = images[images.length - 1];
       updateDraft((d) => ({ ...d, imageId: newest.id }));
     }
-  }, [allImages, updateDraft]);
+  }, [images, updateDraft]);
 
   // Every settled draft joins the filmstrip (newest on the right).
   useEffect(() => {
@@ -123,7 +122,7 @@ export default function App() {
   // Slider drags re-render the stage only once they settle.
   const rendered = useDebounced(draft, RENDER_DELAY) ?? draft;
   const renderKey = variationKey(rendered);
-  const renderedImage = rendered && allImages.find((img) => img.id === rendered.imageId);
+  const renderedImage = rendered && images.find((img) => img.id === rendered.imageId);
   const output = useMemo(
     () =>
       rendered && renderedImage
@@ -195,7 +194,7 @@ export default function App() {
 
   const saveSettings = () => {
     if (!draft) return;
-    const image = allImages.find((img) => img.id === draft.imageId);
+    const image = images.find((img) => img.id === draft.imageId);
     const settings = {
       renderer: draft.renderer,
       seed: draft.seed,
@@ -204,12 +203,7 @@ export default function App() {
       overrides: draft.overrides,
     };
     const blob = new Blob([JSON.stringify(settings, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = (output?.filename ?? "minipix").replace(/\.\w+$/, "") + ".json";
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
+    downloadBlob(blob, (output?.filename ?? "minipix").replace(/\.\w+$/, "") + ".json");
   };
 
   const loadSettings = async (file) => {
@@ -223,7 +217,7 @@ export default function App() {
       const overrides = Object.fromEntries(
         Object.entries(settings.overrides || {}).filter(([key]) => known.has(key))
       );
-      const image = allImages.find((img) => img.filename === settings.image);
+      const image = images.find((img) => img.filename === settings.image);
       updateDraft((d) => ({
         imageId: image ? image.id : d.imageId,
         renderer: settings.renderer,
@@ -264,7 +258,7 @@ export default function App() {
   const sourceMime = output?.image.mimeType === "image/jpeg" ? "JPG" : "PNG";
 
   return (
-    <div className="app app--studio">
+    <div className="app">
       {isDragging && (
         <div className="dropzone-overlay">
           <div className="dropzone-overlay__content">Drop images to add them</div>
@@ -280,11 +274,9 @@ export default function App() {
                 renderFn={output.renderer}
                 seed={output.seed}
                 config={renderConfig}
-                rendererName={output.rendererName}
-                hash={output.hash}
+                label={`${output.rendererName} rendering, seed ${output.hash}`}
                 maxWidth={Math.max(wellSize.width, 100)}
                 maxHeight={Math.max(wellSize.height, 100)}
-                scrollRoot={wellEl}
                 onRendered={handleRendered}
               />
             ) : (
@@ -323,7 +315,7 @@ export default function App() {
         <aside className="studio__panel">
           <Field label={<Step n={1}>Source</Step>}>
             <SourcePicker
-              images={allImages}
+              images={images}
               selectedId={draft?.imageId}
               dragging={isDragging}
               onSelect={(imageId) => updateDraft((d) => ({ ...d, imageId }))}
@@ -341,7 +333,6 @@ export default function App() {
           >
             {draft && (
               <SeedInput
-                label={null}
                 key={output?.hash ?? draft.seed}
                 hash={output?.hash ?? ""}
                 onCommit={(seed) => updateDraft((d) => ({ ...d, seed }))}
@@ -362,7 +353,6 @@ export default function App() {
               </label>
             </div>
             <span className="field__hint">
-              Reroll picks a new seed and returns every parameter to auto.{" "}
               {lockSeed
                 ? "Changing renderer keeps this seed."
                 : "Changing renderer rolls a new seed."}

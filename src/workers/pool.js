@@ -1,5 +1,5 @@
-// Worker pool for parallel rendering
-// Manages a pool of Web Workers for pixel-intensive operations
+// Pool of render workers, created on demand up to the core count. Tasks queue
+// when every worker is busy; a worker that errors or times out is replaced.
 
 const TASK_TIMEOUT_MS = 30000;
 
@@ -153,22 +153,6 @@ class WorkerPool {
     };
 
     return promise;
-  }
-
-  terminate() {
-    for (const callback of this.callbacks.values()) {
-      callback.reject(new Error("Worker pool terminated"));
-    }
-    for (const task of this.queue) {
-      task.reject(new Error("Worker pool terminated"));
-    }
-
-    this.workers.forEach((worker) => worker.terminate());
-    this.workers = [];
-    this.available = [];
-    this.queue = [];
-    this.callbacks.clear();
-    this.workerTaskMap.clear();
   }
 }
 

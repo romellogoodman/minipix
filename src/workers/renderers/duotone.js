@@ -1,12 +1,11 @@
-import { map } from "../utils.js";
+import { randFloat } from "../utils.js";
 
 export default function duotone({ imageData, config, random, outputData }) {
-  // Generate two contrasting colors using HSL
-  const hue1 = map(random(), 0, 1, config.hueShift.min, config.hueShift.max);
-  const hue2 = (hue1 + 180 + (random() - 0.5) * 60) % 360; // Complementary with variation
-  const satBoost = map(random(), 0, 1, config.saturationBoost.min, config.saturationBoost.max);
+  // Dark shadow colour and a roughly complementary light highlight colour.
+  const hue1 = randFloat(config.hueShift, random);
+  const hue2 = (hue1 + 180 + (random() - 0.5) * 60) % 360;
+  const satBoost = randFloat(config.saturationBoost, random);
 
-  // Convert HSL to RGB helper
   const hslToRgb = (h, s, l) => {
     h /= 360;
     const a = s * Math.min(l, 1 - l);

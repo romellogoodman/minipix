@@ -1,13 +1,7 @@
-// Renderer registry for the Node CLI.
-//
-// The web app loads renderers through src/renderers/index.js, which pulls in
-// the browser-only WorkerPool (it touches `navigator`/`Worker` at import time).
-// The CLI cannot import that module, so it wires up its own registry here:
-//   - Sync renderers are imported from their individual files and called with
-//     ({ canvas, image, seed }).
-//   - Worker renderers are pure functions that normally run inside a Web
-//     Worker. The CLI imports them directly and runs them on the main thread,
-//     feeding them the source ImageData and reading back the result.
+// Renderer registry for the Node CLI. src/renderers/index.js can't be used
+// here: it pulls in the browser-only WorkerPool. Sync renderers are imported
+// from their own files; worker renderers are pure pixel functions, so the CLI
+// runs them on the main thread and writes the result back to the canvas.
 
 import { rendererConfig } from "../src/renderers/config.js";
 import { createSeededRandom } from "../src/utils/math.js";
@@ -105,26 +99,20 @@ const workerRenderers = {
   waves,
 };
 
-/** Sorted list of every renderer name the CLI can run. */
+// Every renderer name the CLI can run, sorted.
 export function getRendererNames() {
   return [...Object.keys(syncRenderers), ...Object.keys(workerRenderers)].sort();
 }
 
-/** Whether a renderer name is known to the CLI. */
 export function hasRenderer(name) {
   return name in syncRenderers || name in workerRenderers;
 }
 
-/**
- * Render an image onto the given canvas with the named renderer.
- * Sync renderers draw directly; worker renderers run their pure pixel
- * function and the result is written back to the canvas.
- * Always returns a promise so callers can uniformly `await` it.
- */
-export async function renderToCanvas(name, { canvas, image, seed, ImageData }) {
+// ImageData is the global the CLI entry polyfills from node-canvas.
+export async function renderToCanvas(name, { canvas, image, seed }) {
   const syncFn = syncRenderers[name];
   if (syncFn) {
-    await syncFn({ canvas, image, seed });
+    syncFn({ canvas, image, seed });
     return;
   }
 
@@ -142,7 +130,7 @@ export async function renderToCanvas(name, { canvas, image, seed, ImageData }) {
   const outputData = new Uint8ClampedArray(source.data.length);
   const random = createSeededRandom(seed);
 
-  await workerFn({
+  workerFn({
     imageData: source.data,
     width: canvas.width,
     height: canvas.height,

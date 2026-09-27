@@ -1,5 +1,5 @@
 // Studio layout: one large stage + filmstrip, single-column step panel.
-// Everything is scoped under .studio — every layout's CSS loads globally.
+// Shared tokens and control styles live in scss/base.scss.
 
 .studio {
   flex: 1;
@@ -320,7 +320,7 @@
 }
 
 @media (max-width: 1000px) {
-  .app--studio {
+  .app {
     height: auto;
     min-height: 100%;
     overflow: visible;

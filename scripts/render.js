@@ -18,23 +18,14 @@ try {
   process.exit(1);
 }
 
-// Polyfill document.createElement for renderers that use temporary canvases
-globalThis.document = {
-  createElement: (tag) => {
-    if (tag === 'canvas') {
-      return createCanvas(0, 0);
-    }
-    throw new Error(`createElement('${tag}') is not supported in Node.js context`);
-  }
-};
-
-// Polyfill ImageData for renderers that use it
+// The dithering helpers construct ImageData, which Node lacks.
 globalThis.ImageData = ImageData;
 
-// Import the CLI renderer registry after the polyfills are in place.
+// Import the renderer registry after the polyfill is in place.
 const { getRendererNames, hasRenderer, renderToCanvas } = await import('./cli-renderers.js');
 
-// Match the web app's filename hash (src/App.jsx).
+// Same hash as the web app's filenames (src/utils/download.js, which is
+// browser-only).
 function generateSeedHash(seed) {
   return (seed >>> 0).toString(36).padStart(7, '0');
 }
@@ -57,7 +48,6 @@ function parseNumber(raw, { name, integer, min, max }) {
   return value;
 }
 
-// Parse command line arguments
 function parseArgs() {
   const args = process.argv.slice(2);
   const options = {
@@ -71,25 +61,26 @@ function parseArgs() {
     compression: 6,
   };
 
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
+  for (const arg of args) {
+    // Everything after the first "=", so paths may contain "=".
+    const value = arg.slice(arg.indexOf('=') + 1);
 
     if (arg.startsWith('--file=')) {
-      options.file = arg.split('=')[1];
+      options.file = value;
     } else if (arg.startsWith('--count=')) {
-      options.count = parseNumber(arg.split('=')[1], { name: 'count', integer: true, min: 1, max: 10000 });
+      options.count = parseNumber(value, { name: 'count', integer: true, min: 1, max: 10000 });
     } else if (arg.startsWith('--renderer=')) {
-      options.renderer = arg.split('=')[1];
+      options.renderer = value;
     } else if (arg.startsWith('--seed=')) {
-      options.seed = parseNumber(arg.split('=')[1], { name: 'seed', integer: true, min: 0, max: 0xffffffff });
+      options.seed = parseNumber(value, { name: 'seed', integer: true, min: 0, max: 0xffffffff });
     } else if (arg.startsWith('--output=')) {
-      options.output = arg.split('=')[1];
+      options.output = value;
     } else if (arg.startsWith('--format=')) {
-      options.format = arg.split('=')[1].toLowerCase();
+      options.format = value.toLowerCase();
     } else if (arg.startsWith('--quality=')) {
-      options.quality = parseNumber(arg.split('=')[1], { name: 'quality', integer: false, min: 0, max: 1 });
+      options.quality = parseNumber(value, { name: 'quality', integer: false, min: 0, max: 1 });
     } else if (arg.startsWith('--compression=')) {
-      options.compression = parseNumber(arg.split('=')[1], { name: 'compression', integer: true, min: 0, max: 9 });
+      options.compression = parseNumber(value, { name: 'compression', integer: true, min: 0, max: 9 });
     } else if (arg === '--help' || arg === '-h') {
       printHelp();
       process.exit(0);
@@ -132,46 +123,30 @@ Examples:
   `);
 }
 
-// Render a single image and write it to disk.
-async function renderSingle(image, basename, rendererName, seed, options, index) {
-  const seedHash = generateSeedHash(seed);
-
+// Renders one image, writes it to disk, and returns its timings.
+async function renderSingle(image, basename, rendererName, seed, options) {
   const canvas = createCanvas(image.width, image.height);
 
   const startTime = Date.now();
-  await renderToCanvas(rendererName, { canvas, image, seed, ImageData });
+  await renderToCanvas(rendererName, { canvas, image, seed });
   const renderTime = Date.now() - startTime;
 
   const ext = options.format === 'jpeg' ? 'jpg' : 'png';
-  const outputFilename = `${basename}-minipix-${rendererName}-${seedHash}.${ext}`;
-  const outputPath = path.join(options.output, outputFilename);
+  const outputPath = path.join(
+    options.output,
+    `${basename}-minipix-${rendererName}-${generateSeedHash(seed)}.${ext}`
+  );
 
-  let buffer;
   const writeStartTime = Date.now();
-
-  if (options.format === 'jpeg') {
-    buffer = canvas.toBuffer('image/jpeg', { quality: options.quality });
-  } else {
-    buffer = canvas.toBuffer('image/png', { compressionLevel: options.compression });
-  }
-
+  const buffer = options.format === 'jpeg'
+    ? canvas.toBuffer('image/jpeg', { quality: options.quality })
+    : canvas.toBuffer('image/png', { compressionLevel: options.compression });
   await writeFile(outputPath, buffer);
   const writeTime = Date.now() - writeStartTime;
-  const totalTime = Date.now() - startTime;
 
-  return {
-    index: index + 1,
-    rendererName,
-    seed,
-    outputPath,
-    renderTime,
-    writeTime,
-    totalTime,
-    fileSize: buffer.length
-  };
+  return { renderTime, writeTime, totalTime: Date.now() - startTime, fileSize: buffer.length };
 }
 
-// Main render function
 async function render() {
   const options = parseArgs();
 
@@ -207,10 +182,12 @@ async function render() {
     process.exit(1);
   }
 
-  // Prepare render jobs. When a base seed is given, derive per-job seeds
-  // (seed + index) so multiple counts produce distinct, reproducible output
-  // instead of all overwriting one file.
-  const jobs = [];
+  console.log(`\nGenerating ${options.count} render(s)...`);
+  const overallStartTime = Date.now();
+
+  // With a base seed, each render uses seed + index so a count > 1 gives
+  // distinct, reproducible outputs instead of overwriting one file.
+  const results = [];
   for (let i = 0; i < options.count; i++) {
     const rendererName = options.renderer ||
       rendererNames[Math.floor(Math.random() * rendererNames.length)];
@@ -218,24 +195,15 @@ async function render() {
       ? (options.seed + i) >>> 0
       : Math.floor(Math.random() * 0xffffffff);
 
-    jobs.push({ rendererName, seed, index: i });
-  }
-
-  console.log(`\nGenerating ${options.count} render(s)...`);
-  const overallStartTime = Date.now();
-
-  const results = [];
-  for (const job of jobs) {
-    const result = await renderSingle(image, basename, job.rendererName, job.seed, options, job.index);
+    const result = await renderSingle(image, basename, rendererName, seed, options);
     results.push(result);
-    console.log(`[${result.index}/${options.count}] ${result.rendererName} - ${result.totalTime}ms (render: ${result.renderTime}ms, write: ${result.writeTime}ms)`);
+    console.log(`[${i + 1}/${options.count}] ${rendererName} - ${result.totalTime}ms (render: ${result.renderTime}ms, write: ${result.writeTime}ms)`);
   }
 
   const overallTime = Date.now() - overallStartTime;
 
   console.log(`\n${'='.repeat(60)}`);
   console.log('RENDER SUMMARY');
-  console.log('='.repeat(60));
 
   const totalRenderTime = results.reduce((sum, r) => sum + r.renderTime, 0);
   const totalWriteTime = results.reduce((sum, r) => sum + r.writeTime, 0);
@@ -252,7 +220,6 @@ async function render() {
   console.log('='.repeat(60));
 }
 
-// Run the CLI
 render().catch(err => {
   console.error('Error:', err.message);
   process.exit(1);

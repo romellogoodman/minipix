@@ -24,12 +24,9 @@ const scooch = ({ canvas, image, seed = Date.now(), config = rendererConfig.scoo
     isVertical = !isVertical;
   }
 
-  dx = ((dx % w) + w) % w;
-  dy = ((dy % h) + h) % h;
-
-  // Source origin in image space that maps to canvas (0,0)
-  const sx = dx;
-  const sy = dy;
+  // (sx, sy) is the source point that lands on canvas (0, 0).
+  const sx = ((dx % w) + w) % w;
+  const sy = ((dy % h) + h) % h;
   const rw = w - sx;
   const rh = h - sy;
 

@@ -117,7 +117,7 @@ When `--count` is greater than 1 with a fixed `--seed`, each image uses
 - `subdivision` - Recursive fragmentation with flips
 
 **Halftone & Dithering**
-- `halftone` - Halftone effect with multiple modes
+- `halftone` - Halftone effect with multiple modes (the variants below are CLI-only)
 - `halftoneBayer` - Bayer matrix dithering
 - `halftoneClassicDots` - Classic halftone dots
 - `halftoneFloydSteinberg` - Floyd-Steinberg dithering

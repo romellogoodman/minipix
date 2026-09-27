@@ -11,9 +11,6 @@ Minipix is a generative art tool that:
   plus saving/loading settings as JSON
 - Includes a Node CLI (`npm run render`) for batch rendering with node-canvas
 
-Earlier grid-based layout explorations (baseline grid, contact sheet, board, matrix) are
-preserved on the `ui-explorations` branch.
-
 ## Project Structure
 
 ```
@@ -22,13 +19,12 @@ src/
 ├── App.jsx                        # Studio: stage, filmstrip history, stepped panel, keyboard shortcuts
 ├── App.scss                       # Studio styles (scss/base.scss holds shared tokens + controls)
 ├── catalog.js                     # Renderer groups + descriptions, parameter specs, buildConfig
-├── Canvas.jsx                     # Canvas component - lazy loading, render lifecycle, fit sizing
+├── Canvas.jsx                     # Canvas component - render lifecycle, fit sizing
 ├── ErrorBoundary.jsx              # Top-level error boundary
-├── renderQueue.js                 # Limits concurrent main-thread (sync) renders
 ├── components/
-│   └── controls.jsx               # Field, Select, DropZone, SeedInput
+│   └── controls.jsx               # Field, SeedInput
 ├── hooks/
-│   ├── useImageLoader.js          # Default + uploaded image loading
+│   ├── useImageLoader.js          # Example images + uploads, in a stable order
 │   ├── useDragAndDrop.js          # Window-level drag-and-drop upload
 │   └── useExport.js               # download / copy image / copy link + status flash
 ├── renderers/
@@ -43,12 +39,12 @@ src/
 │   └── renderers/<name>.js        # One file per worker (pixel-loop) renderer
 ├── utils/
 │   ├── index.js                   # Barrel for renderer utilities
-│   ├── math.js                    # mulberry32/createSeededRandom, randInt, randFloat, map
+│   ├── math.js                    # createSeededRandom (Mulberry32), randInt, randFloat, map
 │   ├── canvas.js                  # setupRenderer, calculateAdaptivePixelSize, drawHalftoneDot
 │   ├── image.js                   # Color extraction, luminance, dithering, block averaging, color ramps
 │   ├── noise.js                   # Seeded 2D gradient noise + fbm (shared with workers and CLI)
 │   ├── field.js                   # Low-res analysis: downsample, orientation field, saliency, blob finder
-│   ├── download.js                # Seed hash, seed parsing, filenames, download/copy (browser only)
+│   ├── download.js                # Seed hash/parsing, filenames, download/copy (browser only)
 │   └── output.js                  # ALL_RENDERERS, describe(), URL param readers, shareLink (browser only)
 └── scss/
     ├── base.scss                  # Design tokens + shared control styles (imported before App.scss)
@@ -87,14 +83,10 @@ scripts/
 
 ### Canvas.jsx
 
-Reusable canvas component with performance optimizations:
-
-- Accepts `renderFn`, `image`, `seed`, `config` (optional override, memoize it), `rendererName`,
-  `hash`, `maxWidth`/`maxHeight` (fit box, never upscales), `scrollRoot`, `onRendered` props
-- Lazy loads via IntersectionObserver (starts 100px before entering the viewport, then
-  disconnects the observer once visible)
-- Sync renderers go through `renderQueue` (max 3 concurrent) inside `requestIdleCallback`
-  to avoid blocking scroll; async (worker) renderers bypass the queue
+- Renders one output: `renderFn`, `image`, `seed`, `config` (optional override, memoize it),
+  `label` (aria), `maxWidth`/`maxHeight` (fit box, never upscales), `onRendered`
+- Sync renderers start inside `requestIdleCallback` (cancelled if settings change first);
+  worker renderers start immediately and cancel via the pool's `cancel()`
 - Tracks `pending | done | error` render state for skeleton/error UI
 - `onRendered(canvasEl)` hands the finished canvas to App for export and filmstrip snapshots
 
@@ -103,8 +95,8 @@ Reusable canvas component with performance optimizations:
 Each renderer lives in its own file and is re-exported from `src/renderers/index.js`.
 
 **Sync (main-thread) renderers** in `src/renderers/`: arrowField, asciiMosaic, barSwap,
-circlePacking, crosshatch, echo, glitch, gridSwap, halftone (plus forced-mode variants
-halftoneBayer, halftoneClassicDots, halftoneFloydSteinberg, halftoneLines), kaleidoscope,
+circlePacking, crosshatch, echo, glitch, gridSwap, halftone (plus CLI-only forced-mode
+variants halftoneBayer, halftoneClassicDots, halftoneFloydSteinberg, halftoneLines), kaleidoscope,
 lightLeak, lowPoly, pixelated, radialBlur, scooch, smear, stacked, stackedCircle,
 subdivision.
 
@@ -150,20 +142,20 @@ renders of the same image copy a buffer instead of re-running `drawImage` +
 
 ### utils/
 
-- `math.js`: `mulberry32`/`createSeededRandom`, `randomNumber(min, max, randomFn)`,
+- `math.js`: `createSeededRandom` (Mulberry32), `randomNumber(min, max, randomFn)`,
   `randInt(range, randomFn)`, `randFloat(range, randomFn)`, `map(...)` — shared with workers and CLI
 - `image.js`: `extractDominantColors` (median cut), `getLuminance`, `findNearestColor`,
   `getAverageColorInBlock`, `shuffleArray`, Bayer and Floyd-Steinberg dithering,
-  `COLOR_RAMPS` / `sampleRamp` / `buildRampLUT` for heat-map style colouring
+  `COLOR_RAMPS` / `buildRampLUT` for heat-map style colouring
 - `noise.js`: `createNoise2D(random)` (Perlin-style gradient noise; consumes 255 RNG calls
   when built)
 - `field.js`: `downsampleImage` (block-average to ≤N px), `computeOrientationField`
   (structure tensor → tangent/normal/coherence/strength), `computeSaliency`
   (edges/bright/dark/saturation/detail), `findBlobs` (mean-shift blob tracking on a weight
-  map; consumes 3 RNG calls per blob), `sobel`, `boxBlurPlane`, `fitSize`
+  map; consumes 3 RNG calls per blob), `fitSize`
 - `canvas.js`: `setupRenderer`, `calculateAdaptivePixelSize`, `drawHalftoneDot`
-- `download.js`: `generateSeedHash`, `parseSeed`, `buildFilename`, `downloadCanvas`, `copyCanvas` — browser-only,
-  do not import from worker or CLI code
+- `download.js`: `generateSeedHash`, `parseSeed`, `buildFilename`, `downloadBlob`, `downloadCanvas`,
+  `copyCanvas` — browser-only; do not import from worker or CLI code
 - All randomness helpers accept an optional `randomFn` (defaults to `Math.random`)
 
 ## CSS/SCSS Conventions

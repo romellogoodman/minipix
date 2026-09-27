@@ -26,7 +26,8 @@ const getSourcePixels = (image) => {
   return pixels;
 };
 
-// Factory for worker-based async renderers
+// Wraps a worker renderer in the sync renderer signature; returns a promise
+// with cancel() that dequeues work the pool hasn't started.
 const createWorkerRenderer = (name) => {
   const renderer = ({ canvas, image, seed = Date.now(), config = rendererConfig[name] }) => {
     if (!image) return;

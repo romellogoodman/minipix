@@ -9,10 +9,7 @@
  * the cost negligible next to the full-resolution pixel loops.
  */
 
-/**
- * Size that fits inside maxSize on its longer side while keeping aspect ratio.
- * @returns {{w: number, h: number}}
- */
+// { w, h } that fits inside maxSize on the longer side, keeping aspect ratio.
 export function fitSize(width, height, maxSize) {
   const scale = Math.min(1, maxSize / Math.max(width, height));
   return {
@@ -63,10 +60,8 @@ export function downsampleImage(imageData, width, height, maxSize) {
   return { r, g, b, lum, w, h };
 }
 
-/**
- * Separable box blur of a float plane with clamped edges. Returns a new array.
- */
-export function boxBlurPlane(src, w, h, radius) {
+// Separable box blur of a float plane with clamped edges; returns a new array.
+function boxBlurPlane(src, w, h, radius) {
   if (radius <= 0) return Float32Array.from(src);
   const tmp = new Float32Array(w * h);
   const out = new Float32Array(w * h);
@@ -96,11 +91,8 @@ export function boxBlurPlane(src, w, h, radius) {
   return out;
 }
 
-/**
- * Sobel gradient of a luminance plane with clamped edges.
- * @returns {{gx: Float32Array, gy: Float32Array}}
- */
-export function sobel(lum, w, h) {
+// Sobel gradient { gx, gy } of a luminance plane with clamped edges.
+function sobel(lum, w, h) {
   const gx = new Float32Array(w * h);
   const gy = new Float32Array(w * h);
   for (let y = 0; y < h; y++) {
@@ -275,14 +267,14 @@ export function computeSaliency(ds, mode) {
  * @param {Float32Array} weights - 0..1 map, w*h
  * @param {number} count - number of blobs
  * @param {function(): number} random
- * @param {{iterations?: number, radius?: number}} [opts]
+ * @param {{iterations?: number}} [opts]
  * @returns {{x: number, y: number, sx: number, sy: number, mass: number}[]}
  *   Centres and standard deviations in normalized 0..1 image coordinates;
  *   mass normalized to the heaviest blob (0 = found nothing to lock onto).
  */
 export function findBlobs(weights, w, h, count, random, opts = {}) {
   const iterations = opts.iterations ?? 8;
-  const radius = opts.radius ?? Math.max(2, Math.round(Math.max(w, h) / 6));
+  const radius = Math.max(2, Math.round(Math.max(w, h) / 6));
   const n = w * h;
 
   // Cumulative distribution for seeding blobs where the map is strong.

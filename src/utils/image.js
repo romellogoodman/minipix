@@ -1,13 +1,4 @@
-/**
- * Calculates the average color of all pixels in a block region.
- * @param {ImageData} imageData - The ImageData object containing pixel data
- * @param {number} startX - The starting X coordinate of the block
- * @param {number} startY - The starting Y coordinate of the block
- * @param {number} blockSize - The size of the block in pixels
- * @param {number} imageWidth - The width of the image
- * @param {number} imageHeight - The height of the image
- * @returns {{r: number, g: number, b: number}} Object containing the averaged RGB values
- */
+// Average {r, g, b} of a blockSize × blockH block, clipped to the image.
 export const getAverageColorInBlock = (
   imageData,
   startX,
@@ -26,7 +17,6 @@ export const getAverageColorInBlock = (
   const endY = Math.min(startY + blockH, imageHeight);
   const count = (endX - startX) * (endY - startY);
 
-  // Sum all pixel values in the block
   for (let y = startY; y < endY; y++) {
     let index = (y * imageWidth + startX) * 4;
     for (let x = startX; x < endX; x++, index += 4) {
@@ -36,7 +26,6 @@ export const getAverageColorInBlock = (
     }
   }
 
-  // Return average color
   return {
     r: Math.round(r / count),
     g: Math.round(g / count),
@@ -44,12 +33,7 @@ export const getAverageColorInBlock = (
   };
 };
 
-/**
- * Shuffles an array using the Fisher-Yates algorithm.
- * @param {Array} array - The array to shuffle
- * @param {function(): number} [randomFn=Math.random] - Optional random function to use
- * @returns {Array} A new shuffled array (does not modify the original)
- */
+// Fisher-Yates shuffle into a new array.
 export const shuffleArray = (array, randomFn = Math.random) => {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -59,30 +43,8 @@ export const shuffleArray = (array, randomFn = Math.random) => {
   return shuffled;
 };
 
-/**
- * Calculates the perceptual luminance/brightness from RGB values.
- * Uses the standard RGB to luminance conversion formula.
- * @param {number} r - Red value (0-255)
- * @param {number} g - Green value (0-255)
- * @param {number} b - Blue value (0-255)
- * @returns {number} Luminance value between 0 and 1
- */
-export const getLuminance = (r, g, b) => {
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-};
-
-/**
- * Calculates the Euclidean distance between two colors in RGB space.
- * @param {{r: number, g: number, b: number}} color1 - First color with r, g, b properties
- * @param {{r: number, g: number, b: number}} color2 - Second color with r, g, b properties
- * @returns {number} The Euclidean distance between the two colors
- */
-export const colorDistance = (color1, color2) => {
-  const dr = color1.r - color2.r;
-  const dg = color1.g - color2.g;
-  const db = color1.b - color2.b;
-  return dr * dr + dg * dg + db * db;
-};
+// Rec. 601 luma, 0..1.
+export const getLuminance = (r, g, b) => (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 
 // Scalar variant of findNearestColor for per-pixel loops, where allocating a
 // {r, g, b} object per pixel is measurable on multi-megapixel images.
@@ -104,28 +66,13 @@ const findNearestColorRGB = (r, g, b, palette) => {
   return nearest;
 };
 
-/**
- * Finds the nearest color from a palette to a given color.
- * @param {{r: number, g: number, b: number}} color - The target color to match
- * @param {Array<{r: number, g: number, b: number}>} palette - Array of available colors
- * @returns {{r: number, g: number, b: number}} The nearest color from the palette
- */
+// Nearest palette colour by squared RGB distance.
 export const findNearestColor = (color, palette) =>
   findNearestColorRGB(color.r, color.g, color.b, palette);
 
-/**
- * Extracts dominant colors from an image using the median cut algorithm.
- * @param {ImageData} imageData - The ImageData object containing pixel data
- * @param {number} numColors - Number of dominant colors to extract
- * @param {number} [sampleRate=10] - Pixel sampling rate (higher = faster but less accurate)
- * @returns {Array<{r: number, g: number, b: number}>} Array of dominant colors
- */
-export const extractDominantColors = (
-  imageData,
-  numColors,
-  sampleRate = 10
-) => {
-  // Sample pixels to build initial bucket
+// Up to numColors dominant colours via median cut over every sampleRate-th
+// pixel in each direction.
+export const extractDominantColors = (imageData, numColors, sampleRate = 10) => {
   const pixels = [];
   const { width, height, data } = imageData;
 
@@ -140,9 +87,8 @@ export const extractDominantColors = (
     }
   }
 
-  // Helper to find range and split bucket
+  // Sorts the bucket along its widest channel and splits it at the median.
   const splitBucket = (bucket) => {
-    // Find dimension with greatest range
     let rMin = 255,
       rMax = 0;
     let gMin = 255,
@@ -163,7 +109,6 @@ export const extractDominantColors = (
     const gRange = gMax - gMin;
     const bRange = bMax - bMin;
 
-    // Sort by dimension with greatest range
     if (rRange >= gRange && rRange >= bRange) {
       bucket.sort((a, b) => a.r - b.r);
     } else if (gRange >= rRange && gRange >= bRange) {
@@ -172,15 +117,12 @@ export const extractDominantColors = (
       bucket.sort((a, b) => a.b - b.b);
     }
 
-    // Split at median
     const median = Math.floor(bucket.length / 2);
     return [bucket.slice(0, median), bucket.slice(median)];
   };
 
-  // Start with one bucket containing all pixels
+  // Keep splitting the largest bucket until there are numColors.
   let buckets = [pixels];
-
-  // Iteratively split buckets until we have numColors
   while (buckets.length < numColors) {
     let largestBucket = buckets[0];
     let largestIndex = 0;
@@ -199,7 +141,6 @@ export const extractDominantColors = (
     buckets.splice(largestIndex, 1, bucket1, bucket2);
   }
 
-  // Calculate average color for each non-empty bucket
   return buckets.filter((b) => b.length > 0).map((bucket) => {
     let r = 0,
       g = 0,
@@ -218,39 +159,28 @@ export const extractDominantColors = (
   });
 };
 
-/**
- * Bayer 4x4 dithering matrix for ordered dithering.
- * @type {number[][]}
- */
-export const BAYER_4X4 = [
+const BAYER_4X4 = [
   [0, 8, 2, 10],
   [12, 4, 14, 6],
   [3, 11, 1, 9],
   [15, 7, 13, 5],
 ];
 
-/**
- * Applies Bayer matrix ordered dithering to an image with a color palette.
- * @param {ImageData} imageData - The ImageData object to dither
- * @param {Array<{r: number, g: number, b: number}>} palette - Array of colors to use for dithering
- * @returns {ImageData} New ImageData with dithering applied
- */
+// Ordered (4×4 Bayer) dither to the palette; returns new ImageData.
 export const applyBayerDithering = (imageData, palette) => {
   const { width, height, data } = imageData;
   const output = new ImageData(width, height);
   const matrixSize = 4;
-  const ditherStrength = 32; // Adjustable strength
+  const ditherStrength = 32;
 
   for (let y = 0; y < height; y++) {
     const bayerRow = BAYER_4X4[y % matrixSize];
     for (let x = 0; x < width; x++) {
       const idx = (y * width + x) * 4;
 
-      // Get Bayer threshold
       const threshold = bayerRow[x % matrixSize] / 16;
       const dither = (threshold - 0.5) * ditherStrength;
 
-      // Apply dither and find nearest color
       const nearest = findNearestColorRGB(
         Math.max(0, Math.min(255, data[idx] + dither)),
         Math.max(0, Math.min(255, data[idx + 1] + dither)),
@@ -258,7 +188,6 @@ export const applyBayerDithering = (imageData, palette) => {
         palette
       );
 
-      // Set output pixel
       output.data[idx] = nearest.r;
       output.data[idx + 1] = nearest.g;
       output.data[idx + 2] = nearest.b;
@@ -269,12 +198,7 @@ export const applyBayerDithering = (imageData, palette) => {
   return output;
 };
 
-/**
- * Applies Floyd-Steinberg error diffusion dithering to an image with a color palette.
- * @param {ImageData} imageData - The ImageData object to dither
- * @param {Array<{r: number, g: number, b: number}>} palette - Array of colors to use for dithering
- * @returns {ImageData} New ImageData with dithering applied
- */
+// Floyd-Steinberg error-diffusion dither to the palette; returns new ImageData.
 export const applyFloydSteinbergDithering = (imageData, palette) => {
   const { width, height, data } = imageData;
   const output = new ImageData(width, height);
@@ -337,13 +261,8 @@ export const COLOR_RAMPS = {
   magenta: [[0, 0, 0], [60, 0, 60], [200, 0, 160], [255, 120, 220], [255, 255, 255]],
 };
 
-/**
- * Linearly interpolate a ramp at t (clamped to 0..1).
- * @param {number[][]} ramp - array of [r, g, b] stops
- * @param {number} t
- * @returns {number[]} [r, g, b]
- */
-export const sampleRamp = (ramp, t) => {
+// Linearly interpolates a ramp at t (clamped to 0..1) → [r, g, b].
+const sampleRamp = (ramp, t) => {
   const clamped = t <= 0 ? 0 : t >= 1 ? 1 : t;
   const pos = clamped * (ramp.length - 1);
   const i = Math.min(ramp.length - 2, Math.floor(pos));
@@ -352,13 +271,8 @@ export const sampleRamp = (ramp, t) => {
   return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
 };
 
-/**
- * Bake a ramp into a flat RGB lookup table so per-pixel colouring is a
- * single indexed read.
- * @param {number[][]} ramp
- * @param {number} [size=256]
- * @returns {Uint8ClampedArray} size * 3 bytes
- */
+// Bakes a ramp into a flat RGB lookup table (size × 3 bytes) so per-pixel
+// colouring is a single indexed read.
 export const buildRampLUT = (ramp, size = 256) => {
   const lut = new Uint8ClampedArray(size * 3);
   for (let i = 0; i < size; i++) {

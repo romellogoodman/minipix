@@ -15,8 +15,8 @@ export function Field({ label, aside, hint, children }) {
 }
 
 // Seed text field: shows the base36 hash, commits on Enter or blur. Key it by
-// hash in the parent so it resets whenever the selection changes.
-export function SeedInput({ hash, onCommit, label = "Seed" }) {
+// hash in the parent so it resets whenever the seed changes elsewhere.
+export function SeedInput({ hash, onCommit }) {
   const [text, setText] = useState(hash);
   const valid = parseSeed(text) !== null;
 
@@ -27,24 +27,21 @@ export function SeedInput({ hash, onCommit, label = "Seed" }) {
   };
 
   return (
-    <label className="select" aria-label={label ? undefined : "Seed"}>
-      {label && <span className="select__label">{label}</span>}
-      <input
-        className={`input${valid ? "" : " input--invalid"}`}
-        value={text}
-        spellCheck={false}
-        autoComplete="off"
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-          if (e.key === "Escape") {
-            setText(hash);
-            e.currentTarget.blur();
-          }
-        }}
-      />
-    </label>
+    <input
+      className={`input${valid ? "" : " input--invalid"}`}
+      aria-label="Seed"
+      value={text}
+      spellCheck={false}
+      autoComplete="off"
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") {
+          setText(hash);
+          e.currentTarget.blur();
+        }
+      }}
+    />
   );
 }
-

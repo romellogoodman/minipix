@@ -1,16 +1,6 @@
-/**
- * Seeded 2D gradient noise shared by renderers that need smooth random
- * fields (currently melt). Pure functions — safe for the main
- * thread, Web Workers, and the Node CLI.
- */
-
-/**
- * 2D gradient noise (Perlin-style) with a permutation table shuffled by the
- * given seeded RNG. Consumes exactly 255 `random()` calls while building the
- * table, so callers must invoke it at a fixed point in their RNG sequence.
- * @param {function(): number} random - Seeded RNG in [0, 1)
- * @returns {function(number, number): number} noise(x, y) in roughly [-1, 1]
- */
+// Seeded Perlin-style 2D gradient noise; noise(x, y) is roughly in [-1, 1].
+// Building the permutation table consumes exactly 255 random() calls, so
+// callers must create it at a fixed point in their RNG sequence.
 export function createNoise2D(random) {
   const perm = new Uint8Array(512);
   const p = Array.from({ length: 256 }, (_, i) => i);

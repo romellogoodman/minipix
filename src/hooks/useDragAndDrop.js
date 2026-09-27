@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-// Custom hook for drag and drop
+// Window-wide file drop: tracks whether files are being dragged over the page
+// and hands dropped files to onFilesDrop.
 function useDragAndDrop(onFilesDrop) {
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
@@ -21,11 +22,11 @@ function useDragAndDrop(onFilesDrop) {
     };
 
     const handleDragLeave = (e) => {
+      // Non-file drags never incremented the counter, so don't decrement for them.
+      if (!hasFiles(e)) return;
       e.preventDefault();
       dragCounter.current--;
-      if (dragCounter.current === 0) {
-        setIsDragging(false);
-      }
+      if (dragCounter.current === 0) setIsDragging(false);
     };
 
     const handleDrop = (e) => {

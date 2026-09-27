@@ -30,15 +30,13 @@ function renderHalftone({ canvas, image, seed = Date.now(), config = rendererCon
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   switch (mode) {
-    case "bayer": {
+    case "bayer":
       ctx.putImageData(applyBayerDithering(imageData, palette), 0, 0);
       break;
-    }
 
-    case "floydSteinberg": {
+    case "floydSteinberg":
       ctx.putImageData(applyFloydSteinbergDithering(imageData, palette), 0, 0);
       break;
-    }
 
     case "classicDots": {
       const blockSize = calculateAdaptivePixelSize(image.width, image.height, random);
@@ -86,6 +84,7 @@ function renderHalftone({ canvas, image, seed = Date.now(), config = rendererCon
 const halftone = (args) => renderHalftone(args);
 halftone.displayName = "halftone";
 
+// Fixed-mode variants, used by the CLI (--renderer=halftoneLines etc.).
 const makeVariant = (mode, displayName) => {
   const fn = (args) => renderHalftone(args, mode);
   fn.displayName = displayName;
