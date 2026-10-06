@@ -1,6 +1,6 @@
 // Barrel for the sync (main-thread) renderers.
 export { map, randomNumber, randInt, randFloat } from "./math.js";
-export { setupRenderer, calculateAdaptivePixelSize, drawHalftoneDot } from "./canvas.js";
+export { setupRenderer, createCanvasLike, calculateAdaptivePixelSize, drawHalftoneDot } from "./canvas.js";
 export {
   getAverageColorInBlock,
   shuffleArray,

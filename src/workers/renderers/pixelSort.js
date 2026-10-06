@@ -1,100 +1,139 @@
 import { randFloat } from "../utils.js";
 
-export default function pixelSort({ imageData, width, height, config, random, outputData }) {
-  outputData.set(imageData);
+// Transpose a rows x cols Uint32 matrix into dst (cols x rows), in cache-sized tiles.
+const transpose = (src, dst, rows, cols) => {
+  const T = 64;
+  for (let r0 = 0; r0 < rows; r0 += T) {
+    const r1 = Math.min(rows, r0 + T);
+    for (let c0 = 0; c0 < cols; c0 += T) {
+      const c1 = Math.min(cols, c0 + T);
+      for (let r = r0; r < r1; r++) {
+        let s = r * cols + c0;
+        for (let c = c0, d = c0 * rows + r; c < c1; c++, d += rows) dst[d] = src[s++];
+      }
+    }
+  }
+};
 
+export default function pixelSort({ imageData, width, height, config, random, outputData }) {
   const threshold = randFloat(config.threshold, random);
   const sortLengthPercent = randFloat(config.sortLength, random);
   const isVertical = random() < 0.5;
   const reverse = random() < config.reverseProbability;
 
-  const lumAt = (idx) =>
-    (0.299 * outputData[idx] + 0.587 * outputData[idx + 1] + 0.114 * outputData[idx + 2]) / 255;
+  const n = width * height;
+  const src32 = new Uint32Array(imageData.buffer, imageData.byteOffset, n);
+  const out32 = new Uint32Array(outputData.buffer, outputData.byteOffset, n);
 
-  // Sort a run of pixels along the given axis, preserving alpha. Each run is
-  // ordered by its float32 luminance with ties kept in original order (a stable
-  // sort), done here as an LSD radix sort on the float's bits: luminance is
-  // non-negative, so its bits order the same way as its value.
-  const stride = isVertical ? width * 4 : 4;
-  const maxLen = isVertical ? height : width;
-  const RADIX_BITS = 8;
+  // Work on lines laid out contiguously: rows as-is, or the transposed image
+  // when sorting columns. Runs never overlap and each run is sorted only after
+  // the scan has passed it, so luminance can be read from the source.
+  const lineCount = isVertical ? width : height;
+  const lineLen = isVertical ? height : width;
+  let lines = out32;
+  if (isVertical) {
+    lines = new Uint32Array(n);
+    transpose(src32, lines, height, width);
+  } else {
+    out32.set(src32);
+  }
+
+  // Luminance tables: the float form decides the threshold exactly as
+  // (0.299 r + 0.587 g + 0.114 b) / 255; the integer form 299 r + 587 g + 114 b
+  // is the sort key (same order, cheap to radix sort).
+  const lr = new Float64Array(256), lg = new Float64Array(256), lb = new Float64Array(256);
+  const kr = new Int32Array(256), kg = new Int32Array(256), kb = new Int32Array(256);
+  for (let v = 0; v < 256; v++) {
+    lr[v] = 0.299 * v; lg[v] = 0.587 * v; lb[v] = 0.114 * v;
+    kr[v] = 299 * v; kg[v] = 587 * v; kb[v] = 114 * v;
+  }
+
+  // Threshold test: integer keys clearly on one side of threshold * 255000
+  // are decided directly; only keys right at the boundary need the float form.
+  const kMid = threshold * 255000;
+  const kLo = Math.floor(kMid) - 2;
+  const kHi = Math.ceil(kMid) + 2;
+
+  // Stable sort of each run by key (ties keep their original order): a
+  // counting sort or a two-digit LSD radix sort that moves the pixels
+  // themselves, or insertion sort for short runs.
+  const RADIX_BITS = 9;
   const RADIX = 1 << RADIX_BITS;
-  const counts = new Uint32Array(RADIX);
-  let keys = new Uint32Array(maxLen), keysAlt = new Uint32Array(maxLen);
-  let order = new Uint32Array(maxLen), orderAlt = new Uint32Array(maxLen);
-  const lum32 = new Float32Array(1);
-  const lumBits = new Uint32Array(lum32.buffer);
-  const tmp = new Uint8ClampedArray(maxLen * 4);
-  const insertionSort = (n) => {
-    for (let i = 1; i < n; i++) {
-      const k = keys[i];
-      let j = i - 1;
-      while (j >= 0 && keys[j] > k) { keys[j + 1] = keys[j]; order[j + 1] = order[j]; j--; }
-      keys[j + 1] = k;
-      order[j + 1] = i;
+  const MASK = RADIX - 1;
+  const counts = new Uint32Array(2048);
+  const countsHi = new Uint32Array(RADIX);
+  const runKeys = new Int32Array(lineLen);
+  const keys = new Uint32Array(lineLen), keysAlt = new Uint32Array(lineLen);
+  const pix = new Uint32Array(lineLen), pixAlt = new Uint32Array(lineLen);
+
+  const sortRun = (base, len) => {
+    const m = Math.floor(len * sortLengthPercent);
+    if (m <= 1) return;
+    let lo = 0x7fffffff, hi = 0;
+    for (let i = 0; i < m; i++) {
+      const k = runKeys[i];
+      if (k < lo) lo = k;
+      if (k > hi) hi = k;
     }
-  };
-  const radixSort = (n, range) => {
-    for (let shift = 0; range > 0; shift += RADIX_BITS, range = Math.floor(range / RADIX)) {
-      counts.fill(0);
-      for (let i = 0; i < n; i++) counts[(keys[i] >>> shift) & (RADIX - 1)]++;
-      for (let d = 0, sum = 0; d < RADIX; d++) { const c = counts[d]; counts[d] = sum; sum += c; }
-      for (let i = 0; i < n; i++) {
-        const k = keys[i];
-        const p = counts[(k >>> shift) & (RADIX - 1)]++;
-        keysAlt[p] = k;
-        orderAlt[p] = order[i];
+    if (reverse) for (let i = 0; i < m; i++) keys[i] = hi - runKeys[i];
+    else for (let i = 0; i < m; i++) keys[i] = runKeys[i] - lo;
+    const range = hi - lo;
+    pix.set(lines.subarray(base, base + m));
+
+    if (m <= 64) {
+      for (let i = 1; i < m; i++) {
+        const k = keys[i], v = pix[i];
+        let j = i - 1;
+        while (j >= 0 && keys[j] > k) { keys[j + 1] = keys[j]; pix[j + 1] = pix[j]; j--; }
+        keys[j + 1] = k;
+        pix[j + 1] = v;
       }
-      [keys, keysAlt] = [keysAlt, keys];
-      [order, orderAlt] = [orderAlt, order];
-    }
-  };
-  const sortRun = (baseIdx, len) => {
-    const n = Math.floor(len * sortLengthPercent);
-    if (n <= 1) return;
-    let lo = 0xffffffff, hi = 0;
-    for (let i = 0; i < n; i++) {
-      lum32[0] = lumAt(baseIdx + i * stride);
-      const bits = lumBits[0];
-      keys[i] = bits;
-      order[i] = i;
-      if (bits < lo) lo = bits;
-      if (bits > hi) hi = bits;
-    }
-    for (let i = 0; i < n; i++) keys[i] = reverse ? hi - keys[i] : keys[i] - lo;
-    if (n <= 64) insertionSort(n);
-    else radixSort(n, hi - lo);
-    for (let i = 0; i < n; i++) {
-      const src = baseIdx + order[i] * stride;
-      tmp[i * 4] = outputData[src];
-      tmp[i * 4 + 1] = outputData[src + 1];
-      tmp[i * 4 + 2] = outputData[src + 2];
-      tmp[i * 4 + 3] = outputData[src + 3];
-    }
-    for (let i = 0; i < n; i++) {
-      const dst = baseIdx + i * stride;
-      outputData[dst] = tmp[i * 4];
-      outputData[dst + 1] = tmp[i * 4 + 1];
-      outputData[dst + 2] = tmp[i * 4 + 2];
-      outputData[dst + 3] = tmp[i * 4 + 3];
+      lines.set(pix.subarray(0, m), base);
+    } else if (range < 2048) {
+      counts.fill(0, 0, range + 1);
+      for (let i = 0; i < m; i++) counts[keys[i]]++;
+      for (let d = 0, sum = base; d <= range; d++) { const c = counts[d]; counts[d] = sum; sum += c; }
+      for (let i = 0; i < m; i++) lines[counts[keys[i]]++] = pix[i];
+    } else {
+      counts.fill(0, 0, RADIX);
+      countsHi.fill(0);
+      for (let i = 0; i < m; i++) {
+        const k = keys[i];
+        counts[k & MASK]++;
+        countsHi[k >>> RADIX_BITS]++;
+      }
+      for (let d = 0, sum = 0, sumHi = base; d < RADIX; d++) {
+        const c = counts[d]; counts[d] = sum; sum += c;
+        const ch = countsHi[d]; countsHi[d] = sumHi; sumHi += ch;
+      }
+      for (let i = 0; i < m; i++) {
+        const k = keys[i];
+        const p = counts[k & MASK]++;
+        keysAlt[p] = k;
+        pixAlt[p] = pix[i];
+      }
+      for (let i = 0; i < m; i++) lines[countsHi[keysAlt[i] >>> RADIX_BITS]++] = pixAlt[i];
     }
   };
 
-  const outer = isVertical ? width : height;
-  const inner = isVertical ? height : width;
-  for (let o = 0; o < outer; o++) {
+  for (let o = 0; o < lineCount; o++) {
+    const line = o * lineLen;
     let start = -1;
-    for (let i = 0; i < inner; i++) {
-      const idx = isVertical ? (i * width + o) * 4 : (o * width + i) * 4;
-      const above = lumAt(idx) > threshold;
-      if (above && start === -1) start = i;
-      const atEnd = i === inner - 1;
-      if (start !== -1 && (!above || atEnd)) {
-        const end = above ? i + 1 : i;
-        const baseIdx = isVertical ? (start * width + o) * 4 : (o * width + start) * 4;
-        sortRun(baseIdx, end - start);
+    for (let i = 0; i < lineLen; i++) {
+      const c = lines[line + i];
+      const r = c & 255, g = (c >>> 8) & 255, b = (c >>> 16) & 255;
+      const key = kr[r] + kg[g] + kb[b];
+      const above = key > kHi || (key >= kLo && (lr[r] + lg[g] + lb[b]) / 255 > threshold);
+      if (above) {
+        if (start === -1) start = i;
+        runKeys[i - start] = key;
+      }
+      if (start !== -1 && (!above || i === lineLen - 1)) {
+        sortRun(line + start, (above ? i + 1 : i) - start);
         start = -1;
       }
     }
   }
+
+  if (isVertical) transpose(lines, out32, width, height);
 }

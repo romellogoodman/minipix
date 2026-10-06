@@ -166,32 +166,69 @@ const BAYER_4X4 = [
   [15, 7, 13, 5],
 ];
 
+// Exact nearest-palette lookup for dithering loops, over the palette with
+// duplicates removed (same colours, same first-minimum order). Colour space
+// [-128, 384)³ is cut into 4-unit cells keyed (r+128)>>2 << 14 | (g+128)>>2 << 7
+// | (b+128)>>2 and classified lazily: a cell whose every point has the same
+// nearest colour stores its index + 1; a cell straddling a boundary stores 255,
+// and the caller falls back to `exact`, so results match findNearestColorRGB.
+const createNearestLookup = (palette) => {
+  const colors = [];
+  for (const c of palette) if (!colors.some((u) => u.r === c.r && u.g === c.g && u.b === c.b)) colors.push(c);
+  const n = colors.length;
+  const pr = Float64Array.from(colors, (c) => c.r);
+  const pg = Float64Array.from(colors, (c) => c.g);
+  const pb = Float64Array.from(colors, (c) => c.b);
+  const exact = (r, g, b) => {
+    let minDist = Infinity, best = 0;
+    for (let p = 0; p < n; p++) {
+      const dr = r - pr[p], dg = g - pg[p], db = b - pb[p];
+      const dist = dr * dr + dg * dg + db * db;
+      if (dist < minDist) { minDist = dist; best = p; }
+    }
+    return best;
+  };
+  // 0 = unclassified, 255 = ambiguous, else nearest index + 1.
+  const lut = new Uint8Array(128 * 128 * 128);
+  const margin = 4 * Math.sqrt(3) + 1e-6; // two half-diagonals of a cell
+  const classify = (k) => {
+    const cr = (k >> 14) * 4 - 126, cg = ((k >> 7) & 127) * 4 - 126, cb = (k & 127) * 4 - 126;
+    let d1 = Infinity, d2 = Infinity, best = 0;
+    for (let p = 0; p < n; p++) {
+      const dr = cr - pr[p], dg = cg - pg[p], db = cb - pb[p];
+      const d = Math.sqrt(dr * dr + dg * dg + db * db);
+      if (d < d1) { d2 = d1; d1 = d; best = p; } else if (d < d2) d2 = d;
+    }
+    return (lut[k] = d2 - d1 > margin ? best + 1 : 255);
+  };
+  // Opaque RGBA words, for writing through a Uint32Array view.
+  const words = new Uint32Array(n);
+  new Uint8Array(words.buffer).set(colors.flatMap((c) => [c.r, c.g, c.b, 255]));
+  return { pr, pg, pb, lut, classify, exact, words };
+};
+
 // Ordered (4×4 Bayer) dither to the palette; returns new ImageData.
 export const applyBayerDithering = (imageData, palette) => {
   const { width, height, data } = imageData;
   const output = new ImageData(width, height);
-  const matrixSize = 4;
+  const out32 = new Uint32Array(output.data.buffer);
+  const { lut, classify, exact, words } = createNearestLookup(palette);
   const ditherStrength = 32;
+  // (t/16 - 0.5) * 32 is an integer, so clamped inputs are integers 0..255.
+  const dither = BAYER_4X4.map((row) => row.map((t) => (t / 16 - 0.5) * ditherStrength));
 
   for (let y = 0; y < height; y++) {
-    const bayerRow = BAYER_4X4[y % matrixSize];
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
-
-      const threshold = bayerRow[x % matrixSize] / 16;
-      const dither = (threshold - 0.5) * ditherStrength;
-
-      const nearest = findNearestColorRGB(
-        Math.max(0, Math.min(255, data[idx] + dither)),
-        Math.max(0, Math.min(255, data[idx + 1] + dither)),
-        Math.max(0, Math.min(255, data[idx + 2] + dither)),
-        palette
-      );
-
-      output.data[idx] = nearest.r;
-      output.data[idx + 1] = nearest.g;
-      output.data[idx + 2] = nearest.b;
-      output.data[idx + 3] = 255;
+    const dRow = dither[y & 3];
+    for (let x = 0, p = y * width, idx = p * 4; x < width; x++, p++, idx += 4) {
+      const d = dRow[x & 3];
+      const r = Math.max(0, Math.min(255, data[idx] + d));
+      const g = Math.max(0, Math.min(255, data[idx + 1] + d));
+      const b = Math.max(0, Math.min(255, data[idx + 2] + d));
+      // Same cell key as lookup.index, on integers already inside its range.
+      const k = ((r + 128) >> 2 << 14) | ((g + 128) >> 2 << 7) | ((b + 128) >> 2);
+      let e = lut[k];
+      if (e === 0) e = classify(k);
+      out32[p] = words[e !== 255 ? e - 1 : exact(r, g, b)];
     }
   }
 
@@ -202,47 +239,58 @@ export const applyBayerDithering = (imageData, palette) => {
 export const applyFloydSteinbergDithering = (imageData, palette) => {
   const { width, height, data } = imageData;
   const output = new ImageData(width, height);
-  // Accumulate diffusion in floats so fractional / negative error isn't lost
-  // to Uint8ClampedArray truncation and clamping.
-  const error = new Float32Array(width * height * 3);
-
-  const diffusion = [
-    { dx: 1, dy: 0, weight: 7 / 16 },
-    { dx: -1, dy: 1, weight: 3 / 16 },
-    { dx: 0, dy: 1, weight: 5 / 16 },
-    { dx: 1, dy: 1, weight: 1 / 16 },
-  ];
+  const out32 = new Uint32Array(output.data.buffer);
+  // Error diffusion keeps values hovering on palette boundaries, where a
+  // lookup table can't decide, so search the (deduplicated) palette directly.
+  const { pr, pg, pb, words } = createNearestLookup(palette);
+  const n = words.length;
+  const fr = Math.fround;
+  // Diffused error is accumulated with float32 rounding after every add, so
+  // fractional / negative error isn't lost to Uint8ClampedArray truncation.
+  // The pending sums for the next pixel and the three next-row cells stay in
+  // locals (same values, same add order as a full float32 error buffer); only
+  // the next row's finished sums go to memory.
+  let cur = new Float32Array(width * 3);
+  let next = new Float32Array(width * 3);
+  const w7 = 7 / 16, w3 = 3 / 16, w5 = 5 / 16, w1 = 1 / 16;
 
   for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
-      const eidx = (y * width + x) * 3;
+    const hasNext = y + 1 < height;
+    // Right-neighbour carry (·7/16) and next-row partial sums for cells x-1 (a) and x (b).
+    let kR = 0, kG = 0, kB = 0;
+    let aR = 0, aG = 0, aB = 0, bR = 0, bG = 0, bB = 0;
+    for (let x = 0, p = y * width, idx = p * 4, e = 0; x < width; x++, p++, idx += 4, e += 3) {
+      const oldR = data[idx] + fr(cur[e] + kR);
+      const oldG = data[idx + 1] + fr(cur[e + 1] + kG);
+      const oldB = data[idx + 2] + fr(cur[e + 2] + kB);
 
-      const oldR = data[idx] + error[eidx];
-      const oldG = data[idx + 1] + error[eidx + 1];
-      const oldB = data[idx + 2] + error[eidx + 2];
+      let minDist = Infinity, c = 0;
+      for (let q = 0; q < n; q++) {
+        const dr = oldR - pr[q], dg = oldG - pg[q], db = oldB - pb[q];
+        const dist = dr * dr + dg * dg + db * db;
+        if (dist < minDist) { minDist = dist; c = q; }
+      }
+      out32[p] = words[c];
 
-      const newPixel = findNearestColorRGB(oldR, oldG, oldB, palette);
+      const errR = oldR - pr[c];
+      const errG = oldG - pg[c];
+      const errB = oldB - pb[c];
 
-      output.data[idx] = newPixel.r;
-      output.data[idx + 1] = newPixel.g;
-      output.data[idx + 2] = newPixel.b;
-      output.data[idx + 3] = 255;
-
-      const errR = oldR - newPixel.r;
-      const errG = oldG - newPixel.g;
-      const errB = oldB - newPixel.b;
-
-      for (const { dx, dy, weight } of diffusion) {
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx < 0 || nx >= width || ny >= height) continue;
-        const nidx = (ny * width + nx) * 3;
-        error[nidx] += errR * weight;
-        error[nidx + 1] += errG * weight;
-        error[nidx + 2] += errB * weight;
+      // Targets in the original order: (x+1, y), (x-1, y+1), (x, y+1), (x+1, y+1).
+      kR = errR * w7; kG = errG * w7; kB = errB * w7;
+      if (hasNext) {
+        if (x > 0) {
+          next[e - 3] = fr(aR + errR * w3); next[e - 2] = fr(aG + errG * w3); next[e - 1] = fr(aB + errB * w3);
+        }
+        aR = fr(bR + errR * w5); aG = fr(bG + errG * w5); aB = fr(bB + errB * w5);
+        bR = fr(errR * w1); bG = fr(errG * w1); bB = fr(errB * w1);
       }
     }
+    if (hasNext) {
+      const e = (width - 1) * 3;
+      next[e] = aR; next[e + 1] = aG; next[e + 2] = aB;
+    }
+    const t = cur; cur = next; next = t;
   }
 
   return output;

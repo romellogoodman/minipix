@@ -34,36 +34,85 @@ export default function glassTiles({ imageData, width, height, config, random, o
   const originU = rotate ? cx * invTile + 0.5 : cx * invTile;
   const originV = rotate ? cy * invTile + 0.5 : cy * invTile;
 
-  for (let y = 0; y < height; y++) {
-    const dy = y - cy;
+  const src32 = new Uint32Array(imageData.buffer, imageData.byteOffset, width * height);
+  const out32 = new Uint32Array(outputData.buffer, outputData.byteOffset, width * height);
+  // One call per row: the row function optimizes as a normal function rather
+  // than via on-stack replacement of one huge loop.
+  // Unrotated grids are separable: the in-tile position across depends only
+  // on the column, so tabulate it (rotated grids pass null and compute it).
+  let luC = null;
+  if (!rotate) {
+    luC = new Float64Array(width);
     for (let x = 0; x < width; x++) {
+      const gu = (x - cx) * invTile + originU;
+      luC[x] = gu - Math.floor(gu) - 0.5;
+    }
+  }
+  for (let y = 0; y < height; y++) {
+    tilesRow(src32, out32, width, height, y, cx, cy, cosA, sinA, invTile, originU, originV, roundK, offsetScale, bevelAmt, bevelWidth, luC);
+  }
+}
+
+function tilesRow(src32, out32, width, height, y, cx, cy, cosA, sinA, invTile, originU, originV, roundK, offsetScale, bevelAmt, bevelWidth, luC) {
+  const maxX = width - 1, maxY = height - 1;
+  // Bilinear corners never step past the last row/column.
+  const limX = maxX - 1 / 256, limY = maxY - 1 / 256;
+  const dy = y - cy;
+  const gvRow = dy * invTile + originV;
+  const lvRow = gvRow - Math.floor(gvRow) - 0.5;
+  for (let x = 0, p = y * width; x < width; x++, p++) {
+    let lu, lv;
+    if (luC !== null) {
+      lu = luC[x];
+      lv = lvRow;
+    } else {
       const dx = x - cx;
       // Grid space (rotated about the image centre).
       const gu = (dx * cosA + dy * sinA) * invTile + originU;
       const gv = (-dx * sinA + dy * cosA) * invTile + originV;
-      const lu = gu - Math.floor(gu) - 0.5;
-      const lv = gv - Math.floor(gv) - 0.5;
-      let f = 1 - (lu * lu + lv * lv) * roundK;
-      if (f < 0) f = 0;
-      // Offset in grid space, rotated back to image space.
-      const ou = lu * offsetScale * f;
-      const ov = lv * offsetScale * f;
-      const sx = x + ou * cosA - ov * sinA;
-      const sy = y + ou * sinA + ov * cosA;
-      const o = (y * width + x) * 4;
-      sampleBilinear(imageData, width, height, sx, sy, outputData, o);
-
-      if (bevelAmt > 0) {
-        // Light from the top-left: brighten the leading edges, shade the trailing ones.
-        const eu = edgeRamp(lu, bevelWidth);
-        const ev = edgeRamp(lv, bevelWidth);
-        const shade = 1 - bevelAmt * (eu + ev);
-        outputData[o] = outputData[o] * shade;
-        outputData[o + 1] = outputData[o + 1] * shade;
-        outputData[o + 2] = outputData[o + 2] * shade;
-      }
-      outputData[o + 3] = 255;
+      lu = gu - Math.floor(gu) - 0.5;
+      lv = gv - Math.floor(gv) - 0.5;
     }
+    let f = 1 - (lu * lu + lv * lv) * roundK;
+    if (f < 0) f = 0;
+    // Offset in grid space, rotated back to image space.
+    const ou = lu * offsetScale * f;
+    const ov = lv * offsetScale * f;
+    // Mirrored edges (no clamp streaks).
+    let sx = x + ou * cosA - ov * sinA;
+    let sy = y + ou * sinA + ov * cosA;
+    if (sx < 0) sx = -sx;
+    if (sx > limX) sx = Math.max(0, Math.min(limX, 2 * maxX - sx));
+    if (sy < 0) sy = -sy;
+    if (sy > limY) sy = Math.max(0, Math.min(limY, 2 * maxY - sy));
+    // Bilinear sample in 8-bit fixed point on packed RGBA words: red and
+    // blue lerp together in one word, green on its own.
+    const X = (sx * 256) | 0, Y = (sy * 256) | 0;
+    const fx = X & 255, fy = Y & 255, gx = 256 - fx, gy = 256 - fy;
+    const i = (Y >> 8) * width + (X >> 8);
+    const p00 = src32[i], p10 = src32[i + 1], p01 = src32[i + width], p11 = src32[i + width + 1];
+    const rbT = (((p00 & 0xff00ff) * gx + (p10 & 0xff00ff) * fx + 0x800080) >>> 8) & 0xff00ff;
+    const rbB = (((p01 & 0xff00ff) * gx + (p11 & 0xff00ff) * fx + 0x800080) >>> 8) & 0xff00ff;
+    const rb = ((rbT * gy + rbB * fy + 0x800080) >>> 8) & 0xff00ff;
+    const gT = ((p00 >>> 8) & 255) * gx + ((p10 >>> 8) & 255) * fx;
+    const gB = ((p01 >>> 8) & 255) * gx + ((p11 >>> 8) & 255) * fx;
+    const g = ((gT * gy + gB * fy + 0x8000) >>> 16) & 255;
+
+    if (bevelAmt > 0) {
+      // Light from the top-left: brighten the leading edges, shade the trailing ones.
+      const eu = edgeRamp(lu, bevelWidth);
+      const ev = edgeRamp(lv, bevelWidth);
+      if (eu !== 0 || ev !== 0) {
+        const shade = 1 - bevelAmt * (eu + ev);
+        let r = ((rb & 255) * shade + 0.5) | 0, gg = (g * shade + 0.5) | 0, b = ((rb >>> 16) * shade + 0.5) | 0;
+        if (r > 255) r = 255;
+        if (gg > 255) gg = 255;
+        if (b > 255) b = 255;
+        out32[p] = 0xff000000 | (b << 16) | (gg << 8) | r;
+        continue;
+      }
+    }
+    out32[p] = 0xff000000 | rb | (g << 8);
   }
 }
 
@@ -74,29 +123,4 @@ function edgeRamp(l, w) {
   let t = (a - (0.5 - w)) / w;
   t = t * t * (3 - 2 * t);
   return l < 0 ? -t : t;
-}
-
-// Bilinear RGB sample with mirrored edges (no clamp streaks), written to dst[o..o+2].
-function sampleBilinear(src, width, height, x, y, dst, o) {
-  const maxX = width - 1;
-  const maxY = height - 1;
-  if (x < 0) x = -x;
-  if (x > maxX) x = Math.max(0, 2 * maxX - x);
-  if (y < 0) y = -y;
-  if (y > maxY) y = Math.max(0, 2 * maxY - y);
-  const x0 = x | 0;
-  const y0 = y | 0;
-  const fx = x - x0;
-  const fy = y - y0;
-  const i00 = (y0 * width + x0) * 4;
-  const i10 = x0 < maxX ? i00 + 4 : i00;
-  const i01 = y0 < maxY ? i00 + width * 4 : i00;
-  const i11 = x0 < maxX ? i01 + 4 : i01;
-  for (let c = 0; c < 3; c++) {
-    const a = src[i00 + c];
-    const b = src[i01 + c];
-    const top = a + (src[i10 + c] - a) * fx;
-    const bot = b + (src[i11 + c] - b) * fx;
-    dst[o + c] = top + (bot - top) * fy;
-  }
 }

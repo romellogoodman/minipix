@@ -1,4 +1,4 @@
-import { setupRenderer, randInt, randFloat } from "../utils/index.js";
+import { setupRenderer, randInt, randFloat, createCanvasLike } from "../utils/index.js";
 import { rendererConfig } from "./config.js";
 
 const kaleidoscope = ({ canvas, image, seed = Date.now(), config = rendererConfig.kaleidoscope }) => {
@@ -19,39 +19,42 @@ const kaleidoscope = ({ canvas, image, seed = Date.now(), config = rendererConfi
   const sqrCount = randInt(config.squareCount, random) * 2;
   const sqrWidth = outputWidth / sqrCount;
   const sqrHeight = outputHeight / sqrCount;
-  const srcSize = (imgSize / sqrCount) * 2;
+  const cells = sqrCount / 2;
 
-  for (let i = 0; i < sqrCount; i += 2) {
-    for (let j = 0; j < sqrCount; j += 2) {
-      const sx = sourceOffsetX + (i * srcSize) / 2;
-      const sy = sourceOffsetY + (j * srcSize) / 2;
-      const dx = offsetX + i * sqrWidth;
-      const dy = offsetY + j * sqrHeight;
-      const mx = offsetX + (sqrCount - i - 2) * sqrWidth;
-      const my = offsetY + (sqrCount - j - 2) * sqrHeight;
+  // Each 2x2 cell holds one source tile as-is (top-left), flipped
+  // horizontally (top-right), vertically (bottom-left) and both
+  // (bottom-right). The as-is tiles are a contiguous grid in the source, so
+  // build the pattern separably instead of tile by tile:
+  //   1. scale the source square once into a half-size grid of tiles,
+  //   2. lay its columns out as-is / mirrored pairs,
+  //   3. lay those rows out as-is / mirrored pairs on the output.
+  // That's 1 + 4 * cells draws instead of 4 * cells^2.
+  const gridW = Math.ceil(cells * sqrWidth);
+  const gridH = Math.ceil(cells * sqrHeight);
+  const grid = createCanvasLike(canvas, gridW, gridH);
+  grid
+    .getContext("2d")
+    .drawImage(image, sourceOffsetX, sourceOffsetY, imgSize, imgSize, 0, 0, cells * sqrWidth, cells * sqrHeight);
 
-      // top-left: identity
-      ctx.drawImage(image, sx, sy, srcSize, srcSize, dx, dy, sqrWidth, sqrHeight);
+  const cols = createCanvasLike(canvas, Math.ceil(outputWidth), gridH);
+  const cctx = cols.getContext("2d");
+  for (let c = 0; c < cells; c++) {
+    const sx = c * sqrWidth;
+    const dx = 2 * c * sqrWidth;
+    cctx.drawImage(grid, sx, 0, sqrWidth, gridH, dx, 0, sqrWidth, gridH);
+    // Mirror about the right edge of the as-is column.
+    cctx.setTransform(-1, 0, 0, 1, 2 * (dx + sqrWidth), 0);
+    cctx.drawImage(grid, sx, 0, sqrWidth, gridH, dx - sqrWidth + sqrWidth, 0, sqrWidth, gridH);
+    cctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
 
-      // bottom-right: 180° rotation
-      ctx.save();
-      ctx.rotate(Math.PI);
-      ctx.translate(-canvas.width, -canvas.height);
-      ctx.drawImage(image, sx, sy, srcSize, srcSize, mx, my, sqrWidth, sqrHeight);
-      ctx.restore();
-
-      // bottom-left: vertical flip
-      ctx.save();
-      ctx.scale(1, -1);
-      ctx.translate(0, -canvas.height);
-      ctx.drawImage(image, sx, sy, srcSize, srcSize, dx, my, sqrWidth, sqrHeight);
-
-      // top-right: vertical flip + 180° = horizontal flip
-      ctx.rotate(Math.PI);
-      ctx.translate(-canvas.width, -canvas.height);
-      ctx.drawImage(image, sx, sy, srcSize, srcSize, mx, dy, sqrWidth, sqrHeight);
-      ctx.restore();
-    }
+  for (let r = 0; r < cells; r++) {
+    const sy = r * sqrHeight;
+    const dy = offsetY + 2 * r * sqrHeight;
+    ctx.drawImage(cols, 0, sy, outputWidth, sqrHeight, offsetX, dy, outputWidth, sqrHeight);
+    ctx.setTransform(1, 0, 0, -1, 0, 2 * (dy + sqrHeight));
+    ctx.drawImage(cols, 0, sy, outputWidth, sqrHeight, offsetX, dy, outputWidth, sqrHeight);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 };
 

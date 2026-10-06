@@ -9,20 +9,6 @@ function fold(v, max) {
   return v > max ? p - v : v;
 }
 
-// Bilinear RGB sample at an in-bounds (x, y), written to out[o..o+2].
-function bilinear(src, width, x, y, out, o) {
-  const x0 = x | 0, y0 = y | 0;
-  const fx = x - x0, fy = y - y0;
-  const i00 = (y0 * width + x0) * 4;
-  const i10 = fx > 0 ? i00 + 4 : i00;
-  const i01 = fy > 0 ? i00 + width * 4 : i00;
-  const i11 = fx > 0 ? i01 + 4 : i01;
-  const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
-  out[o] = src[i00] * w00 + src[i10] * w10 + src[i01] * w01 + src[i11] * w11;
-  out[o + 1] = src[i00 + 1] * w00 + src[i10 + 1] * w10 + src[i01 + 1] * w01 + src[i11 + 1] * w11;
-  out[o + 2] = src[i00 + 2] * w00 + src[i10 + 2] * w10 + src[i01 + 2] * w01 + src[i11 + 2] * w11;
-}
-
 /**
  * Mirror across a line through a random point at a random angle (after
  * Mirror + Flip): pixels on the far side read the reflection of the near
@@ -49,22 +35,49 @@ export default function mirror({ imageData, width, height, config, random, outpu
   const n2x = -Math.sin(angle2), n2y = Math.cos(angle2);
 
   const maxX = width - 1, maxY = height - 1;
+  const src32 = new Uint32Array(imageData.buffer, imageData.byteOffset, width * height);
+  const out32 = new Uint32Array(outputData.buffer, outputData.byteOffset, width * height);
   for (let y = 0; y < height; y++) {
+    const row = y * width;
+    // Unreflected pixels read themselves (or their flipped twin): a straight copy.
+    const copyRow = (flipY ? maxY - y : y) * width;
+    const dy0 = y - py;
     for (let x = 0; x < width; x++) {
-      let dx = x - px, dy = y - py;
+      let dx = x - px, dy = dy0, moved = false;
       let d = dx * n1x + dy * n1y;
-      if (d > 0) { dx -= 2 * d * n1x; dy -= 2 * d * n1y; }
+      if (d > 0) { dx -= 2 * d * n1x; dy -= 2 * d * n1y; moved = true; }
       if (twoLines) {
         d = dx * n2x + dy * n2y;
-        if (d > 0) { dx -= 2 * d * n2x; dy -= 2 * d * n2y; }
+        if (d > 0) { dx -= 2 * d * n2x; dy -= 2 * d * n2y; moved = true; }
       }
-      let sx = fold(px + dx, maxX);
-      let sy = fold(py + dy, maxY);
+      if (!moved) {
+        out32[row + x] = src32[copyRow + (flipX ? maxX - x : x)] | 0xff000000;
+        continue;
+      }
+      // Mirror-repeat edges: one bounce covers almost everything.
+      let sx = px + dx, sy = py + dy;
+      if (sx < 0) sx = -sx;
+      if (sx > maxX) { sx = 2 * maxX - sx; if (sx < 0) sx = fold(sx, maxX); }
+      if (sy < 0) sy = -sy;
+      if (sy > maxY) { sy = 2 * maxY - sy; if (sy < 0) sy = fold(sy, maxY); }
       if (flipX) sx = maxX - sx;
       if (flipY) sy = maxY - sy;
-      const o = (y * width + x) * 4;
-      bilinear(imageData, width, sx, sy, outputData, o);
-      outputData[o + 3] = 255;
+      // Bilinear sample in 8-bit fixed point on packed RGBA words: red and
+      // blue lerp together in one word, green on its own; alpha forced opaque.
+      const X = (sx * 256) | 0, Y = (sy * 256) | 0;
+      const fx = X & 255, fy = Y & 255;
+      const i = (Y >> 8) * width + (X >> 8);
+      const p00 = src32[i];
+      const p10 = fx ? src32[i + 1] : p00;
+      const p01 = fy ? src32[i + width] : p00;
+      const p11 = fy ? (fx ? src32[i + width + 1] : p01) : p10;
+      const gx = 256 - fx, gy = 256 - fy;
+      const rbT = (((p00 & 0xff00ff) * gx + (p10 & 0xff00ff) * fx + 0x800080) >>> 8) & 0xff00ff;
+      const rbB = (((p01 & 0xff00ff) * gx + (p11 & 0xff00ff) * fx + 0x800080) >>> 8) & 0xff00ff;
+      const rb = ((rbT * gy + rbB * fy + 0x800080) >>> 8) & 0xff00ff;
+      const gT = ((p00 >>> 8) & 255) * gx + ((p10 >>> 8) & 255) * fx;
+      const gB = ((p01 >>> 8) & 255) * gx + ((p11 >>> 8) & 255) * fx;
+      out32[row + x] = 0xff000000 | rb | ((((gT * gy + gB * fy + 0x8000) >>> 16) & 255) << 8);
     }
   }
 }

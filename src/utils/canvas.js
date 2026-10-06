@@ -10,6 +10,18 @@ export const setupRenderer = (canvas, image, seed) => {
   return { ctx, random };
 };
 
+// A blank canvas of the given size, of the same kind as `like`: a DOM canvas
+// in the browser, a node-canvas Canvas in the CLI. For scratch layers.
+export const createCanvasLike = (like, width, height) => {
+  if (typeof document !== "undefined") {
+    const c = document.createElement("canvas");
+    c.width = width;
+    c.height = height;
+    return c;
+  }
+  return new like.constructor(width, height);
+};
+
 // Random block size between 0.8% and 10% of the shorter side, clamped to 4–150px.
 export const calculateAdaptivePixelSize = (width, height, randomFn = Math.random) => {
   const baseDimension = Math.min(width, height);

@@ -1,9 +1,14 @@
-import { randFloat, randomNumber } from "../utils.js";
+import { randInt, randFloat } from "../utils.js";
+
+// The bloom is a wide, soft box blur, so it is computed on a grid of
+// BLOOM_BLOCK x BLOOM_BLOCK blocks from bright pixels sampled on every other
+// row and column, and bilinearly upsampled.
+const BLOOM_BLOCK = 4;
 
 export default function crt({ imageData, width, height, config, random, outputData }) {
   const minDim = Math.min(width, height);
   const scanlineIntensity = randFloat(config.scanlineIntensity, random);
-  const scanlineCount = randomNumber(config.scanlineCount.min, config.scanlineCount.max, random);
+  const scanlineCount = randInt(config.scanlineCount, random);
   const brightness = randFloat(config.brightness, random);
   const contrast = randFloat(config.contrast, random);
   const saturation = randFloat(config.saturation, random);
@@ -13,120 +18,199 @@ export default function crt({ imageData, width, height, config, random, outputDa
   const vignetteStrength = randFloat(config.vignetteStrength, random);
   const curvature = randFloat(config.curvature, random);
 
-  const tempData = new Uint8ClampedArray(imageData.length);
-  const curveAmount = curvature * 0.25;
+  const n = width * height;
+  const temp = new Uint32Array(n);
+  const f = BLOOM_BLOCK;
+  const sm = 1; // bright pixels: every other row and column
+  const bw = Math.ceil(width / f), bh = Math.ceil(height / f), bn = bw * bh;
+  const bloom = [new Float32Array(bn), new Float32Array(bn), new Float32Array(bn)];
+
+  distort(imageData, width, height, curvature * 0.25, rgbShift, temp, bloom, bw, f, sm);
+
+  // Same window width as the full-res box: (2r + 1)·f = 2·bloomRadius + 1.
+  const r = Math.max(0, (2 * bloomRadius + 1) / (2 * f) - 0.5);
+  blurBloom(bloom, bw, bh, f, sm, width, height, r);
+
+  compose(temp, bloom, bw, bh, f, width, height, outputData, {
+    scanK: (scanlineCount * Math.PI) / height,
+    scanlineIntensity, brightness, contrast, saturation, bloomIntensity, vignetteStrength,
+  });
+}
+
+// Box-average the bright pixels per block (only the sampled ones count), then
+// a separable box blur at the block scale. The radius may be fractional (the
+// two outermost taps get the fractional weight); sums are normalised by the
+// in-bounds weight, so borders don't darken.
+function blurBloom(bloom, bw, bh, f, sm, width, height, r) {
+  const bn = bw * bh;
+  const cell = new Float32Array(bn);
+  for (let by = 0, i = 0; by < bh; by++) {
+    const rows = Math.ceil(Math.min(f, height - by * f) / (sm + 1));
+    for (let bx = 0; bx < bw; bx++, i++) cell[i] = 1 / (rows * Math.ceil(Math.min(f, width - bx * f) / (sm + 1)));
+  }
+  const R = Math.floor(r), t = r - R;
+  const invX = boxNorms(bw, R, t), invY = boxNorms(bh, R, t);
+  const tmp = new Float32Array(bn);
+  const colAcc = new Float64Array(bw);
+  for (const plane of bloom) {
+    for (let i = 0; i < bn; i++) plane[i] *= cell[i];
+    for (let y = 0; y < bh; y++) boxRow(plane, tmp, y * bw, bw, R, t, invX);
+    boxColumns(tmp, plane, colAcc, bw, bh, R, t, invY);
+  }
+}
+
+// 1 / (in-bounds weight) of the window at each position of a line.
+function boxNorms(len, R, t) {
+  const inv = new Float64Array(len);
+  for (let i = 0; i < len; i++) {
+    let w = Math.min(len - 1, i + R) - Math.max(0, i - R) + 1;
+    if (t > 0 && i - R - 1 >= 0) w += t;
+    if (t > 0 && i + R + 1 < len) w += t;
+    inv[i] = 1 / w;
+  }
+  return inv;
+}
+
+function boxRow(src, dst, o, len, R, t, inv) {
+  let s = 0;
+  for (let j = 0; j <= R && j < len; j++) s += src[o + j];
+  for (let i = 0; i < len; i++) {
+    const lo = i - R - 1, hi = i + R + 1;
+    let v = s;
+    if (t > 0) {
+      if (lo >= 0) v += src[o + lo] * t;
+      if (hi < len) v += src[o + hi] * t;
+    }
+    dst[o + i] = v * inv[i];
+    if (hi < len) s += src[o + hi];
+    if (i - R >= 0) s -= src[o + i - R];
+  }
+}
+
+// boxRow down every column at once, walking rows (sequential reads).
+function boxColumns(src, dst, colAcc, w, h, R, t, inv) {
+  colAcc.fill(0);
+  for (let j = 0; j <= R && j < h; j++) {
+    for (let x = 0, o = j * w; x < w; x++) colAcc[x] += src[o + x];
+  }
+  for (let y = 0; y < h; y++) {
+    const lo = y - R - 1, hi = y + R + 1;
+    const useLo = t > 0 && lo >= 0, useHi = t > 0 && hi < h;
+    const k = inv[y];
+    const o = y * w, ol = lo * w, oh = hi * w;
+    for (let x = 0; x < w; x++) {
+      let v = colAcc[x];
+      if (useLo) v += src[ol + x] * t;
+      if (useHi) v += src[oh + x] * t;
+      dst[o + x] = v * k;
+    }
+    if (hi < h) for (let x = 0; x < w; x++) colAcc[x] += src[oh + x];
+    if (y - R >= 0) {
+      const os = (y - R) * w;
+      for (let x = 0; x < w; x++) colAcc[x] -= src[os + x];
+    }
+  }
+}
+
+// Barrel distortion + RGB shift into packed words; bright pixels (r+g+b >
+// 384) are summed per bloom block.
+function distort(imageData, width, height, curveAmount, rgbShift, temp, bloom, bw, f, sm) {
+  const [bR, bG, bB] = bloom;
   const invW = 2 / width, invH = 2 / height;
-
-  const bloomR = new Float32Array(width * height);
-  const bloomG = new Float32Array(width * height);
-  const bloomB = new Float32Array(width * height);
-  const tmpR = new Float32Array(width * height);
-  const tmpG = new Float32Array(width * height);
-  const tmpB = new Float32Array(width * height);
   const maxX = width - 1;
-
-  // Pass 1: barrel distortion + RGB shift, collecting the bright pixels for bloom.
-  // ny is in [0, height) and nx in [0, width) past the bounds check.
+  const shift = Math.log2(f) | 0;
+  // nx = ((u0·k + 1) / 2)·width with k = 1 + (u0² + v0²)·c splits into
+  // per-column terms: nx = A[x] + B[x]·v0², and ny = C(y) + D(y)·u0².
+  const A = new Float64Array(width), B = new Float64Array(width), U2 = new Float64Array(width);
+  for (let x = 0; x < width; x++) {
+    const u0 = x * invW - 1;
+    A[x] = ((u0 * (1 + u0 * u0 * curveAmount) + 1) / 2) * width;
+    B[x] = ((u0 * curveAmount) / 2) * width;
+    U2[x] = u0 * u0;
+  }
+  const temp8 = new Uint8Array(temp.buffer);
   for (let y = 0; y < height; y++) {
     const v0 = y * invH - 1;
-    for (let x = 0; x < width; x++) {
-      const j = y * width + x;
-      const dstIdx = j * 4;
-      const u0 = x * invW - 1;
-      const dist = u0 * u0 + v0 * v0;
-      const k = 1 + dist * curveAmount;
-      const nx = ((u0 * k + 1) / 2) * width;
-      const ny = ((v0 * k + 1) / 2) * height;
-
-      tempData[dstIdx + 3] = 255;
+    const v2 = v0 * v0;
+    const C = ((v0 * (1 + v2 * curveAmount) + 1) / 2) * height;
+    const D = ((v0 * curveAmount) / 2) * height;
+    const brow = (y >> shift) * bw;
+    const sampleRow = (y & sm) === 0;
+    for (let x = 0, j = y * width; x < width; x++, j++) {
+      const nx = A[x] + B[x] * v2;
+      const ny = C + D * U2[x];
       if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-
       const rowIdx = (ny | 0) * width;
       const xr = nx + rgbShift, xb = nx - rgbShift;
       const r = imageData[(rowIdx + (xr >= width ? maxX : xr | 0)) * 4];
       const g = imageData[(rowIdx + (nx | 0)) * 4 + 1];
       const b = imageData[(rowIdx + (xb < 0 ? 0 : xb | 0)) * 4 + 2];
-      tempData[dstIdx] = r;
-      tempData[dstIdx + 1] = g;
-      tempData[dstIdx + 2] = b;
-      if (r + g + b > 384) { bloomR[j] = r; bloomG[j] = g; bloomB[j] = b; }
+      const t = j * 4;
+      temp8[t] = r; temp8[t + 1] = g; temp8[t + 2] = b;
+      if (sampleRow && (x & sm) === 0 && r + g + b > 384) {
+        const bi = brow + (x >> shift);
+        bR[bi] += r; bG[bi] += g; bB[bi] += b;
+      }
     }
   }
+}
 
-  // Pass 2: separable box blur of the bright pixels only.
-  // Running-window sums. Horizontal sums are of integers; vertical sums are of
-  // float32 values (multiples of a small power of two), so both stay exact in
-  // doubles and the add/subtract window gives the same result as re-summing.
-  for (let y = 0; y < height; y++) {
-    const row = y * width;
-    let sR = 0, sG = 0, sB = 0;
-    for (let sx = 0, x1 = Math.min(width - 1, bloomRadius); sx <= x1; sx++) {
-      const i = row + sx; sR += bloomR[i]; sG += bloomG[i]; sB += bloomB[i];
-    }
-    for (let x = 0; x < width; x++) {
-      const x0 = Math.max(0, x - bloomRadius), x1 = Math.min(width - 1, x + bloomRadius);
-      const i = row + x, inv = 1 / (x1 - x0 + 1);
-      tmpR[i] = sR * inv; tmpG[i] = sG * inv; tmpB[i] = sB * inv;
-      const add = x + bloomRadius + 1, sub = x - bloomRadius;
-      if (add < width) { const j = row + add; sR += bloomR[j]; sG += bloomG[j]; sB += bloomB[j]; }
-      if (sub >= 0) { const j = row + sub; sR -= bloomR[j]; sG -= bloomG[j]; sB -= bloomB[j]; }
-    }
+function compose(temp, bloom, bw, bh, f, width, height, outputData, p) {
+  const { scanK, scanlineIntensity, brightness, contrast, saturation, bloomIntensity, vignetteStrength } = p;
+  const [pR, pG, pB] = bloom;
+  const invW = 2 / width, invH = 2 / height;
+  // Bilinear taps from pixel centres to block centres.
+  const colI = new Int32Array(width), colT = new Float32Array(width);
+  const vigX = new Float32Array(width);
+  for (let x = 0; x < width; x++) {
+    const vx = x * invW - 1;
+    vigX[x] = vx < 0 ? -vx : vx;
+    let fx = (x + 0.5) / f - 0.5;
+    fx = fx < 0 ? 0 : fx > bw - 1 ? bw - 1 : fx;
+    const i = Math.min(bw - 2, fx | 0);
+    colI[x] = i < 0 ? 0 : i;
+    colT[x] = bw > 1 ? fx - colI[x] : 0;
   }
-  const colR = new Float64Array(width), colG = new Float64Array(width), colB = new Float64Array(width);
-  for (let sy = 0, y1 = Math.min(height - 1, bloomRadius); sy <= y1; sy++) {
-    const row = sy * width;
-    for (let x = 0; x < width; x++) { const i = row + x; colR[x] += tmpR[i]; colG[x] += tmpG[i]; colB[x] += tmpB[i]; }
-  }
+  const rowR = new Float32Array(bw + 1), rowG = new Float32Array(bw + 1), rowB = new Float32Array(bw + 1);
+  // Brightness, contrast and saturation are one affine map per channel:
+  // c' = (c·brightness − 128)·contrast + 128, then mixed towards luminance.
+  const bc = brightness * contrast, off = 128 - 128 * contrast;
+  const s = saturation, l = 1 - s;
+  const mrr = 0.299 * l + s, mrg = 0.587 * l, mrb = 0.114 * l;
+  const mgr = 0.299 * l, mgg = 0.587 * l + s, mgb = 0.114 * l;
+  const mbr = 0.299 * l, mbg = 0.587 * l, mbb = 0.114 * l + s;
+  const out32 = new Uint32Array(outputData.buffer, outputData.byteOffset, width * height);
   for (let y = 0; y < height; y++) {
-    const y0 = Math.max(0, y - bloomRadius), y1 = Math.min(height - 1, y + bloomRadius);
-    const inv = 1 / (y1 - y0 + 1);
-    const row = y * width;
-    for (let x = 0; x < width; x++) {
-      const i = row + x;
-      bloomR[i] = colR[x] * inv; bloomG[i] = colG[x] * inv; bloomB[i] = colB[x] * inv;
+    let fy = (y + 0.5) / f - 0.5;
+    fy = fy < 0 ? 0 : fy > bh - 1 ? bh - 1 : fy;
+    const y0 = fy | 0, y1 = y0 + 1 < bh ? y0 + 1 : y0, ty = fy - y0;
+    const a = y0 * bw, c = y1 * bw;
+    for (let x = 0; x < bw; x++) {
+      rowR[x] = (pR[a + x] + (pR[c + x] - pR[a + x]) * ty) * bloomIntensity;
+      rowG[x] = (pG[a + x] + (pG[c + x] - pG[a + x]) * ty) * bloomIntensity;
+      rowB[x] = (pB[a + x] + (pB[c + x] - pB[a + x]) * ty) * bloomIntensity;
     }
-    const add = y + bloomRadius + 1, sub = y - bloomRadius;
-    if (add < height) {
-      const r = add * width;
-      for (let x = 0; x < width; x++) { const j = r + x; colR[x] += tmpR[j]; colG[x] += tmpG[j]; colB[x] += tmpB[j]; }
-    }
-    if (sub >= 0) {
-      const r = sub * width;
-      for (let x = 0; x < width; x++) { const j = r + x; colR[x] -= tmpR[j]; colG[x] -= tmpG[j]; colB[x] -= tmpB[j]; }
-    }
-  }
-
-  // Pass 3: compose
-  const scanK = (scanlineCount * Math.PI) / height;
-  for (let y = 0; y < height; y++) {
+    rowR[bw] = rowR[bw - 1]; rowG[bw] = rowG[bw - 1]; rowB[bw] = rowB[bw - 1];
     const scanline = 1 - Math.abs(Math.sin(y * scanK)) * scanlineIntensity;
     const vy = y * invH - 1;
-    for (let x = 0; x < width; x++) {
-      const pi = y * width + x;
-      const di = pi * 4;
-
-      let r = tempData[di] + bloomR[pi] * bloomIntensity;
-      let g = tempData[di + 1] + bloomG[pi] * bloomIntensity;
-      let b = tempData[di + 2] + bloomB[pi] * bloomIntensity;
-
-      r *= brightness; g *= brightness; b *= brightness;
-      r = (r - 128) * contrast + 128;
-      g = (g - 128) * contrast + 128;
-      b = (b - 128) * contrast + 128;
-
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      r = lum + (r - lum) * saturation;
-      g = lum + (g - lum) * saturation;
-      b = lum + (b - lum) * saturation;
-
-      const vx = x * invW - 1;
-      const vd = Math.max(vx < 0 ? -vx : vx, vy < 0 ? -vy : vy);
-      const vignette = (1 - vd * vd * vignetteStrength) * scanline;
-
-      outputData[di] = r * vignette;
-      outputData[di + 1] = g * vignette;
-      outputData[di + 2] = b * vignette;
-      outputData[di + 3] = 255;
+    const avy = vy < 0 ? -vy : vy;
+    for (let x = 0, o = y * width; x < width; x++, o++) {
+      const t = temp[o];
+      const i = colI[x], tx = colT[x];
+      const r0 = (t & 255) + rowR[i] + (rowR[i + 1] - rowR[i]) * tx;
+      const g0 = ((t >>> 8) & 255) + rowG[i] + (rowG[i + 1] - rowG[i]) * tx;
+      const b0 = ((t >>> 16) & 255) + rowB[i] + (rowB[i + 1] - rowB[i]) * tx;
+      const r1 = r0 * bc + off, g1 = g0 * bc + off, b1 = b0 * bc + off;
+      const avx = vigX[x];
+      const vd = avx > avy ? avx : avy;
+      const vig = (1 - vd * vd * vignetteStrength) * scanline;
+      let r = (mrr * r1 + mrg * g1 + mrb * b1) * vig + 0.5;
+      let g = (mgr * r1 + mgg * g1 + mgb * b1) * vig + 0.5;
+      let b = (mbr * r1 + mbg * g1 + mbb * b1) * vig + 0.5;
+      r = r < 1 ? 0 : r > 255 ? 255 : r | 0;
+      g = g < 1 ? 0 : g > 255 ? 255 : g | 0;
+      b = b < 1 ? 0 : b > 255 ? 255 : b | 0;
+      out32[o] = r | (g << 8) | (b << 16) | 0xff000000;
     }
   }
 }

@@ -181,14 +181,17 @@ renders of the same image copy a buffer instead of re-running `drawImage` +
   `getAverageColorInBlock`, `shuffleArray`, Bayer and Floyd-Steinberg dithering,
   `COLOR_RAMPS` / `buildRampLUT` for heat-map style colouring
 - `noise.js`: `createNoise2D(random)` (Perlin-style gradient noise; consumes 255 RNG calls
-  when built)
+  when built), plus its parts for hot loops: `createPermutation(random)` (the same 255
+  calls) and `noise2D(perm, x, y)` (the same values as a plain function, no closure)
 - `blur.js`: `boxBlur(plane, w, h, r, tmp)`, in place; summation order is part of the
   output, so don't swap in another blur where byte-identical output matters
 - `field.js`: `downsampleImage` (block-average to ≤N px), `computeOrientationField`
   (structure tensor → tangent/normal/coherence/strength), `computeSaliency`
   (edges/bright/dark/saturation/detail), `findBlobs` (mean-shift blob tracking on a weight
-  map; consumes 3 RNG calls per blob), `fitSize`
-- `canvas.js`: `setupRenderer`, `calculateAdaptivePixelSize`, `drawHalftoneDot`
+  map; consumes 3 RNG calls per blob), `fitSize`, `catmullRomWeights` (for upsampling
+  smooth fields computed on a coarse grid)
+- `canvas.js`: `setupRenderer`, `createCanvasLike` (scratch canvas that works in the browser
+  and node-canvas), `calculateAdaptivePixelSize`, `drawHalftoneDot`
 - `download.js`: `generateSeedHash`, `parseSeed`, `buildFilename`, `downloadCanvas`,
   `copyCanvas` — the first three are pure (the CLI uses them); the rest touch the DOM, so
   never import this file from worker code
@@ -210,13 +213,15 @@ Minipix uses seeded randomness to make artwork reproducible:
 - Seeds are converted to base36 hashes for filenames (`generateSeedHash`)
 - Same seed + renderer = identical visual output every time — preserve this when
   optimizing renderer internals (keep the math and the RNG call order identical)
-- Uses Mulberry32 PRNG for consistent cross-platform results
+- Uses Mulberry32 PRNG (state wrapped to 32 bits, as in the reference) for consistent
+  cross-platform results
 
 ### Benchmark and hash check
 
 - `npm run bench -- --split=train --check=bench/baseline-train.json` renders every renderer
   over fixed images and seeds, prints times, and exits 1 on any pixel-hash change.
-  `--renderer=a,b` limits it; `--reps=N` takes the fastest of N runs.
+  `--renderer=a,b` limits it; `--reps=N` takes the fastest of N runs; `--out=<dir>` also
+  saves every render as a JPEG (for reviewing a visual change before re-recording).
 - `--split=train` is the 1333px Earth image (+ a non-square crop), seeds 1-3;
   `--split=test` holds out the 3569px Peony image, seeds 101/202. For performance work,
   keep a change only if it is faster on BOTH splits by more than the noise (about ±15% per

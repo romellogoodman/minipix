@@ -4,33 +4,51 @@ const WORK_MAX = 1024;
 // Blur levels as fractions of the maximum sigma; level 0 is the sharp source.
 const LEVELS = [0.25, 0.5, 1];
 
-// In-place box pass: rows into `tmp`, then columns back into `buf`.
-function boxPass(buf, tmp, w, h, r) {
+// In-place box pass over interleaved RGB (3 floats per pixel): rows into
+// `tmp`, then columns back into `buf` (running sums, clamped edges). The
+// clamped indices come from per-pass lookups so the loops stay branch-free.
+function boxPass3(buf, tmp, w, h, r) {
   if (r < 1) return;
   const inv = 1 / (2 * r + 1);
   const maxX = w - 1;
+  const addX = new Int32Array(w);
+  const subX = new Int32Array(w);
+  for (let x = 0; x < w; x++) {
+    addX[x] = Math.min(x + r + 1, maxX) * 3;
+    subX[x] = Math.max(x - r, 0) * 3;
+  }
   for (let y = 0; y < h; y++) {
-    const row = y * w;
-    let sum = 0;
-    for (let k = -r; k <= r; k++) sum += buf[row + (k < 0 ? 0 : k > maxX ? maxX : k)];
-    for (let x = 0; x < w; x++) {
-      tmp[row + x] = sum * inv;
-      const add = x + r + 1;
-      const sub = x - r;
-      sum += buf[row + (add > maxX ? maxX : add)] - buf[row + (sub < 0 ? 0 : sub)];
+    const row = y * w * 3;
+    let sr = 0, sg = 0, sb = 0;
+    for (let k = -r; k <= r; k++) {
+      const i = row + (k < 0 ? 0 : k > maxX ? maxX : k) * 3;
+      sr += buf[i];
+      sg += buf[i + 1];
+      sb += buf[i + 2];
+    }
+    for (let x = 0, o = row; x < w; x++, o += 3) {
+      tmp[o] = sr * inv;
+      tmp[o + 1] = sg * inv;
+      tmp[o + 2] = sb * inv;
+      const ai = row + addX[x];
+      const si = row + subX[x];
+      sr += buf[ai] - buf[si];
+      sg += buf[ai + 1] - buf[si + 1];
+      sb += buf[ai + 2] - buf[si + 2];
     }
   }
   const maxY = h - 1;
-  const acc = new Float64Array(w);
+  const w3 = w * 3;
+  const acc = new Float64Array(w3);
   for (let k = -r; k <= r; k++) {
-    const row = (k < 0 ? 0 : k > maxY ? maxY : k) * w;
-    for (let x = 0; x < w; x++) acc[x] += tmp[row + x];
+    const row = (k < 0 ? 0 : k > maxY ? maxY : k) * w3;
+    for (let x = 0; x < w3; x++) acc[x] += tmp[row + x];
   }
   for (let y = 0; y < h; y++) {
-    const out = y * w;
-    const add = (y + r + 1 > maxY ? maxY : y + r + 1) * w;
-    const sub = (y - r < 0 ? 0 : y - r) * w;
-    for (let x = 0; x < w; x++) {
+    const out = y * w3;
+    const add = (y + r + 1 > maxY ? maxY : y + r + 1) * w3;
+    const sub = (y - r < 0 ? 0 : y - r) * w3;
+    for (let x = 0; x < w3; x++) {
       buf[out + x] = acc[x] * inv;
       acc[x] += tmp[add + x] - tmp[sub + x];
     }
@@ -63,100 +81,168 @@ export default function tiltShift({ imageData, width, height, config, random, ou
   const extent = Math.abs(nx) * width + Math.abs(ny) * height;
   const lineD = (width / 2) * nx + (height / 2) * ny + (offset - 0.5) * extent;
 
-  // Downsampled RGB planes.
+  // Downsampled RGB planes: integer block sums via a column lookup.
   const block = Math.max(1, Math.ceil(Math.max(width, height) / WORK_MAX));
   const ww = Math.ceil(width / block);
   const wh = Math.ceil(height / block);
   const wn = ww * wh;
-  const base = [new Float32Array(wn), new Float32Array(wn), new Float32Array(wn)];
-  const counts = new Float32Array(wn);
+  const n = width * height;
+  const src32 =
+    imageData.byteOffset % 4 === 0
+      ? new Uint32Array(imageData.buffer, imageData.byteOffset, n)
+      : new Uint32Array(imageData.slice().buffer, 0, n);
+  const sumR = new Uint32Array(wn);
+  const sumG = new Uint32Array(wn);
+  const sumB = new Uint32Array(wn);
   for (let y = 0; y < height; y++) {
     const wy = ((y / block) | 0) * ww;
-    for (let x = 0; x < width; x++) {
-      const i = (y * width + x) * 4;
-      const wi = wy + ((x / block) | 0);
-      base[0][wi] += imageData[i];
-      base[1][wi] += imageData[i + 1];
-      base[2][wi] += imageData[i + 2];
-      counts[wi]++;
+    for (let x = 0, pi = y * width, wi = wy; x < width; x += block, wi++) {
+      // R and B summed in 16-bit lanes of one word (block <= 256).
+      let rb = 0, g = 0;
+      for (let pe = pi + Math.min(block, width - x); pi < pe; pi++) {
+        const v = src32[pi];
+        rb += v & 0xff00ff;
+        g += v & 0xff00;
+      }
+      sumR[wi] += rb & 0xffff;
+      sumB[wi] += rb >>> 16;
+      sumG[wi] += g >>> 8;
     }
   }
-  for (let i = 0; i < wn; i++) {
-    const inv = 1 / counts[i];
-    base[0][i] *= inv;
-    base[1][i] *= inv;
-    base[2][i] *= inv;
+  const base = new Float32Array(wn * 3);
+  for (let by = 0, i = 0; by < wh; by++) {
+    const bh = Math.min(block, height - by * block);
+    for (let bx = 0; bx < ww; bx++, i++) {
+      const inv = 1 / (bh * Math.min(block, width - bx * block));
+      base[i * 3] = sumR[i] * inv;
+      base[i * 3 + 1] = sumG[i] * inv;
+      base[i * 3 + 2] = sumB[i] * inv;
+    }
   }
 
-  // Each level: three box passes approximating a Gaussian of that sigma.
-  const tmp = new Float32Array(wn);
+  // Each level: three box passes approximating a Gaussian of that sigma,
+  // on interleaved RGB for the per-pixel lookups.
+  const tmp = new Float32Array(wn * 3);
   const levels = LEVELS.map((f) => {
     const s = (sigma * f) / block;
     const r = Math.max(1, Math.round((Math.sqrt(4 * s * s + 1) - 1) / 2));
-    return base.map((plane) => {
-      const out = plane.slice();
-      for (let pass = 0; pass < 3; pass++) boxPass(out, tmp, ww, wh, r);
-      return out;
-    });
+    const rgb = base.slice();
+    for (let pass = 0; pass < 3; pass++) boxPass3(rgb, tmp, ww, wh, r);
+    return rgb;
   });
 
   const maxWX = ww - 1;
   const maxWY = wh - 1;
-  const numLevels = LEVELS.length;
-  const rgb = new Float32Array(3);
+  // Per-column bilinear taps into the work buffer (as RGB offsets).
+  const colX0 = new Int32Array(width);
+  const colX1 = new Int32Array(width);
+  const colFX = new Float32Array(width);
+  for (let x = 0; x < width; x++) {
+    let wx = (x + 0.5) / block - 0.5;
+    wx = wx < 0 ? 0 : wx > maxWX ? maxWX : wx;
+    const x0 = wx | 0;
+    colX0[x] = x0 * 3;
+    colX1[x] = (x0 < maxWX ? x0 + 1 : x0) * 3;
+    colFX[x] = wx - x0;
+  }
+  const L0 = LEVELS[0], L1 = LEVELS[1];
+  const inv1 = 1 / (L1 - L0), inv2 = 1 / (LEVELS[2] - L1);
+  const invFalloff = 1 / falloff;
+  // Blur ramp t at a full-resolution position: smoothstep of the distance
+  // past the focus band.
+  const ramp = (px, py) => {
+    let dist = px * nx + py * ny - lineD;
+    if (progressive) dist = flip ? -dist : dist;
+    else dist = dist < 0 ? -dist : dist;
+    let t = (dist - halfWidth) * invFalloff;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    return t * t * (3 - 2 * t);
+  };
+
+  // The blurred levels and the ramp are both smooth, so blend the levels
+  // once per work pixel (t evaluated at its centre) into one blurred
+  // buffer. Below the first level the full-resolution pass fades from the
+  // sharp source into it.
+  const blur = new Float32Array(wn * 3);
+  for (let wy = 0, i = 0; wy < wh; wy++) {
+    const py = (wy + 0.5) * block - 0.5;
+    for (let wx = 0; wx < ww; wx++, i += 3) {
+      const t = ramp((wx + 0.5) * block - 0.5, py);
+      let lo, hi, mix;
+      if (t <= L0) {
+        blur[i] = levels[0][i];
+        blur[i + 1] = levels[0][i + 1];
+        blur[i + 2] = levels[0][i + 2];
+        continue;
+      } else if (t <= L1) {
+        lo = levels[0];
+        hi = levels[1];
+        mix = (t - L0) * inv1;
+      } else {
+        lo = levels[1];
+        hi = levels[2];
+        mix = (t - L1) * inv2;
+      }
+      blur[i] = lo[i] + (hi[i] - lo[i]) * mix;
+      blur[i + 1] = lo[i + 1] + (hi[i + 1] - lo[i + 1]) * mix;
+      blur[i + 2] = lo[i + 2] + (hi[i + 2] - lo[i + 2]) * mix;
+    }
+  }
+
+  const outAligned = outputData.byteOffset % 4 === 0;
+  const out32 = outAligned
+    ? new Uint32Array(outputData.buffer, outputData.byteOffset, n)
+    : new Uint32Array(n);
+  const lumK = 1 - saturation;
+  const blurRow = new Float32Array(ww * 3);
+  const invL0 = 1 / L0;
+  // Channel value after the saturation lift, rounded and clamped to a byte.
+  const toByte = (v) => (v <= 0 ? 0 : v >= 255 ? 255 : (v + 0.5) | 0);
   for (let y = 0; y < height; y++) {
     let wy = (y + 0.5) / block - 0.5;
     wy = wy < 0 ? 0 : wy > maxWY ? maxWY : wy;
     const y0 = wy | 0;
-    const y1 = y0 < maxWY ? y0 + 1 : y0;
     const fy = wy - y0;
-    for (let x = 0; x < width; x++) {
-      const o = (y * width + x) * 4;
-      let dist = x * nx + y * ny - lineD;
+    const r0 = y0 * ww * 3;
+    const r1 = (y0 < maxWY ? y0 + 1 : y0) * ww * 3;
+    const rowD = y * ny - lineD;
+    for (let i = 0; i < ww * 3; i++) blurRow[i] = blur[r0 + i] + (blur[r1 + i] - blur[r0 + i]) * fy;
+    for (let x = 0, pi = y * width; x < width; x++, pi++) {
+      let dist = x * nx + rowD;
       if (progressive) dist = flip ? -dist : dist;
-      else dist = Math.abs(dist);
-      // smoothstep(halfWidth, halfWidth + falloff, dist)
-      let t = (dist - halfWidth) / falloff;
-      t = t < 0 ? 0 : t > 1 ? 1 : t;
-      t = t * t * (3 - 2 * t);
-
-      rgb[0] = imageData[o];
-      rgb[1] = imageData[o + 1];
-      rgb[2] = imageData[o + 2];
+      else dist = dist < 0 ? -dist : dist;
+      let t = (dist - halfWidth) * invFalloff;
+      const v = src32[pi];
+      let r = v & 0xff;
+      let g = (v >>> 8) & 0xff;
+      let b = (v >>> 16) & 0xff;
       if (t > 0) {
-        // Find the two levels bracketing t (level 0 = sharp source).
-        let li = 0;
-        while (li < numLevels - 1 && LEVELS[li] < t) li++;
-        const hiF = LEVELS[li];
-        const loF = li === 0 ? 0 : LEVELS[li - 1];
-        const mix = (t - loF) / (hiF - loF);
-        let wx = (x + 0.5) / block - 0.5;
-        wx = wx < 0 ? 0 : wx > maxWX ? maxWX : wx;
-        const x0 = wx | 0;
-        const x1 = x0 < maxWX ? x0 + 1 : x0;
-        const fx = wx - x0;
-        const i00 = y0 * ww + x0, i10 = y0 * ww + x1, i01 = y1 * ww + x0, i11 = y1 * ww + x1;
-        const hi = levels[li];
-        const lo = li === 0 ? null : levels[li - 1];
-        for (let c = 0; c < 3; c++) {
-          const p = hi[c];
-          const top = p[i00] + (p[i10] - p[i00]) * fx;
-          const vHi = top + (p[i01] + (p[i11] - p[i01]) * fx - top) * fy;
-          let vLo = rgb[c];
-          if (lo) {
-            const q = lo[c];
-            const qt = q[i00] + (q[i10] - q[i00]) * fx;
-            vLo = qt + (q[i01] + (q[i11] - q[i01]) * fx - qt) * fy;
-          }
-          rgb[c] = vLo + (vHi - vLo) * mix;
+        t = t > 1 ? 1 : t;
+        t = t * t * (3 - 2 * t);
+        const x0 = colX0[x], x1 = colX1[x], fx = colFX[x];
+        const br = blurRow[x0] + (blurRow[x1] - blurRow[x0]) * fx;
+        const bg = blurRow[x0 + 1] + (blurRow[x1 + 1] - blurRow[x0 + 1]) * fx;
+        const bb = blurRow[x0 + 2] + (blurRow[x1 + 2] - blurRow[x0 + 2]) * fx;
+        if (t < L0) {
+          const m = t * invL0;
+          r += (br - r) * m;
+          g += (bg - g) * m;
+          b += (bb - b) * m;
+        } else {
+          r = br;
+          g = bg;
+          b = bb;
         }
       }
 
-      const lum = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
-      outputData[o] = lum + (rgb[0] - lum) * saturation;
-      outputData[o + 1] = lum + (rgb[1] - lum) * saturation;
-      outputData[o + 2] = lum + (rgb[2] - lum) * saturation;
-      outputData[o + 3] = 255;
+      const lum = (0.299 * r + 0.587 * g + 0.114 * b) * lumK;
+      out32[pi] =
+        (toByte(r * saturation + lum) |
+          (toByte(g * saturation + lum) << 8) |
+          (toByte(b * saturation + lum) << 16) |
+          0xff000000) >>>
+        0;
     }
   }
+  if (!outAligned) outputData.set(new Uint8ClampedArray(out32.buffer));
 }

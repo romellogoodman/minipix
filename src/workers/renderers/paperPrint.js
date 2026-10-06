@@ -1,4 +1,4 @@
-import { randFloat, createNoise2D, createSeededRandom } from "../utils.js";
+import { randFloat, createSeededRandom, createPermutation, noise2D } from "../utils.js";
 
 // Paper stocks (multiplied under the print, so white becomes the paper).
 const PAPERS = [
@@ -48,7 +48,9 @@ export default function paperPrint({ imageData, width, height, config, random, o
   // Texture building draws a variable number of values, so it gets its own
   // stream and can't shift anything above.
   const tex = createSeededRandom(Math.floor(random() * 0xffffffff));
-  const noise = createNoise2D(tex);
+  // createNoise2D's noise as a plain function (same 255 tex() calls, same values).
+  const perm = createPermutation(tex);
+  const noise = (x, y) => noise2D(perm, x, y);
 
   // Paper texture at ≤ 1600 px: cloudy formation (fbm) + short curved fibres.
   const ts = Math.max(1, Math.max(width, height) / 1600);
@@ -56,12 +58,11 @@ export default function paperPrint({ imageData, width, height, config, random, o
   const grain = new Float32Array(tn), stain = new Float32Array(tn), tmp = new Float32Array(tn);
   const unit = minDim / ts; // texture px per min-dimension
   const f0 = 14 / unit;
-  for (let y = 0; y < th; y++) {
-    for (let x = 0; x < tw; x++) {
-      const n = noise(x * f0, y * f0) * 0.5 + noise(x * f0 * 2.7, y * f0 * 2.7) * 0.3 + noise(x * f0 * 7, y * f0 * 7) * 0.2;
-      grain[y * tw + x] = n * 0.6;
-    }
-  }
+  // Formation: three octaves, each evaluated on a grid coarse enough for its
+  // wavelength (≥ 8 samples per cycle) and bilinearly added into the texture.
+  addOctave(grain, tw, th, perm, f0, 0.5 * 0.6);
+  addOctave(grain, tw, th, perm, f0 * 2.7, 0.3 * 0.6);
+  addOctave(grain, tw, th, perm, f0 * 7, 0.2 * 0.6);
   const fibres = Math.round((fibreDensity * tn) / 250);
   const fibreLen = unit * 0.012;
   for (let k = 0; k < fibres; k++) {
@@ -107,45 +108,96 @@ export default function paperPrint({ imageData, width, height, config, random, o
   const toothScale = tooth * 0.12;
   const dispScale = displacement * ts;
 
+  // Per-column texture taps and vignette offsets.
+  const TX0 = new Int32Array(width), TX1 = new Int32Array(width), TFX = new Float32Array(width);
+  const VX2 = new Float64Array(width);
+  for (let x = 0; x < width; x++) {
+    const tx = Math.min(tw - 1, x / ts);
+    TX0[x] = tx | 0; TX1[x] = Math.min(tw - 1, (tx | 0) + 1); TFX[x] = tx - (tx | 0);
+    const vx = (x / width - vcx) * aspect;
+    VX2[x] = vx * vx;
+  }
+  const vIn2 = vIn * vIn, vSpan = 1 / (vOut - vIn);
+  const src32 = new Uint32Array(imageData.buffer, imageData.byteOffset, width * height);
+  const out32 = new Uint32Array(outputData.buffer, outputData.byteOffset, width * height);
+  const kR = pR * 255, kG = pG * 255, kB = pB * 255;
+  const BIAS = 1048576.5;
+
   for (let y = 0; y < height; y++) {
     const ty = Math.min(th - 1, y / ts);
     const ty0 = ty | 0, ty1 = Math.min(th - 1, ty0 + 1), fy = ty - ty0;
-    const vy = y / height - vcy;
+    const vy = y / height - vcy, vy2 = vy * vy;
+    const ra = ty0 * tw, rc = ty1 * tw, row = y * width;
     for (let x = 0; x < width; x++) {
-      const tx = Math.min(tw - 1, x / ts);
-      const tx0 = tx | 0, tx1 = Math.min(tw - 1, tx0 + 1), fx = tx - tx0;
-      const a = ty0 * tw + tx0, b = ty0 * tw + tx1, c = ty1 * tw + tx0, d = ty1 * tw + tx1;
-      const g = (grain[a] * (1 - fx) + grain[b] * fx) * (1 - fy) + (grain[c] * (1 - fx) + grain[d] * fx) * fy;
+      const tx0 = TX0[x], tx1 = TX1[x], fx = TFX[x];
+      const a = ra + tx0, b = ra + tx1, c = rc + tx0, d = rc + tx1;
+      const ga = grain[a], gb = grain[b], gc = grain[c], gd = grain[d];
+      const g0 = ga + (gb - ga) * fx;
+      const g = g0 + (gc + (gd - gc) * fx - g0) * fy;
       // Displace the print along the fibre relief (its gradient).
-      const gx = (grain[b] - grain[a] + grain[d] - grain[c]) * 0.5;
-      const gy = (grain[c] - grain[a] + grain[d] - grain[b]) * 0.5;
-      const sx = Math.min(width - 1, Math.max(0, Math.round(x + gx * dispScale)));
-      const sy = Math.min(height - 1, Math.max(0, Math.round(y + gy * dispScale)));
-      const si = (sy * width + sx) * 4;
+      const gx = (gb - ga + gd - gc) * 0.5;
+      const gy = (gc - ga + gd - gb) * 0.5;
+      let sx = ((x + gx * dispScale + BIAS) | 0) - 1048576;
+      let sy = ((y + gy * dispScale + BIAS) | 0) - 1048576;
+      sx = sx < 0 ? 0 : sx > width - 1 ? width - 1 : sx;
+      sy = sy < 0 ? 0 : sy > height - 1 ? height - 1 : sy;
+      const p = src32[sy * width + sx];
 
-      let r = tone[imageData[si]], gg = tone[imageData[si + 1]], bb = tone[imageData[si + 2]];
+      let r = tone[p & 255], gg = tone[(p >>> 8) & 255], bb = tone[(p >>> 16) & 255];
       const l = 0.299 * r + 0.587 * gg + 0.114 * bb;
       r = l + (r - l) * saturation; gg = l + (gg - l) * saturation; bb = l + (bb - l) * saturation;
-      const sh = (1 - l) * (1 - l), hl = l * l;
-      r = r * wbR + (sR * sh - sR * hl) * 0.5;
-      gg = gg + (sG * sh - sG * hl) * 0.5;
-      bb = bb * wbB + (sB * sh - sB * hl) * 0.5;
+      const sh = (1 - l) * (1 - l), hl = l * l, st0 = (sh - hl) * 0.5;
+      r = r * wbR + sR * st0;
+      gg = gg + sG * st0;
+      bb = bb * wbB + sB * st0;
 
       // Vignette toward a dark sepia, aspect-corrected like the shader.
-      const vx = (x / width - vcx) * aspect;
-      const dist = Math.sqrt(vx * vx + vy * vy);
-      let m = (dist - vIn) / (vOut - vIn);
-      m = m <= 0 ? 0 : m >= 1 ? vignette : m * m * (3 - 2 * m) * vignette;
-      r += (0.16 - r) * m; gg += (0.1 - gg) * m; bb += (0.06 - bb) * m;
+      const d2 = VX2[x] + vy2;
+      if (d2 > vIn2) {
+        let m = (Math.sqrt(d2) - vIn) * vSpan;
+        m = m >= 1 ? vignette : m * m * (3 - 2 * m) * vignette;
+        r += (0.16 - r) * m; gg += (0.1 - gg) * m; bb += (0.06 - bb) * m;
+      }
 
       // Ink on paper, fibre relief, tooth and foxing.
       const st = stain[a];
-      const lit = (1 + g * roughness + (random() - 0.5) * toothScale) * 255;
-      const i = (y * width + x) * 4;
-      outputData[i] = r * pR * lit * (1 - st * 0.12);
-      outputData[i + 1] = gg * pG * lit * (1 - st * 0.3);
-      outputData[i + 2] = bb * pB * lit * (1 - st * 0.5);
-      outputData[i + 3] = 255;
+      const lit = 1 + g * roughness + (random() - 0.5) * toothScale;
+      let o0 = r * kR * lit * (1 - st * 0.12) + 0.5;
+      let o1 = gg * kG * lit * (1 - st * 0.3) + 0.5;
+      let o2 = bb * kB * lit * (1 - st * 0.5) + 0.5;
+      o0 = o0 <= 0 ? 0 : o0 >= 255 ? 255 : o0 | 0;
+      o1 = o1 <= 0 ? 0 : o1 >= 255 ? 255 : o1 | 0;
+      o2 = o2 <= 0 ? 0 : o2 >= 255 ? 255 : o2 | 0;
+      out32[row + x] = 0xff000000 | (o2 << 16) | (o1 << 8) | o0;
+    }
+  }
+}
+
+// grain += amp · noise(x·f, y·f), sampled every `step` texels (≥ 8 samples per
+// cycle) and bilinearly interpolated in between.
+function addOctave(grain, tw, th, perm, f, amp) {
+  // Power-of-two step ≤ 1/8 wavelength (≤ 8 texels).
+  let step = 1;
+  while (step < 8 && step * 2 * 8 * f <= 1) step *= 2;
+  const cw = Math.ceil((tw - 1) / step) + 1, chh = Math.ceil((th - 1) / step) + 1;
+  const C = new Float32Array(cw * chh);
+  for (let j = 0; j < chh; j++) {
+    for (let i = 0; i < cw; i++) C[j * cw + i] = noise2D(perm, i * step * f, j * step * f) * amp;
+  }
+  const inv = 1 / step; // steps are powers of two, so x * inv is exact
+  const I0 = new Int32Array(tw), I1 = new Int32Array(tw), FX = new Float32Array(tw);
+  for (let x = 0; x < tw; x++) {
+    const i0 = (x * inv) | 0;
+    I0[x] = i0; I1[x] = Math.min(cw - 1, i0 + 1); FX[x] = (x - i0 * step) * inv;
+  }
+  const rowA = new Float32Array(cw);
+  for (let y = 0; y < th; y++) {
+    const j0 = (y * inv) | 0, j1 = Math.min(chh - 1, j0 + 1), fy = (y - j0 * step) * inv;
+    const a = j0 * cw, b = j1 * cw, o = y * tw;
+    for (let i = 0; i < cw; i++) rowA[i] = C[a + i] + (C[b + i] - C[a + i]) * fy;
+    for (let x = 0; x < tw; x++) {
+      const i0 = I0[x], v = rowA[i0];
+      grain[o + x] += v + (rowA[I1[x]] - v) * FX[x];
     }
   }
 }

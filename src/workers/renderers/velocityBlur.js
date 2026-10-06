@@ -121,55 +121,184 @@ export default function velocityBlur({ imageData, width, height, config, random,
     }
   }
 
-  // Raised-cosine shutter weights and normalized offsets along the velocity.
-  const weights = new Float32Array(numSamples);
-  const offsets = new Float32Array(numSamples);
-  let weightSum = 0;
-  for (let s = 0; s < numSamples; s++) {
-    const t = (s + 0.5) / numSamples;
-    weights[s] = 0.5 * (1 - Math.cos(2 * Math.PI * t));
-    offsets[s] = t - 0.5;
-    weightSum += weights[s];
+  // Raised-cosine shutter weights along the velocity, applied as two
+  // passes: `a` evenly weighted taps a short step apart, then `b` taps a
+  // long step apart carrying the shutter weights. Together they place the
+  // same a*b evenly spaced samples as one long gather (with a stepped
+  // shutter curve) at a fraction of the reads. a*b is the smallest product
+  // >= numSamples for the cheapest a + b.
+  let fa = 1, fb = numSamples;
+  for (let a = 2; a <= numSamples; a++) {
+    const b = Math.ceil(numSamples / a);
+    if (a + b < fa + fb || (a + b === fa + fb && a * b < fa * fb)) {
+      fa = a;
+      fb = b;
+    }
   }
-  const invWeightSum = 1 / weightSum;
+  const total = fa * fb;
+  const innerOffsets = new Float32Array(fa);
+  const innerWeights = new Float32Array(fa).fill(1 / fa);
+  for (let j = 0; j < fa; j++) innerOffsets[j] = (j - (fa - 1) / 2) / total;
+  const outerOffsets = new Float32Array(fb);
+  const outerWeights = new Float32Array(fb);
+  let weightSum = 0;
+  for (let i = 0; i < fb; i++) {
+    outerOffsets[i] = ((i - (fb - 1) / 2) * fa) / total;
+    for (let j = 0; j < fa; j++) {
+      const t = (i * fa + j + 0.5) / total;
+      outerWeights[i] += 0.5 * (1 - Math.cos(2 * Math.PI * t));
+    }
+    weightSum += outerWeights[i];
+  }
+  for (let i = 0; i < fb; i++) outerWeights[i] /= weightSum;
 
+  const n = width * height;
+  const src32 =
+    imageData.byteOffset % 4 === 0
+      ? new Uint32Array(imageData.buffer, imageData.byteOffset, n)
+      : new Uint32Array(imageData.slice().buffer, 0, n);
+  const outAligned = outputData.byteOffset % 4 === 0;
+  const out32 = outAligned
+    ? new Uint32Array(outputData.buffer, outputData.byteOffset, n)
+    : new Uint32Array(n);
+  const mid32 = new Uint32Array(n);
+  const field = { vx, vy, fw, fh, width, height };
+  gatherPass(src32, mid32, field, innerOffsets, innerWeights);
+  gatherPass(mid32, out32, field, outerOffsets, outerWeights);
+  if (!outAligned) outputData.set(new Uint8ClampedArray(out32.buffer));
+}
+
+/**
+ * One gather along each pixel's cell velocity: dst = sum of w[s] * src at
+ * (x, y) + floor(v * offsets[s]), clamped at the edges. Pixels in cells
+ * slower than half a pixel are copied.
+ */
+function gatherPass(src32, dst32, { vx, vy, fw, fh, width, height }, offsets, weights) {
+  const numSamples = offsets.length;
   const fsx = fw / width;
   const fsy = fh / height;
   const maxX = width - 1;
   const maxY = height - 1;
 
-  for (let y = 0; y < height; y++) {
-    const fy = ((y * fsy) | 0) * fw;
-    for (let x = 0; x < width; x++) {
-      const o = (y * width + x) * 4;
-      const fi = fy + ((x * fsx) | 0);
-      const pvx = vx[fi];
-      const pvy = vy[fi];
-
-      if (pvx * pvx + pvy * pvy < 0.25) {
-        outputData[o] = imageData[o];
-        outputData[o + 1] = imageData[o + 1];
-        outputData[o + 2] = imageData[o + 2];
-        outputData[o + 3] = 255;
+  // Within a field cell the velocity is constant, so (for integer x, y)
+  // every tap lands at a fixed integer offset from the pixel. Build each
+  // cell's tap list once, merging taps that land on the same pixel, plus
+  // its offset bounds so interior pixels can skip the clamping. Weights are
+  // quantized to integers summing to 256 so the taps can be accumulated two
+  // channels per 32-bit word (R and B in 16-bit lanes, G alone).
+  const numCells = fw * fh;
+  const tapCount = new Int32Array(numCells); // 0 = still cell (copy)
+  const tapDx = new Int32Array(numCells * numSamples);
+  const tapDy = new Int32Array(numCells * numSamples);
+  const tapW = new Int32Array(numCells * numSamples);
+  const bounds = new Int32Array(numCells * 4);
+  const mergedW = new Float64Array(numSamples);
+  for (let c = 0; c < numCells; c++) {
+    const pvx = vx[c];
+    const pvy = vy[c];
+    if (pvx * pvx + pvy * pvy < 0.25) continue;
+    const base = c * numSamples;
+    let count = 0;
+    let minDx = 0, maxDx = 0, minDy = 0, maxDy = 0;
+    for (let s = 0; s < numSamples; s++) {
+      const dx = Math.floor(pvx * offsets[s]);
+      const dy = Math.floor(pvy * offsets[s]);
+      let k = 0;
+      while (k < count && (tapDx[base + k] !== dx || tapDy[base + k] !== dy)) k++;
+      if (k < count) {
+        mergedW[k] += weights[s];
         continue;
       }
+      tapDx[base + k] = dx;
+      tapDy[base + k] = dy;
+      mergedW[k] = weights[s];
+      count++;
+      if (dx < minDx) minDx = dx;
+      if (dx > maxDx) maxDx = dx;
+      if (dy < minDy) minDy = dy;
+      if (dy > maxDy) maxDy = dy;
+    }
+    let total = 0, biggest = 0;
+    for (let k = 0; k < count; k++) {
+      const q = Math.round(mergedW[k] * 256);
+      tapW[base + k] = q;
+      total += q;
+      if (q > tapW[base + biggest]) biggest = k;
+    }
+    tapW[base + biggest] += 256 - total;
+    tapCount[c] = count;
+    bounds[c * 4] = minDx;
+    bounds[c * 4 + 1] = maxDx;
+    bounds[c * 4 + 2] = minDy;
+    bounds[c * 4 + 3] = maxDy;
+  }
 
-      let sr = 0, sg = 0, sb = 0;
-      for (let s = 0; s < numSamples; s++) {
-        let sx = x + pvx * offsets[s];
-        let sy = y + pvy * offsets[s];
-        sx = sx < 0 ? 0 : sx > maxX ? maxX : sx;
-        sy = sy < 0 ? 0 : sy > maxY ? maxY : sy;
-        const p = ((sy | 0) * width + (sx | 0)) * 4;
-        const wgt = weights[s];
-        sr += imageData[p] * wgt;
-        sg += imageData[p + 1] * wgt;
-        sb += imageData[p + 2] * wgt;
+  // Column spans of each field cell.
+  const colStart = new Int32Array(fw + 1);
+  for (let x = 0, cx = 0; x < width; x++) {
+    const c = (x * fsx) | 0;
+    while (cx <= c) colStart[cx++] = x;
+  }
+  colStart[fw] = width;
+  for (let cx = fw - 1; cx >= 0; cx--) if (colStart[cx] > colStart[cx + 1]) colStart[cx] = colStart[cx + 1];
+
+  const tapOff = new Int32Array(numSamples);
+  const tapWk = new Int32Array(numSamples);
+  for (let y = 0; y < height; y++) {
+    const fy = ((y * fsy) | 0) * fw;
+    const rowStart = y * width;
+    for (let cx = 0; cx < fw; cx++) {
+      const xs = colStart[cx];
+      const xe = colStart[cx + 1];
+      if (xs >= xe) continue;
+      const c = fy + cx;
+      const count = tapCount[c];
+      if (count === 0) {
+        for (let pi = rowStart + xs, pe = rowStart + xe; pi < pe; pi++) dst32[pi] = src32[pi] | 0xff000000;
+        continue;
       }
-      outputData[o] = sr * invWeightSum;
-      outputData[o + 1] = sg * invWeightSum;
-      outputData[o + 2] = sb * invWeightSum;
-      outputData[o + 3] = 255;
+      const base = c * numSamples;
+      const b4 = c * 4;
+      const minDx = bounds[b4], maxDx = bounds[b4 + 1];
+      const yInside = y + bounds[b4 + 2] >= 0 && y + bounds[b4 + 3] <= maxY;
+      // Interior x range [ix0, ix1) where no tap needs clamping.
+      let ix0 = xs, ix1 = xe;
+      if (!yInside) ix0 = ix1 = xs;
+      else {
+        if (ix0 < -minDx) ix0 = -minDx;
+        if (ix1 > width - maxDx) ix1 = width - maxDx;
+        if (ix1 < ix0) ix1 = ix0;
+        if (ix0 > xe) ix0 = ix1 = xe;
+      }
+      for (let k = 0; k < count; k++) {
+        tapOff[k] = tapDy[base + k] * width + tapDx[base + k];
+        tapWk[k] = tapW[base + k];
+      }
+      for (let x = xs; x < xe; x++) {
+        const pi = rowStart + x;
+        // Lanes start at +128 so the >> 8 below rounds.
+        let rb = 0x00800080, g = 0x8000;
+        if (x >= ix0 && x < ix1) {
+          for (let k = 0; k < count; k++) {
+            const v = src32[pi + tapOff[k]];
+            const wgt = tapWk[k];
+            rb += (v & 0xff00ff) * wgt;
+            g += (v & 0xff00) * wgt;
+          }
+        } else {
+          for (let k = 0; k < count; k++) {
+            let sx = x + tapDx[base + k];
+            let sy = y + tapDy[base + k];
+            sx = sx < 0 ? 0 : sx > maxX ? maxX : sx;
+            sy = sy < 0 ? 0 : sy > maxY ? maxY : sy;
+            const v = src32[sy * width + sx];
+            const wgt = tapWk[k];
+            rb += (v & 0xff00ff) * wgt;
+            g += (v & 0xff00) * wgt;
+          }
+        }
+        dst32[pi] = ((rb >>> 8) & 0xff00ff) | ((g >>> 8) & 0xff00) | 0xff000000;
+      }
     }
   }
 }

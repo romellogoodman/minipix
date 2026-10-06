@@ -382,3 +382,13 @@ export function findBlobs(weights, w, h, count, random, opts = {}) {
   }
   return blobs;
 }
+
+// Catmull-Rom weights for the four taps around fraction t (0..1), written to
+// out[o..o+3]. For upsampling smooth fields computed on a coarse grid.
+export function catmullRomWeights(t, out, o) {
+  const t2 = t * t, t3 = t2 * t;
+  out[o] = 0.5 * (-t3 + 2 * t2 - t);
+  out[o + 1] = 0.5 * (3 * t3 - 5 * t2 + 2);
+  out[o + 2] = 0.5 * (-3 * t3 + 4 * t2 + t);
+  out[o + 3] = 0.5 * (t3 - t2);
+}

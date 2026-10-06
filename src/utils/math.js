@@ -1,9 +1,11 @@
 // Pure math shared by the main thread, Web Workers, and the Node CLI.
 
-// Mulberry32 PRNG: returns a function yielding floats in [0, 1).
+// Mulberry32 PRNG: returns a function yielding floats in [0, 1). The state is
+// wrapped to 32 bits each step, as in the reference implementation.
 export function createSeededRandom(seed) {
+  seed |= 0;
   return function () {
-    let t = (seed += 0x6d2b79f5);
+    let t = (seed = (seed + 0x6d2b79f5) | 0);
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;

@@ -46,14 +46,20 @@ const echo = ({ canvas, image, seed = Date.now(), config = rendererConfig.echo }
       const scale = zoom ? Math.max(0.05, 1 + scaleStep * k * dir) : 1;
       const a = Math.cos(theta) * scale;
       const b = Math.sin(theta) * scale;
-      ctx.setTransform(
-        a,
-        b,
-        -b,
-        a,
-        pivotX - (a * pivotX - b * pivotY) + ox,
-        pivotY - (b * pivotX + a * pivotY) + oy
-      );
+      if (rotate || zoom) {
+        ctx.setTransform(
+          a,
+          b,
+          -b,
+          a,
+          pivotX - (a * pivotX - b * pivotY) + ox,
+          pivotY - (b * pivotX + a * pivotY) + oy
+        );
+      } else {
+        // Pure translation: snap to whole pixels so the copy is a straight
+        // blit instead of a resampled draw (several times cheaper).
+        ctx.setTransform(1, 0, 0, 1, Math.round(ox), Math.round(oy));
+      }
       ctx.drawImage(image, 0, 0);
     }
   }

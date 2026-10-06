@@ -1,4 +1,4 @@
-import { randFloat, createNoise2D, fitSize, downsampleImage, boxBlur } from "../utils.js";
+import { randFloat, createNoise2D, fitSize, boxBlur } from "../utils.js";
 
 const WORK_MAX = 1024;
 const GRID_MAX = 256;
@@ -28,10 +28,10 @@ export default function watercolor({ imageData, width, height, config, random, o
   const noise = createNoise2D(random);
 
   // --- Work resolution: Kuwahara flattening via summed-area tables.
-  const ds = downsampleImage(imageData, width, height, WORK_MAX);
+  const ds = downsampleRGB(imageData, width, height, WORK_MAX);
   const { w, h } = ds;
   const radius = Math.max(2, Math.round(Math.min(w, h) * radiusPct));
-  const flat = kuwahara(ds, w, h, radius);
+  const flat = kuwahara(ds.r, ds.g, ds.b, w, h, radius);
 
   // Edge darkening: Sobel magnitude of the flattened luminance, softened a touch.
   const lumF = new Float32Array(w * h);
@@ -94,12 +94,19 @@ export default function watercolor({ imageData, width, height, config, random, o
     boxBlur(lum, width, height, r, new Float32Array(n));
     pen = new Uint8Array(n);
     const s = r;
+    // Separable Sobel: vertical [1 2 1] sums / [−1 0 1] differences, then across.
+    const vSum = new Float32Array(width), vDif = new Float32Array(width);
     for (let y = 0; y < height; y++) {
       const ym = Math.max(0, y - s) * width, y0 = y * width, yp = Math.min(height - 1, y + s) * width;
       for (let x = 0; x < width; x++) {
-        const xm = Math.max(0, x - s), xp = Math.min(width - 1, x + s);
-        const gx = -lum[ym + xm] - 2 * lum[y0 + xm] - lum[yp + xm] + lum[ym + xp] + 2 * lum[y0 + xp] + lum[yp + xp];
-        const gy = -lum[ym + xm] - 2 * lum[ym + x] - lum[ym + xp] + lum[yp + xm] + 2 * lum[yp + x] + lum[yp + xp];
+        const t = lum[ym + x], b = lum[yp + x];
+        vSum[x] = t + 2 * lum[y0 + x] + b;
+        vDif[x] = b - t;
+      }
+      for (let x = 0; x < width; x++) {
+        const xm = x - s < 0 ? 0 : x - s, xp = x + s > width - 1 ? width - 1 : x + s;
+        const gx = vSum[xp] - vSum[xm];
+        const gy = vDif[xm] + 2 * vDif[x] + vDif[xp];
         const e = (Math.sqrt(gx * gx + gy * gy) - 0.35) / 0.4;
         pen[y0 + x] = e <= 0 ? 0 : e >= 1 ? 255 : e * 255;
       }
@@ -124,102 +131,201 @@ export default function watercolor({ imageData, width, height, config, random, o
       ux[x] = f * f * (3 - 2 * f);
     }
     const span = ix[width - 1] + 2;
-    const L = { ix, ux, uy: 0, row0: new Float64Array(span), row1: new Float64Array(span) };
+    const L = { ix, ux, iy: NaN, row0: new Float64Array(span), row1: new Float64Array(span), col: new Float64Array(span) };
+    // Per row: refresh the cached lattice rows (reusing row1 when stepping down
+    // one cell), then blend them vertically so each pixel is a 1-D lerp.
     L.setRow = (y) => {
       const Y = y * grainScale * xs;
       const iy = Math.floor(Y), fy = Y - iy;
-      L.uy = fy * fy * (3 - 2 * fy);
-      for (let k = ix[0]; k < span; k++) { L.row0[k] = hash(k, iy); L.row1[k] = hash(k, iy + 1); }
+      const uy = fy * fy * (3 - 2 * fy);
+      if (iy !== L.iy) {
+        if (iy === L.iy + 1) {
+          const t = L.row0; L.row0 = L.row1; L.row1 = t;
+          for (let k = ix[0]; k < span; k++) L.row1[k] = hash(k, iy + 1);
+        } else {
+          for (let k = ix[0]; k < span; k++) { L.row0[k] = hash(k, iy); L.row1[k] = hash(k, iy + 1); }
+        }
+        L.iy = iy;
+      }
+      const r0 = L.row0, r1 = L.row1, col = L.col;
+      for (let k = ix[0]; k < span; k++) col[k] = r0[k] + (r1[k] - r0[k]) * uy;
     };
     return L;
   };
-  const sample = (L, x) => {
-    const k = L.ix[x], ux = L.ux[x], uy = L.uy;
-    const a = L.row0[k], b = L.row0[k + 1], c = L.row1[k], d = L.row1[k + 1];
-    return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
-  };
   const fine = lattice(1, 0), coarse = lattice(0.31, 17);
   const sx = w / width, sy = h / height;
+  const out32 = new Uint32Array(outputData.buffer, outputData.byteOffset, width * height);
+  const wxRow = new Float32Array(gw), wyRow = new Float32Array(gw), washRow = new Float32Array(gw);
+  const fIx = fine.ix, fUx = fine.ux, cIx = coarse.ix, cUx = coarse.ux;
+  const p0 = paper[0], p1 = paper[1], p2 = paper[2];
+  const grainRow = new Float32Array(width), washs = new Float32Array(width);
+  const pShift = width / w >= 2 ? 1 : 0, pStep = 1 << pShift;
+  const half = (width + 1) >> pShift;
+  const pR = new Float32Array(half), pG = new Float32Array(half), pB = new Float32Array(half);
 
   for (let y = 0; y < height; y++) {
     fine.setRow(y); coarse.setRow(y);
     const g = Math.max(0, Math.min(gh - 1, (y + 0.5) / cellH - 0.5));
     const r0 = Math.floor(g) * gw, r1 = Math.min(gh - 1, Math.floor(g) + 1) * gw, fy = g - Math.floor(g);
+    for (let q = 0; q < gw; q++) {
+      wxRow[q] = wobX[r0 + q] + (wobX[r1 + q] - wobX[r0 + q]) * fy;
+      wyRow[q] = wobY[r0 + q] + (wobY[r1 + q] - wobY[r0 + q]) * fy;
+      washRow[q] = wash[r0 + q] + (wash[r1 + q] - wash[r0 + q]) * fy;
+    }
+    row(y, fine.col, coarse.col);
+  }
+
+  function row(y, fv, cv) {
+    const yo = y * width;
+    // Paper grain and wash strength per column.
     for (let x = 0; x < width; x++) {
+      const kf = fIx[x], kc = cIx[x];
+      grainRow[x] = (fv[kf] + (fv[kf + 1] - fv[kf]) * fUx[x]) * 0.4 + (cv[kc] + (cv[kc + 1] - cv[kc]) * cUx[x]) * 0.6;
+      const a = x0s[x], wa = washRow[a];
+      washs[x] = wa + (washRow[x1s[x]] - wa) * fxs[x];
+    }
+    // Pigment at the wobbled position, sampled once per horizontal pixel pair
+    // when the pigment field is ≥ 2× magnified (pairs then share a value).
+    const yc = y + 0.5;
+    for (let X = 0, x = 0; x < width; X++, x += pStep) {
       const a = x0s[x], b = x1s[x], fx = fxs[x];
-      // Bilinear pigment lookup at the wobbled position.
-      let wx = (x + 0.5 + lerpGrid(wobX, r0, r1, a, b, fx, fy)) * sx - 0.5, wy = (y + 0.5 + lerpGrid(wobY, r0, r1, a, b, fx, fy)) * sy - 0.5;
+      const xc = pStep === 2 && x + 1 < width ? x + 1 : x + 0.5;
+      const wxa = wxRow[a], wya = wyRow[a];
+      let wx = (xc + wxa + (wxRow[b] - wxa) * fx) * sx - 0.5, wy = (yc + wya + (wyRow[b] - wya) * fx) * sy - 0.5;
       wx = wx < 0 ? 0 : wx > w - 1 ? w - 1 : wx;
       wy = wy < 0 ? 0 : wy > h - 1 ? h - 1 : wy;
-      const ix = Math.min(w - 2, Math.floor(wx)), iy = Math.min(h - 2, Math.floor(wy));
+      let ix = wx | 0, iy = wy | 0;
+      if (ix > w - 2) ix = w - 2;
+      if (iy > h - 2) iy = h - 2;
       const tx = wx - ix, ty = wy - iy;
       const p00 = (iy * w + ix) * 3, p10 = p00 + 3, p01 = p00 + w * 3, p11 = p01 + 3;
-
+      let t = pig[p00] + (pig[p10] - pig[p00]) * tx, u = pig[p01] + (pig[p11] - pig[p01]) * tx;
+      pR[X] = t + (u - t) * ty;
+      t = pig[p00 + 1] + (pig[p10 + 1] - pig[p00 + 1]) * tx; u = pig[p01 + 1] + (pig[p11 + 1] - pig[p01 + 1]) * tx;
+      pG[X] = t + (u - t) * ty;
+      t = pig[p00 + 2] + (pig[p10 + 2] - pig[p00 + 2]) * tx; u = pig[p01 + 2] + (pig[p11 + 2] - pig[p01 + 2]) * tx;
+      pB[X] = t + (u - t) * ty;
+    }
+    for (let x = 0; x < width; x++) {
       // Paper grain: pigment settles into the valleys.
-      const grain = sample(fine, x) * 0.4 + sample(coarse, x) * 0.6;
-      const settle = (1 + (0.5 - grain) * 2 * granulation) * lerpGrid(wash, r0, r1, a, b, fx, fy);
+      const grain = grainRow[x];
+      const settle = (1 + (0.5 - grain) * 2 * granulation) * washs[x];
       const tooth = 1 - (0.5 - grain) * 0.06;
-
-      const i = (y * width + x) * 4;
-      const inkAmt = pen ? (pen[y * width + x] / 255) * (grain > 0.3 ? 1 : 0.4) : 0;
-      for (let c = 0; c < 3; c++) {
-        const top = pig[p00 + c] + (pig[p10 + c] - pig[p00 + c]) * tx;
-        const bot = pig[p01 + c] + (pig[p11 + c] - pig[p01 + c]) * tx;
-        let p = (top + (bot - top) * ty) * settle;
-        p = p < 0 ? 0 : p > 1 ? 1 : p;
-        const v = paper[c] * (1 - p) * tooth;
-        outputData[i + c] = v + (INK[c] - v) * inkAmt * 0.85;
+      const X = x >> pShift;
+      let pr = pR[X] * settle, pg = pG[X] * settle, pb = pB[X] * settle;
+      pr = pr < 0 ? 0 : pr > 1 ? 1 : pr;
+      pg = pg < 0 ? 0 : pg > 1 ? 1 : pg;
+      pb = pb < 0 ? 0 : pb > 1 ? 1 : pb;
+      let vr = p0 * (1 - pr) * tooth, vg = p1 * (1 - pg) * tooth, vb = p2 * (1 - pb) * tooth;
+      if (pen !== null) {
+        const ink = (pen[yo + x] / 255) * (grain > 0.3 ? 1 : 0.4) * 0.85;
+        vr += (INK[0] - vr) * ink; vg += (INK[1] - vg) * ink; vb += (INK[2] - vb) * ink;
       }
-      outputData[i + 3] = 255;
+      out32[yo + x] = 0xff000000 | (clamp8(vb) << 16) | (clamp8(vg) << 8) | clamp8(vr);
     }
   }
 }
 
-// Bilinear read of a low-res grid given precomputed row/column taps.
-function lerpGrid(G, r0, r1, a, b, fx, fy) {
-  const t = G[r0 + a] + (G[r0 + b] - G[r0 + a]) * fx;
-  return t + (G[r1 + a] + (G[r1 + b] - G[r1 + a]) * fx - t) * fy;
+// Uint8ClampedArray store semantics (round, clamp) for a packed write.
+function clamp8(v) {
+  return v <= 0 ? 0 : v >= 255 ? 255 : (v + 0.5) | 0;
 }
 
-// Kuwahara (4 quadrants, lowest colour variance wins) over RGB planes using
-// summed-area tables. Returns interleaved RGB (0..255).
-function kuwahara({ r, g, b }, w, h, radius) {
-  const W = w + 1;
-  const size = W * (h + 1);
-  const sr = new Float64Array(size), sg = new Float64Array(size), sb = new Float64Array(size);
-  const sr2 = new Float64Array(size), sg2 = new Float64Array(size), sb2 = new Float64Array(size);
-  for (let y = 1; y <= h; y++) {
-    let rr = 0, rg = 0, rb = 0, rr2 = 0, rg2 = 0, rb2 = 0;
-    for (let x = 1; x <= w; x++) {
-      const si = (y - 1) * w + x - 1;
-      const vr = r[si], vg = g[si], vb = b[si];
-      rr += vr; rr2 += vr * vr;
-      rg += vg; rg2 += vg * vg;
-      rb += vb; rb2 += vb * vb;
-      const i = y * W + x, up = i - W;
-      sr[i] = sr[up] + rr; sg[i] = sg[up] + rg; sb[i] = sb[up] + rb;
-      sr2[i] = sr2[up] + rr2; sg2[i] = sg2[up] + rg2; sb2[i] = sb2[up] + rb2;
+// Block-average RGB down to fit maxSize (like downsampleImage, without the
+// luminance plane); large blocks read every other pixel of every other row.
+function downsampleRGB(imageData, width, height, maxSize) {
+  const { w, h } = fitSize(width, height, maxSize);
+  const n = w * h;
+  const r = new Float32Array(n), g = new Float32Array(n), b = new Float32Array(n), count = new Float32Array(n);
+  const step = Math.min(width / w, height / h) >= 3 ? 2 : 1;
+  const colOf = new Int32Array(width);
+  for (let x = 0; x < width; x++) colOf[x] = Math.min(w - 1, Math.floor((x * w) / width));
+  for (let y = 0; y < height; y += step) {
+    const rowBase = Math.min(h - 1, Math.floor((y * h) / height)) * w;
+    for (let x = 0, i = y * width * 4; x < width; x += step, i += 4 * step) {
+      const c = rowBase + colOf[x];
+      r[c] += imageData[i]; g[c] += imageData[i + 1]; b[c] += imageData[i + 2];
+      count[c]++;
     }
   }
+  for (let c = 0; c < n; c++) {
+    const inv = count[c] > 0 ? 1 / count[c] : 0;
+    r[c] *= inv; g[c] *= inv; b[c] *= inv;
+  }
+  return { r, g, b, w, h };
+}
+
+// Kuwahara over RGB planes. Each quadrant's mean and variance comes from
+// running sums of R, G, B and R² + G² + B² (only the summed variance is
+// compared): per-column sums over the rows above (colTop, rows y-radius..y)
+// and below (colBot, rows y..y+radius) slide down one row at a time, and their
+// per-row prefix sums give any column span in 2 lookups. Returns interleaved
+// RGB means (0..255).
+function kuwahara(R, G, B, w, h, radius) {
+  const colTop = new Float64Array(w * 4), colBot = new Float64Array(w * 4);
+  // The top span of row y (rows y-radius..y) is the bottom span of row
+  // y-radius, so bottom prefix rows are kept in a ring and reused; only the
+  // first rows (whose top span is clipped) need their own top sums.
+  const ring = Array.from({ length: radius + 1 }, () => new Float64Array((w + 1) * 4));
+  const preClip = new Float64Array((w + 1) * 4);
+  const addRow = (col, y, sign) => {
+    for (let x = 0, si = y * w, ci = 0; x < w; x++, si++, ci += 4) {
+      const r = R[si], g = G[si], b = B[si];
+      col[ci] += sign * r; col[ci + 1] += sign * g; col[ci + 2] += sign * b;
+      col[ci + 3] += sign * (r * r + g * g + b * b);
+    }
+  };
+  const prefix = (col, pre) => {
+    for (let ci = 0; ci < w * 4; ci++) pre[ci + 4] = pre[ci] + col[ci];
+  };
+  for (let y = 0; y <= Math.min(h - 1, radius); y++) addRow(colBot, y, 1);
+  const invN = new Float64Array((radius + 1) * (radius + 1) + 1);
+  for (let n = 1; n < invN.length; n++) invN[n] = 1 / n;
+
   const out = new Float32Array(w * h * 3);
   for (let y = 0; y < h; y++) {
+    const ya = Math.max(0, y - radius), yb = Math.min(h - 1, y + radius);
+    if (y > 0) {
+      addRow(colBot, y - 1, -1);
+      if (y + radius < h) addRow(colBot, y + radius, 1);
+    }
+    const preBot = ring[y % (radius + 1)];
+    prefix(colBot, preBot);
+    let preTop;
+    if (y >= radius) {
+      preTop = ring[(y - radius) % (radius + 1)];
+    } else {
+      addRow(colTop, y, 1);
+      prefix(colTop, preClip);
+      preTop = preClip;
+    }
+    const rowsTop = y - ya + 1, rowsBot = yb - y + 1;
+
     for (let x = 0; x < w; x++) {
-      let best = Infinity;
+      const xa = x - radius < 0 ? 0 : x - radius, xb = x + radius > w - 1 ? w - 1 : x + radius;
+      // Column spans: left = xa..x, right = x..xb (both include the centre).
+      const la = (x + 1) * 4, lc = xa * 4, ra = (xb + 1) * 4, rc = x * 4;
+      const nl = x - xa + 1, nr = xb - x + 1;
+      // Quadrants in order: top-left, top-right, bottom-left, bottom-right
+      // (ties keep the earlier one).
+      let inv = invN[nl * rowsTop];
+      let mr = (preTop[la] - preTop[lc]) * inv, mg = (preTop[la + 1] - preTop[lc + 1]) * inv, mb = (preTop[la + 2] - preTop[lc + 2]) * inv;
+      let best = (preTop[la + 3] - preTop[lc + 3]) * inv - mr * mr - mg * mg - mb * mb;
+      let bmr = mr, bmg = mg, bmb = mb, v;
+      inv = invN[nr * rowsTop];
+      mr = (preTop[ra] - preTop[rc]) * inv; mg = (preTop[ra + 1] - preTop[rc + 1]) * inv; mb = (preTop[ra + 2] - preTop[rc + 2]) * inv;
+      v = (preTop[ra + 3] - preTop[rc + 3]) * inv - mr * mr - mg * mg - mb * mb;
+      if (v < best) { best = v; bmr = mr; bmg = mg; bmb = mb; }
+      inv = invN[nl * rowsBot];
+      mr = (preBot[la] - preBot[lc]) * inv; mg = (preBot[la + 1] - preBot[lc + 1]) * inv; mb = (preBot[la + 2] - preBot[lc + 2]) * inv;
+      v = (preBot[la + 3] - preBot[lc + 3]) * inv - mr * mr - mg * mg - mb * mb;
+      if (v < best) { best = v; bmr = mr; bmg = mg; bmb = mb; }
+      inv = invN[nr * rowsBot];
+      mr = (preBot[ra] - preBot[rc]) * inv; mg = (preBot[ra + 1] - preBot[rc + 1]) * inv; mb = (preBot[ra + 2] - preBot[rc + 2]) * inv;
+      v = (preBot[ra + 3] - preBot[rc + 3]) * inv - mr * mr - mg * mg - mb * mb;
+      if (v < best) { bmr = mr; bmg = mg; bmb = mb; }
       const o = (y * w + x) * 3;
-      for (let q = 0; q < 4; q++) {
-        // Quadrants: left/right half × top/bottom half, each sharing the centre pixel.
-        const x0 = q & 1 ? x : Math.max(0, x - radius), x1 = q & 1 ? Math.min(w - 1, x + radius) : x;
-        const y0 = q & 2 ? y : Math.max(0, y - radius), y1 = q & 2 ? Math.min(h - 1, y + radius) : y;
-        const inv = 1 / ((x1 - x0 + 1) * (y1 - y0 + 1));
-        const i11 = (y1 + 1) * W + x1 + 1, i01 = y0 * W + x1 + 1, i10 = (y1 + 1) * W + x0, i00 = y0 * W + x0;
-        const mr = (sr[i11] - sr[i01] - sr[i10] + sr[i00]) * inv;
-        const mg = (sg[i11] - sg[i01] - sg[i10] + sg[i00]) * inv;
-        const mb = (sb[i11] - sb[i01] - sb[i10] + sb[i00]) * inv;
-        const variance = (sr2[i11] - sr2[i01] - sr2[i10] + sr2[i00]) * inv - mr * mr
-          + (sg2[i11] - sg2[i01] - sg2[i10] + sg2[i00]) * inv - mg * mg
-          + (sb2[i11] - sb2[i01] - sb2[i10] + sb2[i00]) * inv - mb * mb;
-        if (variance < best) { best = variance; out[o] = mr; out[o + 1] = mg; out[o + 2] = mb; }
-      }
+      out[o] = bmr; out[o + 1] = bmg; out[o + 2] = bmb;
     }
   }
   return out;

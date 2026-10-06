@@ -4,6 +4,7 @@
 //
 //   npm run bench -- --split=train --save=bench/baseline-train.json   record hashes + timings
 //   npm run bench -- --split=test --check=bench/baseline-test.json    compare against them
+//   npm run bench -- --split=test --out=review/before                 also save each render as JPEG
 //
 // Every case is (renderer, image, seed). The pixel hash must match the golden
 // file exactly (same seed => same output); the time is the fastest of --reps runs.
@@ -11,7 +12,7 @@
 // shows up on the train cases is a sign of overfitting to them.
 
 import { createHash } from 'crypto';
-import { readFile, writeFile } from 'fs/promises';
+import { mkdir, readFile, writeFile } from 'fs/promises';
 
 const { createCanvas, loadImage, ImageData } = await import('canvas');
 globalThis.ImageData = ImageData;
@@ -34,7 +35,7 @@ const SPLITS = {
 };
 
 function parseArgs() {
-  const options = { split: 'train', reps: 3, renderers: null, save: null, check: null };
+  const options = { split: 'train', reps: 3, renderers: null, save: null, check: null, out: null };
   for (const arg of process.argv.slice(2)) {
     const [key, value] = arg.replace(/^--/, '').split('=');
     if (key === 'split') options.split = value;
@@ -42,6 +43,7 @@ function parseArgs() {
     else if (key === 'renderer') options.renderers = value.split(',');
     else if (key === 'save') options.save = value;
     else if (key === 'check') options.check = value;
+    else if (key === 'out') options.out = value;
   }
   if (!SPLITS[options.split]) throw new Error(`Unknown split: ${options.split}`);
   return options;
@@ -67,6 +69,7 @@ async function run() {
   const names = options.renderers ?? getRendererNames();
   const golden = options.check ? JSON.parse(await readFile(options.check, 'utf8')) : null;
   const sources = await Promise.all(images.map(loadSource));
+  if (options.out) await mkdir(options.out, { recursive: true });
 
   const results = {};
   let mismatches = 0;
@@ -86,7 +89,12 @@ async function run() {
           const start = performance.now();
           await renderToCanvas(name, { canvas, image, seed });
           best = Math.min(best, performance.now() - start);
-          hash ??= hashCanvas(canvas);
+          if (rep === 0) {
+            hash = hashCanvas(canvas);
+            if (options.out) {
+              await writeFile(`${options.out}/${name}__${label}__${seed}.jpg`, canvas.toBuffer('image/jpeg', { quality: 0.92 }));
+            }
+          }
         }
         results[key] = { ms: Math.round(best * 10) / 10, hash };
         rendererMs += best;

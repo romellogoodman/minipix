@@ -1,7 +1,7 @@
-import { randomNumber } from "../utils.js";
+import { randInt } from "../utils.js";
 
 export default function posterize({ imageData, config, random, outputData }) {
-  const levels = randomNumber(config.levels.min, config.levels.max, random);
+  const levels = randInt(config.levels, random);
 
   // Endpoint-preserving quantization via 256-entry LUT.
   const lut = new Uint8Array(256);
