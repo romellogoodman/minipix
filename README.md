@@ -7,7 +7,7 @@ Try it at [minipix.romellogoodman.com](https://minipix.romellogoodman.com).
 ## Features
 
 - Single-canvas studio: pick a source, a renderer, and a seed, and see one large output
-- 37 rendering algorithms, grouped and described in the renderer picker
+- 62 rendering algorithms, grouped and described in the renderer picker
 - Seeded randomness for reproducible artwork, with a "lock seed" toggle
 - Per-renderer parameter sliders: leave a parameter on auto or pin it to a value
 - A filmstrip of your 12 most recent variations to step back through
@@ -157,6 +157,43 @@ When `--count` is greater than 1 with a fixed `--seed`, each image uses
 - `photocopy` - High-contrast photocopy effect
 - `sketch` - Pencil drawing with edge detection and hatching
 
+**Ported from [Shaders](https://github.com/shader-effects-inc/shaders)** (CPU, seeded re-implementations of its WebGPU image effects)
+
+*Blur*
+- `angularBlur` - Rotational blur around a random centre
+- `bokehBlur` - Lens defocus with highlights blooming into bladed or novelty aperture shapes
+- `channelBlur` - Different blur radius (and offset) per RGB channel
+- `diffuseBlur` - Scatters pixels a short random distance into sandy grain
+- `tiltShift` - Sharp focus band with blur rising away from it, one- or two-sided
+
+*Distort*
+- `bulge` - Magnify, pinch, or wrap onto a glossy sphere
+- `concentricSpin` - Concentric rings, each rotated by its own angle
+- `flutedGlass` - Refraction through vertical or angled reeded glass
+- `glassTiles` - Pressed-glass blocks that refract, shrink, or magnify their patch
+- `lensDistortion` - Barrel or pincushion warp split into rainbow layers
+- `mirror` - Reflection across one or two lines through a random point
+- `polar` - Tiny-planet rosette, or rings unrolled into a strip
+
+*Glitch*
+- `barShift` - Angled bars sliding along their length, some with split colour
+- `chromaticAberration` - Directional or radial RGB separation
+- `compression` - Real 8×8 DCT JPEG quantization with chroma bleed and re-saved grids
+- `dataMosh` - Codec macroblocks dragging their pixels in streaks
+
+*Drawn & painted*
+- `chalkboard` - Chalk outlines and cross-hatching on a blackboard
+- `contourLines` - Topographic iso-lines of brightness
+- `emboss` - Relief lighting over colour, metal plate, or carved stone
+- `engraving` - Copper-plate lines that swell with darkness (plate, cross-hatch, or spiral)
+- `watercolor` - Kuwahara washes with edge darkening, granulation, and paper grain
+
+*Colour*
+- `glow` - Highlight bloom, sometimes with star glints
+- `gradientMap` - Luminance mapped through a 3–5 stop gradient in OKLab
+- `paperPrint` - Aged analog print on fibrous paper with split toning and foxing
+- `solarize` - Darkroom solarization, per channel or hue-rotated
+
 #### Performance Tips
 
 - Use `--format=jpeg` for ~5-10x faster file writing
@@ -173,3 +210,7 @@ Each canvas uses a unique random seed that controls all randomization within the
 ## License
 
 [MIT](LICENSE)
+
+The renderers in the "Ported from Shaders" list above are adapted from
+[shader-effects-inc/shaders](https://github.com/shader-effects-inc/shaders)
+(MIT, © 2026 Shader Effects Inc.).

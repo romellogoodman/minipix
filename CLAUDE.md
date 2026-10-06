@@ -100,9 +100,12 @@ variants halftoneBayer, halftoneClassicDots, halftoneFloydSteinberg, halftoneLin
 lightLeak, lowPoly, pixelated, radialBlur, scooch, smear, stacked, stackedCircle,
 subdivision.
 
-**Worker-based (async) renderers** in `src/workers/renderers/`: crt, dither, duotone,
-filmGrain, melt, motionMask, neonEdge, oilPaint, photocopy, pixelSort, posterize, ripple,
-risograph, sketch, spiral, velocityBlur, vhs, waves. The browser-facing wrappers are
+**Worker-based (async) renderers** in `src/workers/renderers/`: angularBlur, barShift,
+bokehBlur, bulge, chalkboard, channelBlur, chromaticAberration, compression, concentricSpin,
+contourLines, crt, dataMosh, diffuseBlur, dither, duotone, emboss, engraving, filmGrain,
+flutedGlass, glassTiles, glow, gradientMap, lensDistortion, melt, mirror, motionMask, neonEdge,
+oilPaint, paperPrint, photocopy, pixelSort, polar, posterize, ripple, risograph, sketch,
+solarize, spiral, tiltShift, velocityBlur, vhs, watercolor, waves. The browser-facing wrappers are
 created in `src/renderers/index.js` via `createWorkerRenderer(name)`.
 
 **"Motion"-inspired renderers** (after Maxime Heckel's *Shading Motion*) treat the still
@@ -111,6 +114,13 @@ field as a stand-in for optical flow, `motionMask` frame-differences the image a
 shifted copies of itself, and `velocityBlur`/`smear`/`echo` blur or stack the image along
 synthetic velocity trajectories (`velocityBlur`'s "blobs" mode uses `findBlobs` to pick
 moving regions).
+
+**Ports from shader-effects-inc/shaders** (MIT, WebGPU) re-implement that library's
+image effects as CPU pixel loops with seeded parameters: the blurs (angularBlur, bokehBlur,
+channelBlur, tiltShift, diffuseBlur), distortions (bulge, concentricSpin, polar, mirror,
+flutedGlass, glassTiles, lensDistortion, chromaticAberration, barShift, dataMosh), drawn looks
+(engraving, contourLines, chalkboard, watercolor, emboss) and colour treatments (compression,
+glow, solarize, gradientMap, paperPrint).
 
 **Renderer Configuration (`src/renderers/config.js`):**
 - `rendererConfig` has one entry per renderer; its keys define the random selection pool
