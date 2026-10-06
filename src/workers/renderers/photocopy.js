@@ -23,12 +23,12 @@ export default function photocopy({ imageData, width, height, config, random, ou
     for (let x = 0; x < width; x++) {
       let minLum = rowLum[x];
       for (let s = 1; s <= smear; s++) {
-        const l = rowLum[Math.max(0, x - s)];
-        if (l < minLum) minLum = l;
+        minLum = Math.min(minLum, rowLum[x > s ? x - s : 0]);
       }
 
       const jittered = minLum + (random() - 0.5) * effNoise;
-      let v = jittered > effThreshold ? 255 : 0;
+      // Branch-free: the comparison is noise-driven and would mispredict often.
+      let v = (jittered > effThreshold) * 255;
       if (random() < tonerSpeckle) v = 0;
       if (inBand) v = Math.min(255, v + 200);
 

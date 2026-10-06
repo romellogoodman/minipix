@@ -65,16 +65,24 @@ export default function angularBlur({ imageData, width, height, config, random, 
     const base = r * nA * 3;
     for (let pass = 0; pass < 3; pass++) {
       for (let i = 0; i < nA * 3; i++) row[i] = polar[base + i];
-      for (let c = 0; c < 3; c++) {
-        // Running sum around the ring (indices wrap).
-        let sum = 0;
-        for (let k = -boxR; k <= boxR; k++) sum += row[(((k % nA) + nA) % nA) * 3 + c];
-        for (let a = 0; a < nA; a++) {
-          polar[base + a * 3 + c] = sum * inv;
-          const add = (a + boxR + 1) % nA;
-          const sub = (((a - boxR) % nA) + nA) % nA;
-          sum += row[add * 3 + c] - row[sub * 3 + c];
-        }
+      // Running sums around the ring (indices wrap).
+      let sr = 0, sg = 0, sb = 0;
+      for (let k = -boxR; k <= boxR; k++) {
+        const j = (((k % nA) + nA) % nA) * 3;
+        sr += row[j]; sg += row[j + 1]; sb += row[j + 2];
+      }
+      let add = (boxR + 1) % nA;
+      let sub = ((-boxR % nA) + nA) % nA;
+      for (let a = 0, o = base; a < nA; a++, o += 3) {
+        polar[o] = sr * inv;
+        polar[o + 1] = sg * inv;
+        polar[o + 2] = sb * inv;
+        const ai = add * 3, si = sub * 3;
+        sr += row[ai] - row[si];
+        sg += row[ai + 1] - row[si + 1];
+        sb += row[ai + 2] - row[si + 2];
+        if (++add === nA) add = 0;
+        if (++sub === nA) sub = 0;
       }
     }
   }

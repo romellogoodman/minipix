@@ -1,0 +1,24 @@
+#!/bin/sh
+# Fails the commit if a renderer's output changed: re-renders the train split
+# once and compares pixel hashes with bench/baseline-train.json. Only runs when
+# staged files can affect rendering. Skip with `git commit --no-verify`.
+#
+# An intentional visual change: re-record the baseline in the same commit with
+#   npm run bench -- --split=train --save=bench/baseline-train.json
+
+if ! git diff --cached --name-only | grep -qE '^(src/renderers/|src/workers/|src/utils/(math|image|noise|field|canvas|index)\.js|scripts/(bench|cli-renderers)\.js|bench/)'; then
+  exit 0
+fi
+
+if ! node -e "import('canvas')" 2>/dev/null; then
+  echo "pre-commit: skipping the renderer hash check (the optional 'canvas' package isn't installed)"
+  exit 0
+fi
+
+echo "pre-commit: renderer files changed, checking output hashes (~35s)..."
+if ! node scripts/bench.js --split=train --reps=1 --check=bench/baseline-train.json > /tmp/minipix-precommit.log 2>&1; then
+  grep -E "MISMATCH|Error" /tmp/minipix-precommit.log
+  echo "pre-commit: renderer output changed (full log: /tmp/minipix-precommit.log)"
+  exit 1
+fi
+echo "pre-commit: all renderer hashes match"

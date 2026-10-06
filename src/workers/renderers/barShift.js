@@ -56,6 +56,9 @@ export default function barShift({ imageData, width, height, config, random, out
     lut[i] = b;
   }
 
+  const maxX = width - 1;
+  const maxY = height - 1;
+  const rowStride = width * 4;
   for (let y = 0; y < height; y++) {
     const dy = y - cy;
     for (let x = 0; x < width; x++) {
@@ -69,14 +72,55 @@ export default function barShift({ imageData, width, height, config, random, out
       const o = (y * width + x) * 4;
       const sp = splitR[b];
       if (sp === 0) {
-        sampleBilinear(imageData, width, height, sx, sy, outputData, o);
+        // Bilinear RGB sample with mirrored edges, inlined (the call didn't
+        // inline in this loop).
+        let mx = sx;
+        let my = sy;
+        if (mx < 0) mx = -mx;
+        if (mx > maxX) mx = Math.max(0, 2 * maxX - mx);
+        if (my < 0) my = -my;
+        if (my > maxY) my = Math.max(0, 2 * maxY - my);
+        const x0 = mx | 0;
+        const y0 = my | 0;
+        const fx = mx - x0;
+        const fy = my - y0;
+        const i00 = (y0 * width + x0) * 4;
+        const i10 = x0 < maxX ? i00 + 4 : i00;
+        const i01 = y0 < maxY ? i00 + rowStride : i00;
+        const i11 = x0 < maxX ? i01 + 4 : i01;
+        for (let c = 0; c < 3; c++) {
+          const a = imageData[i00 + c];
+          const b = imageData[i01 + c];
+          const top = a + (imageData[i10 + c] - a) * fx;
+          const bot = b + (imageData[i11 + c] - b) * fx;
+          outputData[o + c] = top + (bot - top) * fy;
+        }
       } else {
         const g = b * 3;
         const ox = -sinA * sp;
         const oy = cosA * sp;
-        outputData[o] = sample1(imageData, width, height, sx + ox, sy + oy, 0) * gain[g];
-        outputData[o + 1] = sample1(imageData, width, height, sx, sy, 1) * gain[g + 1];
-        outputData[o + 2] = sample1(imageData, width, height, sx - ox, sy - oy, 2) * gain[g + 2];
+        // Red, green and blue each sample their own offset point.
+        for (let c = 0; c < 3; c++) {
+          let mx = c === 1 ? sx : c === 0 ? sx + ox : sx - ox;
+          let my = c === 1 ? sy : c === 0 ? sy + oy : sy - oy;
+          if (mx < 0) mx = -mx;
+          if (mx > maxX) mx = Math.max(0, 2 * maxX - mx);
+          if (my < 0) my = -my;
+          if (my > maxY) my = Math.max(0, 2 * maxY - my);
+          const x0 = mx | 0;
+          const y0 = my | 0;
+          const fx = mx - x0;
+          const fy = my - y0;
+          const i00 = (y0 * width + x0) * 4 + c;
+          const i10 = x0 < maxX ? i00 + 4 : i00;
+          const i01 = y0 < maxY ? i00 + rowStride : i00;
+          const i11 = x0 < maxX ? i01 + 4 : i01;
+          const a = imageData[i00];
+          const b = imageData[i01];
+          const top = a + (imageData[i10] - a) * fx;
+          const bot = b + (imageData[i11] - b) * fx;
+          outputData[o + c] = (top + (bot - top) * fy) * gain[g + c];
+        }
       }
       outputData[o + 3] = 255;
     }
@@ -89,54 +133,4 @@ function hash(i, seed, salt) {
   h = Math.imul(h ^ (h >>> 16), 0x7feb352d);
   h = Math.imul(h ^ (h >>> 15), 0x846ca68b);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
-
-function mirror(v, max) {
-  if (v < 0) v = -v;
-  if (v > max) v = Math.max(0, 2 * max - v);
-  return v;
-}
-
-// Bilinear RGB sample with mirrored edges, written to dst[o..o+2].
-function sampleBilinear(src, width, height, x, y, dst, o) {
-  const maxX = width - 1;
-  const maxY = height - 1;
-  x = mirror(x, maxX);
-  y = mirror(y, maxY);
-  const x0 = x | 0;
-  const y0 = y | 0;
-  const fx = x - x0;
-  const fy = y - y0;
-  const i00 = (y0 * width + x0) * 4;
-  const i10 = x0 < maxX ? i00 + 4 : i00;
-  const i01 = y0 < maxY ? i00 + width * 4 : i00;
-  const i11 = x0 < maxX ? i01 + 4 : i01;
-  for (let c = 0; c < 3; c++) {
-    const a = src[i00 + c];
-    const b = src[i01 + c];
-    const top = a + (src[i10 + c] - a) * fx;
-    const bot = b + (src[i11 + c] - b) * fx;
-    dst[o + c] = top + (bot - top) * fy;
-  }
-}
-
-// Bilinear sample of one channel with mirrored edges.
-function sample1(src, width, height, x, y, c) {
-  const maxX = width - 1;
-  const maxY = height - 1;
-  x = mirror(x, maxX);
-  y = mirror(y, maxY);
-  const x0 = x | 0;
-  const y0 = y | 0;
-  const fx = x - x0;
-  const fy = y - y0;
-  const i00 = (y0 * width + x0) * 4 + c;
-  const i10 = x0 < maxX ? i00 + 4 : i00;
-  const i01 = y0 < maxY ? i00 + width * 4 : i00;
-  const i11 = x0 < maxX ? i01 + 4 : i01;
-  const a = src[i00];
-  const b = src[i01];
-  const top = a + (src[i10] - a) * fx;
-  const bot = b + (src[i11] - b) * fx;
-  return top + (bot - top) * fy;
 }

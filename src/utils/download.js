@@ -1,4 +1,5 @@
-// Seed hashes, filenames, and saving/copying canvases. Browser only.
+// Seed hashes and filenames (pure; the CLI uses them too), plus saving and
+// copying canvases (browser only).
 
 // Base36 hash of an unsigned 32-bit seed, zero-padded to 7 characters.
 export function generateSeedHash(seed) {

@@ -1,4 +1,4 @@
-import { randFloat, createNoise2D, fitSize, downsampleImage, computeOrientationField } from "../utils.js";
+import { randFloat, createNoise2D, fitSize, downsampleImage, computeOrientationField, boxBlur } from "../utils.js";
 
 const GRID_MAX = 256;
 // [ink, paper] pairs: iron-gall black, sepia, banknote green, navy, oxblood.
@@ -98,6 +98,7 @@ export default function engraving({ imageData, width, height, config, random, ou
   const aa = Math.min(1, Math.max(0.02, TAU / period));
   const reliefScale = relief * 9.42;
   const lookup = style === "spiral" ? [spiralWob] : grids;
+  const spiral = style === "spiral";
 
   for (let y = 0; y < height; y++) {
     const g = Math.max(0, Math.min(gh - 1, (y + 0.5) / cellH - 0.5));
@@ -112,11 +113,11 @@ export default function engraving({ imageData, width, height, config, random, ou
         const top = G[r0 + a] + (G[r0 + b] - G[r0 + a]) * fx;
         const bot = G[r1 + a] + (G[r1 + b] - G[r1 + a]) * fx;
         let cycles = top + (bot - top) * fy;
-        if (style === "spiral") {
+        if (spiral) {
           const dx = x - cx, dy = y - cy;
           cycles += Math.sqrt(dx * dx + dy * dy) / period - Math.atan2(dy, dx) / TAU;
         }
-        const [, , rMul, lDiv] = plates[k];
+        const plate = plates[k], rMul = plate[2], lDiv = plate[3];
         const l = lDiv === 1 ? lv : Math.min(1, lv / lDiv);
         const v = Math.cos(cycles * TAU + reliefScale * rMul * lv);
         // l = 0 → threshold below the wave (solid ink), l = 1 → above it (bare paper).
@@ -172,46 +173,34 @@ function integrate(grid, { theta }, gw, gh, cellW, cellH, rot, nx, ny) {
   for (let gy = 0; gy < gh; gy++) {
     for (let gx = 0; gx < gw; gx++) grid[gy * gw + gx] = (gx + 0.5) * cellW * nx + (gy + 0.5) * cellH * ny;
   }
+  // Edge terms d·(p_j − p_i) for the link to the left / upper neighbour.
+  const ex = new Float64Array(n), ey = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    if (i % gw > 0) ex[i] = (dx[i] + dx[i - 1]) * 0.5 * cellW;
+    if (i >= gw) ey[i] = (dy[i] + dy[i - gw]) * 0.5 * cellH;
+  }
   const omega = 1.85;
+  const relax = (i, gx, gy) => {
+    let sum = 0, cnt = 0;
+    if (gx > 0) { sum += grid[i - 1] + ex[i]; cnt++; }
+    if (gx < gw - 1) { sum += grid[i + 1] - ex[i + 1]; cnt++; }
+    if (gy > 0) { sum += grid[i - gw] + ey[i]; cnt++; }
+    if (gy < gh - 1) { sum += grid[i + gw] - ey[i + gw]; cnt++; }
+    grid[i] += omega * (sum / cnt - grid[i]);
+  };
   for (let iter = 0; iter < 300; iter++) {
     for (let gy = 0; gy < gh; gy++) {
-      for (let gx = 0; gx < gw; gx++) {
-        const i = gy * gw + gx;
-        let sum = 0, cnt = 0;
-        if (gx > 0) { sum += grid[i - 1] + (dx[i] + dx[i - 1]) * 0.5 * cellW; cnt++; }
-        if (gx < gw - 1) { sum += grid[i + 1] - (dx[i] + dx[i + 1]) * 0.5 * cellW; cnt++; }
-        if (gy > 0) { sum += grid[i - gw] + (dy[i] + dy[i - gw]) * 0.5 * cellH; cnt++; }
-        if (gy < gh - 1) { sum += grid[i + gw] - (dy[i] + dy[i + gw]) * 0.5 * cellH; cnt++; }
-        grid[i] += omega * (sum / cnt - grid[i]);
+      const row = gy * gw;
+      if (gy === 0 || gy === gh - 1 || gw < 3) {
+        for (let gx = 0; gx < gw; gx++) relax(row + gx, gx, gy);
+        continue;
       }
-    }
-  }
-}
-
-// In-place separable box blur with running sums and clamped edges.
-function boxBlur(a, w, h, r, tmp) {
-  if (r < 1) return;
-  const inv = 1 / (2 * r + 1);
-  for (let y = 0; y < h; y++) {
-    const o = y * w;
-    let s = a[o] * (r + 1);
-    for (let i = 1; i <= r; i++) s += a[o + Math.min(i, w - 1)];
-    for (let x = 0; x < w; x++) {
-      tmp[o + x] = s * inv;
-      s += a[o + Math.min(x + r + 1, w - 1)] - a[o + Math.max(x - r, 0)];
-    }
-  }
-  const acc = new Float64Array(w);
-  for (let x = 0; x < w; x++) {
-    let s = tmp[x] * (r + 1);
-    for (let i = 1; i <= r; i++) s += tmp[Math.min(i, h - 1) * w + x];
-    acc[x] = s;
-  }
-  for (let y = 0; y < h; y++) {
-    const o = y * w, add = Math.min(y + r + 1, h - 1) * w, sub = Math.max(y - r, 0) * w;
-    for (let x = 0; x < w; x++) {
-      a[o + x] = acc[x] * inv;
-      acc[x] += tmp[add + x] - tmp[sub + x];
+      relax(row, 0, gy);
+      for (let i = row + 1, end = row + gw - 1; i < end; i++) {
+        const sum = grid[i - 1] + ex[i] + (grid[i + 1] - ex[i + 1]) + (grid[i - gw] + ey[i]) + (grid[i + gw] - ey[i + gw]);
+        grid[i] += omega * (sum / 4 - grid[i]);
+      }
+      relax(row + gw - 1, gw - 1, gy);
     }
   }
 }

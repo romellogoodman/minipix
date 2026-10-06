@@ -4,7 +4,7 @@ import { generateSeedHash, buildFilename, parseSeed } from "./download.js";
 // Every renderer, in config order.
 export const ALL_RENDERERS = Object.keys(rendererConfig);
 
-export const randomSeed = () => Math.floor(Math.random() * 0xffffffff);
+export const randomSeed = () => Math.floor(Math.random() * 0x100000000);
 
 const param = (name) => new URLSearchParams(window.location.search).get(name);
 

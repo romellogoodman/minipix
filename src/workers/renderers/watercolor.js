@@ -1,4 +1,4 @@
-import { randFloat, createNoise2D, fitSize, downsampleImage } from "../utils.js";
+import { randFloat, createNoise2D, fitSize, downsampleImage, boxBlur } from "../utils.js";
 
 const WORK_MAX = 1024;
 const GRID_MAX = 256;
@@ -112,17 +112,37 @@ export default function watercolor({ imageData, width, height, config, random, o
     q = Math.imul(q ^ (q >>> 13), 1274126177);
     return ((q ^ (q >>> 16)) >>> 0) / 4294967296;
   };
-  const vnoise = (x, y) => {
-    const ix = Math.floor(x), iy = Math.floor(y);
-    const fx = x - ix, fy = y - iy;
-    const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
-    const a = hash(ix, iy), b = hash(ix + 1, iy), c = hash(ix, iy + 1), d = hash(ix + 1, iy + 1);
+  const grainScale = 1 / Math.max(1.2, minDim / 900);
+  // The grain is sampled on an axis-aligned grid (x * grainScale * xs + xo), so its per-column
+  // lattice terms and the per-row hash values are tabulated; the blend is unchanged.
+  const lattice = (xs, xo) => {
+    const ix = new Int32Array(width), ux = new Float64Array(width);
+    for (let x = 0; x < width; x++) {
+      const X = x * grainScale * xs + xo;
+      ix[x] = Math.floor(X);
+      const f = X - ix[x];
+      ux[x] = f * f * (3 - 2 * f);
+    }
+    const span = ix[width - 1] + 2;
+    const L = { ix, ux, uy: 0, row0: new Float64Array(span), row1: new Float64Array(span) };
+    L.setRow = (y) => {
+      const Y = y * grainScale * xs;
+      const iy = Math.floor(Y), fy = Y - iy;
+      L.uy = fy * fy * (3 - 2 * fy);
+      for (let k = ix[0]; k < span; k++) { L.row0[k] = hash(k, iy); L.row1[k] = hash(k, iy + 1); }
+    };
+    return L;
+  };
+  const sample = (L, x) => {
+    const k = L.ix[x], ux = L.ux[x], uy = L.uy;
+    const a = L.row0[k], b = L.row0[k + 1], c = L.row1[k], d = L.row1[k + 1];
     return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
   };
-  const grainScale = 1 / Math.max(1.2, minDim / 900);
+  const fine = lattice(1, 0), coarse = lattice(0.31, 17);
   const sx = w / width, sy = h / height;
 
   for (let y = 0; y < height; y++) {
+    fine.setRow(y); coarse.setRow(y);
     const g = Math.max(0, Math.min(gh - 1, (y + 0.5) / cellH - 0.5));
     const r0 = Math.floor(g) * gw, r1 = Math.min(gh - 1, Math.floor(g) + 1) * gw, fy = g - Math.floor(g);
     for (let x = 0; x < width; x++) {
@@ -136,7 +156,7 @@ export default function watercolor({ imageData, width, height, config, random, o
       const p00 = (iy * w + ix) * 3, p10 = p00 + 3, p01 = p00 + w * 3, p11 = p01 + 3;
 
       // Paper grain: pigment settles into the valleys.
-      const grain = vnoise(x * grainScale, y * grainScale) * 0.4 + vnoise(x * grainScale * 0.31 + 17, y * grainScale * 0.31) * 0.6;
+      const grain = sample(fine, x) * 0.4 + sample(coarse, x) * 0.6;
       const settle = (1 + (0.5 - grain) * 2 * granulation) * lerpGrid(wash, r0, r1, a, b, fx, fy);
       const tooth = 1 - (0.5 - grain) * 0.06;
 
@@ -165,69 +185,42 @@ function lerpGrid(G, r0, r1, a, b, fx, fy) {
 // summed-area tables. Returns interleaved RGB (0..255).
 function kuwahara({ r, g, b }, w, h, radius) {
   const W = w + 1;
-  const planes = [r, g, b];
-  const sat = [];
-  for (let c = 0; c < 6; c++) sat.push(new Float64Array(W * (h + 1)));
+  const size = W * (h + 1);
+  const sr = new Float64Array(size), sg = new Float64Array(size), sb = new Float64Array(size);
+  const sr2 = new Float64Array(size), sg2 = new Float64Array(size), sb2 = new Float64Array(size);
   for (let y = 1; y <= h; y++) {
-    const row = [0, 0, 0, 0, 0, 0];
+    let rr = 0, rg = 0, rb = 0, rr2 = 0, rg2 = 0, rb2 = 0;
     for (let x = 1; x <= w; x++) {
       const si = (y - 1) * w + x - 1;
-      for (let c = 0; c < 3; c++) {
-        const v = planes[c][si];
-        row[c] += v; row[c + 3] += v * v;
-      }
+      const vr = r[si], vg = g[si], vb = b[si];
+      rr += vr; rr2 += vr * vr;
+      rg += vg; rg2 += vg * vg;
+      rb += vb; rb2 += vb * vb;
       const i = y * W + x, up = i - W;
-      for (let c = 0; c < 6; c++) sat[c][i] = sat[c][up] + row[c];
+      sr[i] = sr[up] + rr; sg[i] = sg[up] + rg; sb[i] = sb[up] + rb;
+      sr2[i] = sr2[up] + rr2; sg2[i] = sg2[up] + rg2; sb2[i] = sb2[up] + rb2;
     }
   }
-  const rect = (s, x0, y0, x1, y1) => s[(y1 + 1) * W + x1 + 1] - s[y0 * W + x1 + 1] - s[(y1 + 1) * W + x0] + s[y0 * W + x0];
   const out = new Float32Array(w * h * 3);
-  const quads = [[-radius, 0, -radius, 0], [0, radius, -radius, 0], [-radius, 0, 0, radius], [0, radius, 0, radius]];
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       let best = Infinity;
       const o = (y * w + x) * 3;
       for (let q = 0; q < 4; q++) {
-        const [dx0, dx1, dy0, dy1] = quads[q];
-        const x0 = Math.max(0, x + dx0), x1 = Math.min(w - 1, x + dx1);
-        const y0 = Math.max(0, y + dy0), y1 = Math.min(h - 1, y + dy1);
+        // Quadrants: left/right half × top/bottom half, each sharing the centre pixel.
+        const x0 = q & 1 ? x : Math.max(0, x - radius), x1 = q & 1 ? Math.min(w - 1, x + radius) : x;
+        const y0 = q & 2 ? y : Math.max(0, y - radius), y1 = q & 2 ? Math.min(h - 1, y + radius) : y;
         const inv = 1 / ((x1 - x0 + 1) * (y1 - y0 + 1));
-        const mr = rect(sat[0], x0, y0, x1, y1) * inv;
-        const mg = rect(sat[1], x0, y0, x1, y1) * inv;
-        const mb = rect(sat[2], x0, y0, x1, y1) * inv;
-        const variance = rect(sat[3], x0, y0, x1, y1) * inv - mr * mr
-          + rect(sat[4], x0, y0, x1, y1) * inv - mg * mg
-          + rect(sat[5], x0, y0, x1, y1) * inv - mb * mb;
+        const i11 = (y1 + 1) * W + x1 + 1, i01 = y0 * W + x1 + 1, i10 = (y1 + 1) * W + x0, i00 = y0 * W + x0;
+        const mr = (sr[i11] - sr[i01] - sr[i10] + sr[i00]) * inv;
+        const mg = (sg[i11] - sg[i01] - sg[i10] + sg[i00]) * inv;
+        const mb = (sb[i11] - sb[i01] - sb[i10] + sb[i00]) * inv;
+        const variance = (sr2[i11] - sr2[i01] - sr2[i10] + sr2[i00]) * inv - mr * mr
+          + (sg2[i11] - sg2[i01] - sg2[i10] + sg2[i00]) * inv - mg * mg
+          + (sb2[i11] - sb2[i01] - sb2[i10] + sb2[i00]) * inv - mb * mb;
         if (variance < best) { best = variance; out[o] = mr; out[o + 1] = mg; out[o + 2] = mb; }
       }
     }
   }
   return out;
-}
-
-// In-place separable box blur with running sums and clamped edges.
-function boxBlur(a, w, h, r, tmp) {
-  const inv = 1 / (2 * r + 1);
-  for (let y = 0; y < h; y++) {
-    const o = y * w;
-    let s = a[o] * (r + 1);
-    for (let i = 1; i <= r; i++) s += a[o + Math.min(i, w - 1)];
-    for (let x = 0; x < w; x++) {
-      tmp[o + x] = s * inv;
-      s += a[o + Math.min(x + r + 1, w - 1)] - a[o + Math.max(x - r, 0)];
-    }
-  }
-  const acc = new Float64Array(w);
-  for (let x = 0; x < w; x++) {
-    let s = tmp[x] * (r + 1);
-    for (let i = 1; i <= r; i++) s += tmp[Math.min(i, h - 1) * w + x];
-    acc[x] = s;
-  }
-  for (let y = 0; y < h; y++) {
-    const o = y * w, add = Math.min(y + r + 1, h - 1) * w, sub = Math.max(y - r, 0) * w;
-    for (let x = 0; x < w; x++) {
-      a[o + x] = acc[x] * inv;
-      acc[x] += tmp[add + x] - tmp[sub + x];
-    }
-  }
 }

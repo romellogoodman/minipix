@@ -19,6 +19,12 @@ export default function vhs({ imageData, width, height, config, random, outputDa
 
   const wobblePhase = random() * 10;
   const wrap = (v) => (v < 0 ? v + width : v >= width ? v - width : v);
+  const bleedR = new Int32Array(width);
+  const bleedB = new Int32Array(width);
+  for (let x = 0; x < width; x++) {
+    bleedR[x] = wrap(x + colorBleed);
+    bleedB[x] = wrap(x - colorBleed);
+  }
 
   for (let y = 0; y < height; y++) {
     const wobbleOffset = Math.round(Math.sin(y * 0.1 + wobblePhase) * wobble);
@@ -26,11 +32,11 @@ export default function vhs({ imageData, width, height, config, random, outputDa
     const rowOffset = y * width;
     const scanlineDark = (y & 1) === 0;
 
-    for (let x = 0; x < width; x++) {
+    let srcX = (totalOffset % width + width) % width;
+    for (let x = 0; x < width; x++, srcX = srcX + 1 === width ? 0 : srcX + 1) {
       const dstIdx = (rowOffset + x) * 4;
-      const srcX = wrap(((x + totalOffset) % width + width) % width);
-      const srcXR = wrap(srcX + colorBleed);
-      const srcXB = wrap(srcX - colorBleed);
+      const srcXR = bleedR[srcX];
+      const srcXB = bleedB[srcX];
 
       let r = imageData[(rowOffset + srcXR) * 4];
       let g = imageData[(rowOffset + srcX) * 4 + 1];

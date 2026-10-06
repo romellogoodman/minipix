@@ -9,65 +9,71 @@ export default function oilPaint({ imageData, width, height, config, random, out
   const quantStep = 255 / (levels - 1);
   const invQuantStep = 1 / quantStep;
 
-  // Summed-area tables for R/G/B and R²/G²/B² so each quadrant's mean and
-  // variance is 4 lookups instead of (r+1)² samples.
-  const W = width + 1, H = height + 1;
-  const sat = [
-    new Float64Array(W * H), new Float64Array(W * H), new Float64Array(W * H),
-    new Float64Array(W * H), new Float64Array(W * H), new Float64Array(W * H),
-  ];
-  for (let y = 1; y < H; y++) {
-    let row = [0, 0, 0, 0, 0, 0];
-    for (let x = 1; x < W; x++) {
-      const si = ((y - 1) * width + (x - 1)) * 4;
+  // Each quadrant's mean and variance comes from running sums of R/G/B and
+  // R²/G²/B² (six channels interleaved): per-column sums over the rows above
+  // (colTop, rows y-radius..y) and below (colBot, rows y..y+radius) slide down
+  // one row at a time, and their per-row prefix sums give any column span in
+  // 2 lookups. Every value is an integer well below 2^53, so the sums are exact.
+  const colTop = new Float64Array(width * 6);
+  const colBot = new Float64Array(width * 6);
+  const preTop = new Float64Array((width + 1) * 6);
+  const preBot = new Float64Array((width + 1) * 6);
+  const addRow = (col, y, sign) => {
+    for (let x = 0, si = y * width * 4, ci = 0; x < width; x++, si += 4, ci += 6) {
       const r = imageData[si], g = imageData[si + 1], b = imageData[si + 2];
-      row[0] += r; row[1] += g; row[2] += b;
-      row[3] += r * r; row[4] += g * g; row[5] += b * b;
-      const i = y * W + x, up = (y - 1) * W + x;
-      for (let c = 0; c < 6; c++) sat[c][i] = sat[c][up] + row[c];
+      col[ci] += sign * r; col[ci + 1] += sign * g; col[ci + 2] += sign * b;
+      col[ci + 3] += sign * (r * r); col[ci + 4] += sign * (g * g); col[ci + 5] += sign * (b * b);
     }
-  }
-
-  // Sum over [x0..x1]×[y0..y1] inclusive.
-  const rectSum = (c, x0, y0, x1, y1) => {
-    const s = sat[c];
-    return s[(y1 + 1) * W + x1 + 1] - s[y0 * W + x1 + 1] - s[(y1 + 1) * W + x0] + s[y0 * W + x0];
   };
-
-  const quadrants = [
-    [-radius, 0, -radius, 0],
-    [0, radius, -radius, 0],
-    [-radius, 0, 0, radius],
-    [0, radius, 0, radius],
-  ];
+  const prefix = (col, pre) => {
+    for (let ci = 0; ci < width * 6; ci++) pre[ci + 6] = pre[ci] + col[ci];
+  };
+  for (let y = 0; y <= Math.min(height - 1, radius); y++) addRow(colBot, y, 1);
+  const invN = new Float64Array((radius + 1) * (radius + 1) + 1);
+  for (let n = 1; n < invN.length; n++) invN[n] = 1 / n;
 
   for (let y = 0; y < height; y++) {
+    const ya = Math.max(0, y - radius), yb = Math.min(height - 1, y + radius);
+    addRow(colTop, y, 1);
+    if (y - radius - 1 >= 0) addRow(colTop, y - radius - 1, -1);
+    if (y > 0) {
+      addRow(colBot, y - 1, -1);
+      if (y + radius < height) addRow(colBot, y + radius, 1);
+    }
+    prefix(colTop, preTop);
+    prefix(colBot, preBot);
+    const rowsTop = y - ya + 1, rowsBot = yb - y + 1;
+
     for (let x = 0; x < width; x++) {
+      const xa = Math.max(0, x - radius), xb = Math.min(width - 1, x + radius);
       let minVariance = Infinity;
-      let bestR = 0, bestG = 0, bestB = 0;
+      let meanR = 0, meanG = 0, meanB = 0;
 
+      // Quadrants in order: top-left, top-right, bottom-left, bottom-right.
       for (let q = 0; q < 4; q++) {
-        const [dx0, dx1, dy0, dy1] = quadrants[q];
-        const x0 = Math.max(0, x + dx0), x1 = Math.min(width - 1, x + dx1);
-        const y0 = Math.max(0, y + dy0), y1 = Math.min(height - 1, y + dy1);
-        const n = (x1 - x0 + 1) * (y1 - y0 + 1);
-        const inv = 1 / n;
+        const x0 = q & 1 ? x : xa, x1 = q & 1 ? xb : x;
+        const pre = q & 2 ? preBot : preTop;
+        const n = (x1 - x0 + 1) * (q & 2 ? rowsBot : rowsTop);
+        const inv = invN[n];
+        const a = (x1 + 1) * 6, c = x0 * 6;
 
-        const mR = rectSum(0, x0, y0, x1, y1) * inv;
-        const mG = rectSum(1, x0, y0, x1, y1) * inv;
-        const mB = rectSum(2, x0, y0, x1, y1) * inv;
-        const vR = rectSum(3, x0, y0, x1, y1) * inv - mR * mR;
-        const vG = rectSum(4, x0, y0, x1, y1) * inv - mG * mG;
-        const vB = rectSum(5, x0, y0, x1, y1) * inv - mB * mB;
+        const mR = (pre[a] - pre[c]) * inv;
+        const mG = (pre[a + 1] - pre[c + 1]) * inv;
+        const mB = (pre[a + 2] - pre[c + 2]) * inv;
+        const vR = (pre[a + 3] - pre[c + 3]) * inv - mR * mR;
+        const vG = (pre[a + 4] - pre[c + 4]) * inv - mG * mG;
+        const vB = (pre[a + 5] - pre[c + 5]) * inv - mB * mB;
         const variance = vR + vG + vB;
 
         if (variance < minVariance) {
           minVariance = variance;
-          bestR = Math.round(mR * invQuantStep) * quantStep;
-          bestG = Math.round(mG * invQuantStep) * quantStep;
-          bestB = Math.round(mB * invQuantStep) * quantStep;
+          meanR = mR; meanG = mG; meanB = mB;
         }
       }
+
+      const bestR = Math.round(meanR * invQuantStep) * quantStep;
+      const bestG = Math.round(meanG * invQuantStep) * quantStep;
+      const bestB = Math.round(meanB * invQuantStep) * quantStep;
 
       const lum = 0.299 * bestR + 0.587 * bestG + 0.114 * bestB;
       const di = (y * width + x) * 4;

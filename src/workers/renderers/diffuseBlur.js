@@ -69,8 +69,14 @@ export default function diffuseBlur({ imageData, width, height, config, random, 
         }
       }
       const s = mask[fy + ((x * fsx) | 0)];
-      let sx = Math.round(x + (u * ax + v * bx) * s);
-      let sy = Math.round(y + (u * ay + v * by) * s);
+      // Exactly Math.round, but branch-free: the round-up/down choice is
+      // random per pixel, so a branch here mispredicts half the time.
+      const tx = x + (u * ax + v * bx) * s;
+      const ty = y + (u * ay + v * by) * s;
+      const cx = Math.ceil(tx);
+      const cy = Math.ceil(ty);
+      let sx = cx - (cx - 0.5 > tx);
+      let sy = cy - (cy - 0.5 > ty);
       // Mirror edges (offsets are far smaller than the image).
       if (sx < 0) sx = -sx - 1;
       else if (sx >= width) sx = w2 - sx - 1;

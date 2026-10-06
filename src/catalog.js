@@ -6,49 +6,49 @@ const GROUPS = [
   {
     label: "Glitch",
     names: [
-      "glitch",
-      "pixelSort",
-      "barSwap",
       "barShift",
-      "gridSwap",
-      "scooch",
-      "dataMosh",
-      "compression",
+      "barSwap",
       "chromaticAberration",
-      "vhs",
+      "compression",
       "crt",
+      "dataMosh",
+      "glitch",
+      "gridSwap",
       "melt",
+      "pixelSort",
+      "scooch",
+      "vhs",
     ],
   },
   {
     label: "Print & dither",
     names: [
-      "halftone",
-      "dither",
-      "risograph",
-      "photocopy",
-      "crosshatch",
       "asciiMosaic",
-      "sketch",
+      "crosshatch",
+      "dither",
+      "halftone",
+      "photocopy",
       "posterize",
+      "risograph",
+      "sketch",
     ],
   },
   {
     label: "Blur & motion",
     names: [
-      "radialBlur",
       "angularBlur",
+      "arrowField",
       "bokehBlur",
-      "tiltShift",
       "channelBlur",
       "diffuseBlur",
-      "smear",
       "echo",
-      "velocityBlur",
       "motionMask",
-      "arrowField",
-      "spiral",
+      "radialBlur",
       "ripple",
+      "smear",
+      "spiral",
+      "tiltShift",
+      "velocityBlur",
       "waves",
     ],
   },
@@ -57,49 +57,50 @@ const GROUPS = [
     names: [
       "bulge",
       "concentricSpin",
-      "polar",
-      "mirror",
       "flutedGlass",
       "glassTiles",
       "lensDistortion",
+      "mirror",
+      "polar",
     ],
   },
   {
     label: "Drawn & painted",
-    names: ["engraving", "contourLines", "chalkboard", "watercolor", "emboss"],
+    names: ["chalkboard", "contourLines", "emboss", "engraving", "watercolor"],
   },
   {
     label: "Geometric",
     names: [
       "circlePacking",
-      "lowPoly",
-      "subdivision",
       "kaleidoscope",
+      "lowPoly",
+      "pixelated",
       "stacked",
       "stackedCircle",
-      "pixelated",
+      "subdivision",
     ],
   },
   {
     label: "Colour & film",
     names: [
       "duotone",
-      "gradientMap",
-      "solarize",
-      "glow",
       "filmGrain",
-      "paperPrint",
+      "glow",
+      "gradientMap",
       "lightLeak",
       "neonEdge",
       "oilPaint",
+      "paperPrint",
+      "solarize",
     ],
   },
 ];
 
 export function rendererGroups(names) {
-  const grouped = GROUPS.map((g) => ({ ...g, names: g.names.filter((n) => names.includes(n)) }));
+  const byName = (a, b) => a.localeCompare(b);
+  const grouped = GROUPS.map((g) => ({ ...g, names: g.names.filter((n) => names.includes(n)).sort(byName) }));
   const known = new Set(GROUPS.flatMap((g) => g.names));
-  const other = names.filter((n) => !known.has(n));
+  const other = names.filter((n) => !known.has(n)).sort(byName);
   if (other.length > 0) grouped.push({ label: "Other", names: other });
   return grouped.filter((g) => g.names.length > 0);
 }
@@ -226,8 +227,9 @@ const INT_PARAMS = new Set([
   "velocityBlur.numSamples",
 ]);
 
-// Ranges used as a span (outer → inner size) rather than sampled, so they get
-// independent min / max controls instead of a single pinned value.
+// Ranges read as a span (outer → inner size) rather than sampled once, so they
+// get independent min / max controls instead of a single pinned value. (stacked
+// still draws its inner size at random, up to twice `min`.)
 const SPAN_PARAMS = new Set(["stacked.sizeFactor", "stackedCircle.sizeFactor"]);
 
 // Power-of-ten step giving roughly 100 slider positions across `span`.

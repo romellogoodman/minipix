@@ -13,17 +13,6 @@ function fold(v, max) {
   return v > max ? p - v : v;
 }
 
-// Bilinear sample of one channel at an in-bounds (x, y).
-function bilinear(src, width, x, y, c) {
-  const x0 = x | 0, y0 = y | 0;
-  const fx = x - x0, fy = y - y0;
-  const i00 = (y0 * width + x0) * 4 + c;
-  const i10 = fx > 0 ? i00 + 4 : i00;
-  const i01 = fy > 0 ? i00 + width * 4 : i00;
-  const i11 = fx > 0 ? i01 + 4 : i01;
-  return (src[i00] * (1 - fx) + src[i10] * fx) * (1 - fy) + (src[i01] * (1 - fx) + src[i11] * fx) * fy;
-}
-
 /**
  * Reeded glass (after FlutedGlass): the image refracted through repeating
  * cylindrical flutes. Each flute's surface slope is a signed power curve
@@ -85,7 +74,7 @@ export default function flutedGlass({ imageData, width, height, config, random, 
     return slopeL[i] + (slopeL[i + 1] - slopeL[i]) * (t - i);
   };
 
-  const maxX = width - 1, maxY = height - 1;
+  const maxX = width - 1, maxY = height - 1, rowStride = width * 4;
   const ox = width / 2, oy = height / 2;
   const refrScale = refraction * (cell / 2);
   const ab = aberration * 0.5;
@@ -111,9 +100,23 @@ export default function flutedGlass({ imageData, width, height, config, random, 
         const refr = -slopeAt(cpt) * refrScale;
         const bx = x + (du + refr) * cosA, by = y + (du + refr) * sinA;
         const cx = refr * ab * cosA, cy = refr * ab * sinA;
-        r += bilinear(imageData, width, fold(bx + cx, maxX), fold(by + cy, maxY), 0);
-        g += bilinear(imageData, width, fold(bx, maxX), fold(by, maxY), 1);
-        b += bilinear(imageData, width, fold(bx - cx, maxX), fold(by - cy, maxY), 2);
+        // Bilinear samples, written out inline (a call per channel is too
+        // costly here). Red/green/blue read offsets 0/1/2 of the texel.
+        let qx = fold(bx + cx, maxX), qy = fold(by + cy, maxY);
+        let x0 = qx | 0, y0 = qy | 0, fx = qx - x0, fy = qy - y0;
+        let i00 = (y0 * width + x0) * 4, i10 = fx > 0 ? i00 + 4 : i00;
+        let i01 = fy > 0 ? i00 + rowStride : i00, i11 = fx > 0 ? i01 + 4 : i01;
+        r += (imageData[i00] * (1 - fx) + imageData[i10] * fx) * (1 - fy) + (imageData[i01] * (1 - fx) + imageData[i11] * fx) * fy;
+        qx = fold(bx, maxX); qy = fold(by, maxY);
+        x0 = qx | 0; y0 = qy | 0; fx = qx - x0; fy = qy - y0;
+        i00 = (y0 * width + x0) * 4 + 1; i10 = fx > 0 ? i00 + 4 : i00;
+        i01 = fy > 0 ? i00 + rowStride : i00; i11 = fx > 0 ? i01 + 4 : i01;
+        g += (imageData[i00] * (1 - fx) + imageData[i10] * fx) * (1 - fy) + (imageData[i01] * (1 - fx) + imageData[i11] * fx) * fy;
+        qx = fold(bx - cx, maxX); qy = fold(by - cy, maxY);
+        x0 = qx | 0; y0 = qy | 0; fx = qx - x0; fy = qy - y0;
+        i00 = (y0 * width + x0) * 4 + 2; i10 = fx > 0 ? i00 + 4 : i00;
+        i01 = fy > 0 ? i00 + rowStride : i00; i11 = fx > 0 ? i01 + 4 : i01;
+        b += (imageData[i00] * (1 - fx) + imageData[i10] * fx) * (1 - fy) + (imageData[i01] * (1 - fx) + imageData[i11] * fx) * fy;
       }
 
       const spec = specL[li];

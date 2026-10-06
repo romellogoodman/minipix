@@ -29,6 +29,7 @@ export default function neonEdge({ imageData, width, height, config, random, out
   }
 
   const edge = new Float32Array(width * height * 3);
+  const isEdge = new Uint8Array(width * height);
   for (let y = 1; y < height - 1; y++) {
     for (let x = 1; x < width - 1; x++) {
       const p = y * width + x;
@@ -44,6 +45,7 @@ export default function neonEdge({ imageData, width, height, config, random, out
         edge[p * 3] = hue[0] * mag;
         edge[p * 3 + 1] = hue[1] * mag;
         edge[p * 3 + 2] = hue[2] * mag;
+        isEdge[p] = 1;
       }
     }
   }
@@ -53,29 +55,64 @@ export default function neonEdge({ imageData, width, height, config, random, out
   const glow = new Float32Array(width * height * 3);
   const win = glowRadius * 2 + 1;
   const inv = 1 / win;
-  const clamp = (v, max) => (v < 0 ? 0 : v >= max ? max - 1 : v);
+  const maxX = width - 1;
+  const maxY = height - 1;
 
+  // Edges are sparse: windows with no edge pixel sum to exactly 0, so they
+  // are skipped (tmp/glow start zeroed). Integer counts track the windows.
+  const nearEdge = new Uint8Array(width * height);
   for (let y = 0; y < height; y++) {
+    const row = y * width;
+    let count = 0;
+    for (let k = -glowRadius; k <= glowRadius; k++) count += isEdge[row + (k < 0 ? 0 : k > maxX ? maxX : k)];
     for (let x = 0; x < width; x++) {
-      let sr = 0, sg = 0, sb = 0;
-      for (let dx = -glowRadius; dx <= glowRadius; dx++) {
-        const ni = (y * width + clamp(x + dx, width)) * 3;
-        sr += edge[ni]; sg += edge[ni + 1]; sb += edge[ni + 2];
+      if (count > 0) {
+        nearEdge[row + x] = 1;
+        let sr = 0, sg = 0, sb = 0;
+        if (x >= glowRadius && x + glowRadius <= maxX) {
+          const end = (row + x + glowRadius) * 3;
+          for (let ni = (row + x - glowRadius) * 3; ni <= end; ni += 3) {
+            sr += edge[ni]; sg += edge[ni + 1]; sb += edge[ni + 2];
+          }
+        } else {
+          for (let dx = -glowRadius; dx <= glowRadius; dx++) {
+            const sx = x + dx;
+            const ni = (row + (sx < 0 ? 0 : sx > maxX ? maxX : sx)) * 3;
+            sr += edge[ni]; sg += edge[ni + 1]; sb += edge[ni + 2];
+          }
+        }
+        const i = (row + x) * 3;
+        tmp[i] = sr * inv; tmp[i + 1] = sg * inv; tmp[i + 2] = sb * inv;
       }
-      const i = (y * width + x) * 3;
-      tmp[i] = sr * inv; tmp[i + 1] = sg * inv; tmp[i + 2] = sb * inv;
+      const add = x + glowRadius + 1;
+      const sub = x - glowRadius;
+      count += isEdge[row + (add > maxX ? maxX : add)] - isEdge[row + (sub < 0 ? 0 : sub)];
     }
   }
+  const rowLen = width * 3;
+  const taps = new Int32Array(win);
+  const colCount = new Int32Array(width);
+  for (let k = -glowRadius; k <= glowRadius; k++) {
+    const row = (k < 0 ? 0 : k > maxY ? maxY : k) * width;
+    for (let x = 0; x < width; x++) colCount[x] += nearEdge[row + x];
+  }
   for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      let sr = 0, sg = 0, sb = 0;
-      for (let dy = -glowRadius; dy <= glowRadius; dy++) {
-        const ni = (clamp(y + dy, height) * width + x) * 3;
-        sr += tmp[ni]; sg += tmp[ni + 1]; sb += tmp[ni + 2];
-      }
-      const i = (y * width + x) * 3;
-      glow[i] = sr * inv; glow[i + 1] = sg * inv; glow[i + 2] = sb * inv;
+    for (let k = 0; k < win; k++) {
+      const sy = y + k - glowRadius;
+      taps[k] = (sy < 0 ? 0 : sy > maxY ? maxY : sy) * rowLen;
     }
+    const out = y * rowLen;
+    for (let x = 0; x < width; x++) {
+      if (colCount[x] === 0) continue;
+      for (let j = x * 3, jEnd = j + 3; j < jEnd; j++) {
+        let sum = 0;
+        for (let k = 0; k < win; k++) sum += tmp[taps[k] + j];
+        glow[out + j] = sum * inv;
+      }
+    }
+    const add = (y + glowRadius + 1 > maxY ? maxY : y + glowRadius + 1) * width;
+    const sub = (y - glowRadius < 0 ? 0 : y - glowRadius) * width;
+    for (let x = 0; x < width; x++) colCount[x] += nearEdge[add + x] - nearEdge[sub + x];
   }
 
   for (let p = 0; p < width * height; p++) {

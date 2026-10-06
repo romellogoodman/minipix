@@ -1,4 +1,4 @@
-import { randFloat, createNoise2D, fitSize } from "../utils.js";
+import { randFloat, createNoise2D, fitSize, boxBlur } from "../utils.js";
 
 const GRID_MAX = 256;
 // Slate black, blackboard green, school blue-grey, charcoal brown.
@@ -75,6 +75,32 @@ export default function chalkboard({ imageData, width, height, config, random, o
     return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
   };
   const dustScale = 1 / Math.max(1.5, minDim / 700);
+  // The dust/board noise is sampled on an axis-aligned grid (px * xs + xo, py * ys), so its
+  // per-column lattice terms and the per-row hash values are tabulated; the blend is unchanged.
+  const lattice = (xs, xo, ys) => {
+    const ix = new Int32Array(width), ux = new Float64Array(width);
+    for (let x = 0; x < width; x++) {
+      const X = x * dustScale * xs + xo;
+      ix[x] = Math.floor(X);
+      const f = X - ix[x];
+      ux[x] = f * f * (3 - 2 * f);
+    }
+    const span = ix[width - 1] + 2;
+    const L = { ix, ux, uy: 0, row0: new Float64Array(span), row1: new Float64Array(span) };
+    L.setRow = (y) => {
+      const Y = y * dustScale * ys;
+      const iy = Math.floor(Y), fy = Y - iy;
+      L.uy = fy * fy * (3 - 2 * fy);
+      for (let k = ix[0]; k < span; k++) { L.row0[k] = hash(k, iy); L.row1[k] = hash(k, iy + 1); }
+    };
+    return L;
+  };
+  const sample = (L, x) => {
+    const k = L.ix[x], ux = L.ux[x], uy = L.uy;
+    const a = L.row0[k], b = L.row0[k + 1], c = L.row1[k], d = L.row1[k + 1];
+    return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+  };
+  const dust1 = lattice(1, 0, 1), dust2 = lattice(2.7, 9, 2.7), lift = lattice(1.8, 50, 1.8);
 
   const edgeHigh = 1 + (0.08 - 1) * sensitivity;
   const edgeLow = edgeHigh * 0.4;
@@ -88,6 +114,7 @@ export default function chalkboard({ imageData, width, height, config, random, o
   const s = spacing;
 
   for (let y = 0; y < height; y++) {
+    dust1.setRow(y); dust2.setRow(y); lift.setRow(y);
     const ym = (y - s < 0 ? 0 : y - s) * width, y0 = y * width, yp = (y + s >= height ? height - 1 : y + s) * width;
     const g = Math.max(0, Math.min(gh - 1, (y + 0.5) / cellH - 0.5));
     const r0 = Math.floor(g) * gw, r1 = Math.min(gh - 1, Math.floor(g) + 1) * gw, fy = g - Math.floor(g);
@@ -111,7 +138,7 @@ export default function chalkboard({ imageData, width, height, config, random, o
       const shade = hatchLights ? tone : 1 - tone;
       let h = 0;
       for (let k = 0; k < 3; k++) {
-        const [sa, ca, thr] = fams[k];
+        const fam = fams[k], sa = fam[0], ca = fam[1], thr = fam[2];
         if (shade < thr) break;
         const ry = (x * sa + y * ca + wob) * invHatch;
         const line = Math.floor(ry);
@@ -129,16 +156,15 @@ export default function chalkboard({ imageData, width, height, config, random, o
       const rub = shade > 0.5 ? (shade - 0.5) * 0.7 : 0;
       h = (h > rub ? h : rub) * shading;
 
-      const px = x * dustScale, py = y * dustScale;
       // Chalk only catches the board's high spots: contrasty two-octave dust.
-      let dust = (vnoise(px, py) * 0.65 + vnoise(px * 2.7 + 9, py * 2.7) * 0.35 - grain * 0.45) / (1 - grain * 0.45);
+      let dust = (sample(dust1, x) * 0.65 + sample(dust2, x) * 0.35 - grain * 0.45) / (1 - grain * 0.45);
       dust = dust < 0 ? 0 : dust * (1 + grain);
       let m = (e > h ? e : h) * dust;
       m = m > 1 ? 1 : m;
 
       const st = smear[r0 + a] + (smear[r0 + c] - smear[r0 + a]) * fx;
       const sb = smear[r1 + a] + (smear[r1 + c] - smear[r1 + a]) * fx;
-      const boardLift = (st + (sb - st) * fy) * smudge * 0.22 + (vnoise(px * 1.8 + 50, py * 1.8) - 0.5) * 0.04;
+      const boardLift = (st + (sb - st) * fy) * smudge * 0.22 + (sample(lift, x) - 0.5) * 0.04;
 
       const i = (y0 + x) * 4;
       let cr = CHALK[0], cg = CHALK[1], cb = CHALK[2];
@@ -157,33 +183,6 @@ export default function chalkboard({ imageData, width, height, config, random, o
       outputData[i + 1] = bg0 + (cg - bg0) * m;
       outputData[i + 2] = bb0 + (cb - bb0) * m;
       outputData[i + 3] = 255;
-    }
-  }
-}
-
-// In-place separable box blur with running sums and clamped edges.
-function boxBlur(a, w, h, r, tmp) {
-  const inv = 1 / (2 * r + 1);
-  for (let y = 0; y < h; y++) {
-    const o = y * w;
-    let s = a[o] * (r + 1);
-    for (let i = 1; i <= r; i++) s += a[o + Math.min(i, w - 1)];
-    for (let x = 0; x < w; x++) {
-      tmp[o + x] = s * inv;
-      s += a[o + Math.min(x + r + 1, w - 1)] - a[o + Math.max(x - r, 0)];
-    }
-  }
-  const acc = new Float64Array(w);
-  for (let x = 0; x < w; x++) {
-    let s = tmp[x] * (r + 1);
-    for (let i = 1; i <= r; i++) s += tmp[Math.min(i, h - 1) * w + x];
-    acc[x] = s;
-  }
-  for (let y = 0; y < h; y++) {
-    const o = y * w, add = Math.min(y + r + 1, h - 1) * w, sub = Math.max(y - r, 0) * w;
-    for (let x = 0; x < w; x++) {
-      a[o + x] = acc[x] * inv;
-      acc[x] += tmp[add + x] - tmp[sub + x];
     }
   }
 }

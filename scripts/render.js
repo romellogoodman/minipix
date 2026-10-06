@@ -23,12 +23,7 @@ globalThis.ImageData = ImageData;
 
 // Import the renderer registry after the polyfill is in place.
 const { getRendererNames, hasRenderer, renderToCanvas } = await import('./cli-renderers.js');
-
-// Same hash as the web app's filenames (src/utils/download.js, which is
-// browser-only).
-function generateSeedHash(seed) {
-  return (seed >>> 0).toString(36).padStart(7, '0');
-}
+const { generateSeedHash, parseSeed } = await import('../src/utils/download.js');
 
 // Parse a numeric CLI argument, validating it is finite and within range.
 function parseNumber(raw, { name, integer, min, max }) {
@@ -72,7 +67,11 @@ function parseArgs() {
     } else if (arg.startsWith('--renderer=')) {
       options.renderer = value;
     } else if (arg.startsWith('--seed=')) {
-      options.seed = parseNumber(value, { name: 'seed', integer: true, min: 0, max: 0xffffffff });
+      options.seed = parseSeed(value);
+      if (options.seed === null) {
+        console.error(`Error: --seed must be a decimal seed or a base36 hash from a filename (got "${value}")`);
+        process.exit(1);
+      }
     } else if (arg.startsWith('--output=')) {
       options.output = value;
     } else if (arg.startsWith('--format=')) {
@@ -100,7 +99,7 @@ Options:
   --file=<path>          Path to the image file (required)
   --count=<number>       Number of variations to generate (default: 1)
   --renderer=<name>      Specific renderer to use (default: random renderer per image)
-  --seed=<number>        Base seed for reproducible output (default: random)
+  --seed=<seed>          Base seed: decimal, or the hash from an output filename (default: random)
   --output=<path>        Output directory (default: ./output)
   --format=<png|jpeg>    Output format (default: png)
   --quality=<0-1>        JPEG quality 0-1 (default: 0.92, only for JPEG)

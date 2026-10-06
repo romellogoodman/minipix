@@ -12,20 +12,6 @@ function fold(v, max) {
   return v > max ? p - v : v;
 }
 
-// Bilinear RGB sample at an in-bounds (x, y), added into acc[0..2].
-function addBilinear(src, width, x, y, acc) {
-  const x0 = x | 0, y0 = y | 0;
-  const fx = x - x0, fy = y - y0;
-  const i00 = (y0 * width + x0) * 4;
-  const i10 = fx > 0 ? i00 + 4 : i00;
-  const i01 = fy > 0 ? i00 + width * 4 : i00;
-  const i11 = fx > 0 ? i01 + 4 : i01;
-  const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
-  acc[0] += src[i00] * w00 + src[i10] * w10 + src[i01] * w01 + src[i11] * w11;
-  acc[1] += src[i00 + 1] * w00 + src[i10 + 1] * w10 + src[i01 + 1] * w01 + src[i11 + 1] * w11;
-  acc[2] += src[i00 + 2] * w00 + src[i10 + 2] * w10 + src[i01 + 2] * w01 + src[i11 + 2] * w11;
-}
-
 /**
  * Polar remap (after PolarCoordinates / RectangularCoordinates).
  * "toPolar" reads the image's x as angle and y as radius around a centre —
@@ -55,26 +41,38 @@ export default function polar({ imageData, width, height, config, random, output
 
   // Output (x, y) → unfolded source coordinate, written to pt[0..1].
   const pt = new Float64Array(2);
-  const map = toPolar
-    ? (x, y) => {
-        const dx = x - cx, dy = y - cy;
-        // Angle in turns, mirrored `petals` times round the circle.
-        let a = ((Math.atan2(dy, dx) + rotation) / TAU) * petals * 2;
-        a %= 2;
-        if (a < 0) a += 2;
-        const u = a > 1 ? 2 - a : a;
-        const v = Math.sqrt(dx * dx + dy * dy) / R;
-        pt[0] = x + (u * maxX - x) * blend;
-        pt[1] = y + ((invert ? 1 - v : v) * maxY - y) * blend;
-      }
-    : (x, y) => {
-        const theta = (x / width) * TAU + rotation;
-        const r = (invert ? 1 - y / height : y / height) * R;
-        pt[0] = x + (cx + r * Math.cos(theta) - x) * blend;
-        pt[1] = y + (cy + r * Math.sin(theta) - y) * blend;
-      };
+  // fromPolar's angle depends only on x, which is always a multiple of 0.5
+  // from -0.5 to width - 0.5: tabulate cos/sin at index 2x + 1.
+  const cosT = new Float64Array(toPolar ? 0 : 2 * width + 1);
+  const sinT = new Float64Array(toPolar ? 0 : 2 * width + 1);
+  for (let k = 0; k < cosT.length; k++) {
+    const theta = (((k - 1) / 2) / width) * TAU + rotation;
+    cosT[k] = Math.cos(theta);
+    sinT[k] = Math.sin(theta);
+  }
+  // One closure for both modes keeps the call site monomorphic (inlinable).
+  const map = (x, y) => {
+    if (toPolar) {
+      const dx = x - cx, dy = y - cy;
+      // Angle in turns, mirrored `petals` times round the circle.
+      let a = ((Math.atan2(dy, dx) + rotation) / TAU) * petals * 2;
+      // Same as a %= 2 (each step is exact), without the slow fmod call.
+      while (a >= 2) a -= 2;
+      while (a <= -2) a += 2;
+      if (a < 0) a += 2;
+      const u = a > 1 ? 2 - a : a;
+      const v = Math.sqrt(dx * dx + dy * dy) / R;
+      pt[0] = x + (u * maxX - x) * blend;
+      pt[1] = y + ((invert ? 1 - v : v) * maxY - y) * blend;
+    } else {
+      const k = (2 * x + 1) | 0;
+      const r = (invert ? 1 - y / height : y / height) * R;
+      pt[0] = x + (cx + r * cosT[k] - x) * blend;
+      pt[1] = y + (cy + r * sinT[k] - y) * blend;
+    }
+  };
 
-  const acc = new Float64Array(3);
+  const rowStride = width * 4;
   for (let y = 0; y < height; y++) {
     map(-0.5, y);
     let px = pt[0], py = pt[1];
@@ -92,26 +90,33 @@ export default function polar({ imageData, width, height, config, random, output
 
       const nu = Math.min(MAX_TAPS, Math.max(1, Math.ceil(Math.hypot(ux, uy))));
       const nv = Math.min(MAX_TAPS, Math.max(1, Math.ceil(Math.hypot(vx, vy))));
-      acc[0] = acc[1] = acc[2] = 0;
-      if (nu === 1 && nv === 1) {
-        addBilinear(imageData, width, fold(sx, maxX), fold(sy, maxY), acc);
-      } else {
-        // Taps spread over the parallelogram the pixel covers (the angle
-        // seam is mirrored, so differences stay small across it).
-        for (let j = 0; j < nv; j++) {
-          const tv = (j + 0.5) / nv - 0.5;
-          for (let i = 0; i < nu; i++) {
-            const tu = (i + 0.5) / nu - 0.5;
-            addBilinear(imageData, width, fold(sx + ux * tu + vx * tv, maxX), fold(sy + uy * tu + vy * tv, maxY), acc);
-          }
+      // Taps spread over the parallelogram the pixel covers (the angle
+      // seam is mirrored, so differences stay small across it).
+      let r = 0, g = 0, b = 0;
+      for (let j = 0; j < nv; j++) {
+        const tv = (j + 0.5) / nv - 0.5;
+        for (let i = 0; i < nu; i++) {
+          const tu = (i + 0.5) / nu - 0.5;
+          const qx = fold(sx + ux * tu + vx * tv, maxX);
+          const qy = fold(sy + uy * tu + vy * tv, maxY);
+          // Bilinear RGB sample at the in-bounds (qx, qy).
+          const x0 = qx | 0, y0 = qy | 0;
+          const fx = qx - x0, fy = qy - y0;
+          const i00 = (y0 * width + x0) * 4;
+          const i10 = fx > 0 ? i00 + 4 : i00;
+          const i01 = fy > 0 ? i00 + rowStride : i00;
+          const i11 = fx > 0 ? i01 + 4 : i01;
+          const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
+          r += imageData[i00] * w00 + imageData[i10] * w10 + imageData[i01] * w01 + imageData[i11] * w11;
+          g += imageData[i00 + 1] * w00 + imageData[i10 + 1] * w10 + imageData[i01 + 1] * w01 + imageData[i11 + 1] * w11;
+          b += imageData[i00 + 2] * w00 + imageData[i10 + 2] * w10 + imageData[i01 + 2] * w01 + imageData[i11 + 2] * w11;
         }
-        const inv = 1 / (nu * nv);
-        acc[0] *= inv; acc[1] *= inv; acc[2] *= inv;
       }
+      const inv = 1 / (nu * nv);
       const o = (y * width + x) * 4;
-      outputData[o] = acc[0];
-      outputData[o + 1] = acc[1];
-      outputData[o + 2] = acc[2];
+      outputData[o] = r * inv;
+      outputData[o + 1] = g * inv;
+      outputData[o + 2] = b * inv;
       outputData[o + 3] = 255;
     }
   }

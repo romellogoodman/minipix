@@ -9,20 +9,6 @@ function fold(v, max) {
   return v > max ? p - v : v;
 }
 
-// Bilinear RGB sample at an in-bounds (x, y) into rgb[0..2].
-function bilinear(src, width, x, y, rgb) {
-  const x0 = x | 0, y0 = y | 0;
-  const fx = x - x0, fy = y - y0;
-  const i00 = (y0 * width + x0) * 4;
-  const i10 = fx > 0 ? i00 + 4 : i00;
-  const i01 = fy > 0 ? i00 + width * 4 : i00;
-  const i11 = fx > 0 ? i01 + 4 : i01;
-  const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
-  rgb[0] = src[i00] * w00 + src[i10] * w10 + src[i01] * w01 + src[i11] * w11;
-  rgb[1] = src[i00 + 1] * w00 + src[i10 + 1] * w10 + src[i01 + 1] * w01 + src[i11 + 1] * w11;
-  rgb[2] = src[i00 + 2] * w00 + src[i10 + 2] * w10 + src[i01 + 2] * w01 + src[i11 + 2] * w11;
-}
-
 const smoothstep = (a, b, x) => {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
@@ -57,37 +43,55 @@ export default function bulge({ imageData, width, height, config, random, output
   const radiusSq = radius * radius;
   const lx = Math.cos(lightAngle), ly = Math.sin(lightAngle);
   const fresnelPower = 1 + 4 * (1 - rimSoftness);
-  const rgb = new Float32Array(3);
+  const rowStride = width * 4;
+  const src32 = new Uint32Array(imageData.buffer, imageData.byteOffset, width * height);
+  const out32 = new Uint32Array(outputData.buffer, outputData.byteOffset, width * height);
 
   for (let y = 0; y < height; y++) {
     const dy = y - cy;
     for (let x = 0; x < width; x++) {
-      const o = (y * width + x) * 4;
+      const p = y * width + x;
+      const o = p * 4;
       const dx = x - cx;
       const d2 = dx * dx + dy * dy;
-      outputData[o + 3] = 255;
       if (d2 >= radiusSq) {
-        outputData[o] = imageData[o];
-        outputData[o + 1] = imageData[o + 1];
-        outputData[o + 2] = imageData[o + 2];
+        // Untouched pixel: copy RGB with alpha forced opaque in one word
+        // (alpha is the high byte on little-endian hosts, i.e. every browser).
+        out32[p] = src32[p] | 0xff000000;
         continue;
       }
+      outputData[o + 3] = 255;
 
       if (sphere) {
         const nx = dx * invRadius, ny = dy * invRadius;
         const r2 = nx * nx + ny * ny;
         const z = Math.sqrt(1 - r2);
         const k = 1 / (1 + z * depth);
-        bilinear(imageData, width, fold(cx + dx * k, maxX), fold(cy + dy * k, maxY), rgb);
         // Fresnel rim, biased toward the light; the 1px-ish edge blends back
         // to the untouched image.
         const len = Math.sqrt(r2) || 1;
         const dir = Math.max(0, (nx * lx + ny * ly) / len);
-        const rim = Math.pow(1 - z, fresnelPower) * dir * dir * rimIntensity * 2 * 255;
+        // pow(1 - z) is finite, so a zero dir gives a zero rim; skip the pow.
+        const rim = dir === 0 ? 0 : Math.pow(1 - z, fresnelPower) * dir * dir * rimIntensity * 2 * 255;
         const cover = 1 - smoothstep(0.98, 1, r2);
-        outputData[o] = imageData[o] + (rgb[0] + rim - imageData[o]) * cover;
-        outputData[o + 1] = imageData[o + 1] + (rgb[1] + rim - imageData[o + 1]) * cover;
-        outputData[o + 2] = imageData[o + 2] + (rgb[2] + rim - imageData[o + 2]) * cover;
+        let sx = cx + dx * k, sy = cy + dy * k;
+        if (!(sx >= 0 && sx <= maxX)) sx = fold(sx, maxX);
+        if (!(sy >= 0 && sy <= maxY)) sy = fold(sy, maxY);
+        // Bilinear sample, inlined; fround matches the Float32 scratch it
+        // used to be written through.
+        const x0 = sx | 0, y0 = sy | 0;
+        const fx = sx - x0, fy = sy - y0;
+        const i00 = (y0 * width + x0) * 4;
+        const i10 = fx > 0 ? i00 + 4 : i00;
+        const i01 = fy > 0 ? i00 + rowStride : i00;
+        const i11 = fx > 0 ? i01 + 4 : i01;
+        const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
+        const sr = Math.fround(imageData[i00] * w00 + imageData[i10] * w10 + imageData[i01] * w01 + imageData[i11] * w11);
+        const sg = Math.fround(imageData[i00 + 1] * w00 + imageData[i10 + 1] * w10 + imageData[i01 + 1] * w01 + imageData[i11 + 1] * w11);
+        const sb = Math.fround(imageData[i00 + 2] * w00 + imageData[i10 + 2] * w10 + imageData[i01 + 2] * w01 + imageData[i11 + 2] * w11);
+        outputData[o] = imageData[o] + (sr + rim - imageData[o]) * cover;
+        outputData[o + 1] = imageData[o + 1] + (sg + rim - imageData[o + 1]) * cover;
+        outputData[o + 2] = imageData[o + 2] + (sb + rim - imageData[o + 2]) * cover;
         continue;
       }
 
@@ -96,10 +100,19 @@ export default function bulge({ imageData, width, height, config, random, output
       const fall = (1 - smoothstep(innerRadius, radius, dist)) * (1 - n * n);
       // < 1 samples closer to the centre (magnify), > 1 farther out (pinch).
       const scale = 1 - signed * fall;
-      bilinear(imageData, width, fold(cx + dx * scale, maxX), fold(cy + dy * scale, maxY), rgb);
-      outputData[o] = rgb[0];
-      outputData[o + 1] = rgb[1];
-      outputData[o + 2] = rgb[2];
+      let sx = cx + dx * scale, sy = cy + dy * scale;
+      if (!(sx >= 0 && sx <= maxX)) sx = fold(sx, maxX);
+      if (!(sy >= 0 && sy <= maxY)) sy = fold(sy, maxY);
+      const x0 = sx | 0, y0 = sy | 0;
+      const fx = sx - x0, fy = sy - y0;
+      const i00 = (y0 * width + x0) * 4;
+      const i10 = fx > 0 ? i00 + 4 : i00;
+      const i01 = fy > 0 ? i00 + rowStride : i00;
+      const i11 = fx > 0 ? i01 + 4 : i01;
+      const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
+      outputData[o] = Math.fround(imageData[i00] * w00 + imageData[i10] * w10 + imageData[i01] * w01 + imageData[i11] * w11);
+      outputData[o + 1] = Math.fround(imageData[i00 + 1] * w00 + imageData[i10 + 1] * w10 + imageData[i01 + 1] * w01 + imageData[i11 + 1] * w11);
+      outputData[o + 2] = Math.fround(imageData[i00 + 2] * w00 + imageData[i10 + 2] * w10 + imageData[i01 + 2] * w01 + imageData[i11 + 2] * w11);
     }
   }
 }

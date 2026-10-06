@@ -93,7 +93,7 @@ npm run render -- --help
 | `--file=<path>` | Path to input image (required) | - |
 | `--count=<number>` | Number of variations to generate | 1 |
 | `--renderer=<name>` | Specific renderer to use | random |
-| `--seed=<number>` | Seed for reproducible output | random |
+| `--seed=<seed>` | Seed for reproducible output: decimal, or the hash from an output filename | random |
 | `--output=<path>` | Output directory | `./output` |
 | `--format=<png\|jpeg>` | Output format | `png` |
 | `--quality=<0-1>` | JPEG quality (0-1) | 0.92 |
@@ -128,9 +128,9 @@ When `--count` is greater than 1 with a fixed `--seed`, each image uses
 
 **Distortion**
 - `glitch` - Horizontal slice displacement with color inversion
-- `melt` - Downward pixel melting
+- `melt` - Noise-driven warp that drips and swirls the image
 - `pixelSort` - Glitch art pixel reordering by luminance
-- `radialBlur` - Zoom blur from center point
+- `radialBlur` - Zoom blur from a random focal point
 - `ripple` - Concentric wave distortion
 - `spiral` - Rotational twist effect
 - `waves` - Sinusoidal displacement
@@ -206,6 +206,26 @@ Each canvas uses a unique random seed that controls all randomization within the
 - Same seed = identical visual output
 - Filenames include the seed as a 7-character base36 hash
 - Easy to share and recreate specific variations
+
+## Development
+
+Renderers are deterministic: the same seed and renderer always produce the same pixels.
+`npm run bench` guards that, and doubles as a performance benchmark:
+
+```bash
+# Check every renderer's output against the recorded hashes (exits 1 on a change)
+npm run bench -- --split=train --check=bench/baseline-train.json
+
+# Time a few renderers on the held-out 12.7 MP image
+npm run bench -- --split=test --renderer=polar,glow --reps=3 --check=bench/baseline-test.json
+
+# After an intentional visual change, re-record the baseline
+npm run bench -- --split=train --save=bench/baseline-train.json
+```
+
+`npm install` enables a pre-commit hook (`.githooks/pre-commit`) that runs the train check
+(about 35 seconds) whenever a commit touches renderer code, and skips it otherwise.
+Bypass it with `git commit --no-verify`.
 
 ## License
 

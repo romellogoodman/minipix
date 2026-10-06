@@ -39,19 +39,24 @@ export default function motionMask({ imageData, width, height, config, random, o
   for (let k = numEchoes; k >= 1; k--) {
     const dx = Math.round(cosA * step * k);
     const dy = Math.round(sinA * step * k);
+    // Columns whose shifted source x - dx lies inside the image.
+    const xStart = Math.max(0, dx);
+    const xEnd = Math.min(width, width + dx);
     for (let y = 0; y < height; y++) {
       const sy = y - dy;
       const rowOk = sy >= 0 && sy < height;
-      for (let x = 0; x < width; x++) {
-        const p = y * width + x;
-        const sx = x - dx;
+      const a = rowOk ? xStart : width;
+      const b = rowOk ? xEnd : width;
+      const shift = sy * width - dx - y * width;
+      for (let x = 0, p = y * width; x < width; x++, p++) {
         let cur = 0;
-        if (rowOk && sx >= 0 && sx < width) {
-          const d = Math.abs(lum[p] - lum[sy * width + sx]);
-          if (d > threshold) cur = Math.min(255, (d - threshold) * gain);
+        if (x >= a && x < b) {
+          // Branch-free form of: d > threshold ? min(255, (d - threshold) * gain) : 0
+          const d = Math.abs(lum[p] - lum[p + shift]);
+          cur = Math.min(255, Math.max(0, (d - threshold) * gain));
         }
         const decayed = trail[p] * decay - TRAIL_FADE;
-        trail[p] = decayed > cur ? decayed : cur;
+        trail[p] = Math.max(decayed, cur);
       }
     }
   }

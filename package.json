@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "render": "node scripts/render.js",
-    "bench": "node scripts/bench.js"
+    "bench": "node scripts/bench.js",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "feather-icons-react": "^1.0.0",

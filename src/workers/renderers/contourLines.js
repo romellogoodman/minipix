@@ -1,4 +1,4 @@
-import { randInt, randFloat, buildRampLUT } from "../utils.js";
+import { randInt, randFloat, buildRampLUT, boxBlur } from "../utils.js";
 
 // Hypsometric ramps for the "bands" and "dark" backgrounds.
 const RAMPS = [
@@ -104,33 +104,6 @@ export default function contourLines({ imageData, width, height, config, random,
       outputData[i + 1] = bg + (lg - bg) * mask;
       outputData[i + 2] = bb + (lb - bb) * mask;
       outputData[i + 3] = 255;
-    }
-  }
-}
-
-// In-place separable box blur with running sums and clamped edges.
-function boxBlur(a, w, h, r, tmp) {
-  const inv = 1 / (2 * r + 1);
-  for (let y = 0; y < h; y++) {
-    const o = y * w;
-    let s = a[o] * (r + 1);
-    for (let i = 1; i <= r; i++) s += a[o + Math.min(i, w - 1)];
-    for (let x = 0; x < w; x++) {
-      tmp[o + x] = s * inv;
-      s += a[o + Math.min(x + r + 1, w - 1)] - a[o + Math.max(x - r, 0)];
-    }
-  }
-  const acc = new Float64Array(w);
-  for (let x = 0; x < w; x++) {
-    let s = tmp[x] * (r + 1);
-    for (let i = 1; i <= r; i++) s += tmp[Math.min(i, h - 1) * w + x];
-    acc[x] = s;
-  }
-  for (let y = 0; y < h; y++) {
-    const o = y * w, add = Math.min(y + r + 1, h - 1) * w, sub = Math.max(y - r, 0) * w;
-    for (let x = 0; x < w; x++) {
-      a[o + x] = acc[x] * inv;
-      acc[x] += tmp[add + x] - tmp[sub + x];
     }
   }
 }

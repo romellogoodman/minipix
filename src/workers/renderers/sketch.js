@@ -41,9 +41,16 @@ export default function sketch({ imageData, width, height, config, random, outpu
   // and diagonal hatching in the darker tones.
   for (let y = 0; y < height; y++) {
     const rowOffset = y * width;
+    // Running values of (x + y) % hatchingDensity and (x - y + height) % hatchingDensity.
+    let hatchA = y % hatchingDensity;
+    let hatchB = (height - y) % hatchingDensity;
 
     for (let x = 0; x < width; x++) {
       const idx = (rowOffset + x) * 4;
+      const onHatchA = hatchA === 0;
+      const onHatchB = hatchB === 0;
+      if (++hatchA === hatchingDensity) hatchA = 0;
+      if (++hatchB === hatchingDensity) hatchB = 0;
 
       let r = 250, g = 248, b = 245;
 
@@ -53,12 +60,11 @@ export default function sketch({ imageData, width, height, config, random, outpu
         const darkness = edge * 2 > 255 ? 255 : edge * 2;
         const strokeVal = 255 - darkness;
 
-        for (let dy = -halfThick; dy <= halfThick; dy++) {
-          const py = y + dy;
-          if (py < 0 || py >= height) continue;
-          for (let dx = -halfThick; dx <= halfThick; dx++) {
-            const px = x + dx;
-            if (px < 0 || px >= width) continue;
+        const pyEnd = Math.min(height - 1, y + halfThick);
+        const pxStart = Math.max(0, x - halfThick);
+        const pxEnd = Math.min(width - 1, x + halfThick);
+        for (let py = Math.max(0, y - halfThick); py <= pyEnd; py++) {
+          for (let px = pxStart; px <= pxEnd; px++) {
             const pIdx = (py * width + px) * 4;
             if (outputData[pIdx + 3] === 0 || outputData[pIdx] > strokeVal) {
               outputData[pIdx] = strokeVal;
@@ -74,13 +80,13 @@ export default function sketch({ imageData, width, height, config, random, outpu
       if (outputData[idx + 3] === 0) {
         const lum = luminance[rowOffset + x] / 255;
 
-        if (lum < 0.7 && (x + y) % hatchingDensity === 0) {
+        if (lum < 0.7 && onHatchA) {
           const hatchDarkness = ((1 - lum) * 100) | 0;
           r -= hatchDarkness;
           g -= hatchDarkness;
           b -= hatchDarkness;
         }
-        if (lum < 0.4 && (x - y + height) % hatchingDensity === 0) {
+        if (lum < 0.4 && onHatchB) {
           const hatchDarkness = ((1 - lum) * 80) | 0;
           r -= hatchDarkness;
           g -= hatchDarkness;

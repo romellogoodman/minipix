@@ -36,15 +36,18 @@ src/
 │   ├── pool.js                    # WorkerPool: on-demand workers, task queue, timeouts
 │   ├── render.worker.js           # Web Worker entry: dispatches to worker renderers
 │   ├── utils.js                   # Re-exports shared utils for the worker bundle
-│   └── renderers/<name>.js        # One file per worker (pixel-loop) renderer
+│   └── renderers/
+│       ├── index.js               # name → worker renderer map (worker entry + CLI)
+│       └── <name>.js              # One file per worker (pixel-loop) renderer
 ├── utils/
 │   ├── index.js                   # Barrel for renderer utilities
 │   ├── math.js                    # createSeededRandom (Mulberry32), randInt, randFloat, map
 │   ├── canvas.js                  # setupRenderer, calculateAdaptivePixelSize, drawHalftoneDot
 │   ├── image.js                   # Color extraction, luminance, dithering, block averaging, color ramps
-│   ├── noise.js                   # Seeded 2D gradient noise + fbm (shared with workers and CLI)
+│   ├── noise.js                   # Seeded 2D gradient noise (shared with workers and CLI)
+│   ├── blur.js                    # In-place running-sum box blur for float planes
 │   ├── field.js                   # Low-res analysis: downsample, orientation field, saliency, blob finder
-│   ├── download.js                # Seed hash/parsing, filenames, download/copy (browser only)
+│   ├── download.js                # Seed hash/parsing + filenames (pure), download/copy (browser only)
 │   └── output.js                  # ALL_RENDERERS, describe(), URL param readers, shareLink (browser only)
 └── scss/
     ├── base.scss                  # Design tokens + shared control styles (imported before App.scss)
@@ -52,7 +55,11 @@ src/
 
 scripts/
 ├── render.js                      # CLI entry (`npm run render -- --file=...`), node-canvas
+├── bench.js                       # Renderer benchmark + pixel-hash determinism check (`npm run bench`)
 └── cli-renderers.js               # Imports renderer modules directly for Node use
+
+bench/baseline-{train,test}.json   # Recorded pixel hashes + timings per (renderer, image, seed)
+.githooks/pre-commit               # Renderer hash check (enabled by `npm install` via "prepare")
 ```
 
 ## Architecture
@@ -159,13 +166,16 @@ renders of the same image copy a buffer instead of re-running `drawImage` +
   `COLOR_RAMPS` / `buildRampLUT` for heat-map style colouring
 - `noise.js`: `createNoise2D(random)` (Perlin-style gradient noise; consumes 255 RNG calls
   when built)
+- `blur.js`: `boxBlur(plane, w, h, r, tmp)`, in place; summation order is part of the
+  output, so don't swap in another blur where byte-identical output matters
 - `field.js`: `downsampleImage` (block-average to ≤N px), `computeOrientationField`
   (structure tensor → tangent/normal/coherence/strength), `computeSaliency`
   (edges/bright/dark/saturation/detail), `findBlobs` (mean-shift blob tracking on a weight
   map; consumes 3 RNG calls per blob), `fitSize`
 - `canvas.js`: `setupRenderer`, `calculateAdaptivePixelSize`, `drawHalftoneDot`
 - `download.js`: `generateSeedHash`, `parseSeed`, `buildFilename`, `downloadBlob`, `downloadCanvas`,
-  `copyCanvas` — browser-only; do not import from worker or CLI code
+  `copyCanvas` — the first three are pure (the CLI uses them); the rest touch the DOM, so
+  never import this file from worker code
 - All randomness helpers accept an optional `randomFn` (defaults to `Math.random`)
 
 ## CSS/SCSS Conventions
@@ -185,6 +195,25 @@ Minipix uses seeded randomness to make artwork reproducible:
 - Same seed + renderer = identical visual output every time — preserve this when
   optimizing renderer internals (keep the math and the RNG call order identical)
 - Uses Mulberry32 PRNG for consistent cross-platform results
+
+### Benchmark and hash check
+
+- `npm run bench -- --split=train --check=bench/baseline-train.json` renders every renderer
+  over fixed images and seeds, prints times, and exits 1 on any pixel-hash change.
+  `--renderer=a,b` limits it; `--reps=N` takes the fastest of N runs.
+- `--split=train` is the 1333px Earth image (+ a non-square crop), seeds 1-3;
+  `--split=test` holds out the 3569px Peony image, seeds 101/202. For performance work,
+  keep a change only if it is faster on BOTH splits by more than the noise (about ±15% per
+  renderer); a train-only win is overfitting
+- The pre-commit hook (`.githooks/pre-commit`) runs the train check once (~35s) when staged
+  files can affect rendering (`src/renderers/`, `src/workers/`, the render utils in
+  `src/utils/`, `scripts/bench.js`, `scripts/cli-renderers.js`, `bench/`), and does nothing
+  for other commits. It skips if the optional `canvas` package is missing. It renders the
+  working tree, not the staged snapshot
+- Intentional visual change: re-record in the same commit with
+  `npm run bench -- --split=train --save=bench/baseline-train.json` (and `--split=test`
+  with `bench/baseline-test.json`). After upgrading `canvas`, sync-renderer hashes may shift
+  with no code change; check the output, then re-record
 
 ## Adding New Renderers
 
@@ -210,7 +239,12 @@ Minipix uses seeded randomness to make artwork reproducible:
 
 3. Export it from `src/renderers/index.js` (keep exports alphabetical)
 4. Add it to `scripts/cli-renderers.js` so the CLI can use it
-5. Give it a group and description in `src/catalog.js` (the renderer picker)
+5. Give it a group and description in `src/catalog.js` (the renderer picker); list any
+   integer ranges in `INT_PARAMS` there so their sliders step by 1
+
+6. Record its hashes so the pre-commit hook guards it (`--save` merges into the file):
+   `npm run bench -- --split=train --renderer=myRenderer --save=bench/baseline-train.json`
+   and the same with `--split=test` / `bench/baseline-test.json`
 
 ### Worker-based renderers
 
@@ -225,8 +259,12 @@ For pixel-intensive renderers that loop through every pixel:
    }
    ```
 
-3. Register it in the `renderers` map in `src/workers/render.worker.js`
+3. Add it to the map in `src/workers/renderers/index.js` (the Web Worker and the CLI both
+   read it; the CLI runs worker renderers synchronously)
 4. Add `export const myRenderer = createWorkerRenderer("myRenderer");` to
-   `src/renderers/index.js`
-5. Add it to `scripts/cli-renderers.js` (worker renderers run synchronously there)
-6. Give it a group and description in `src/catalog.js`
+   `src/renderers/index.js` (kept separate so the main bundle doesn't pull in pixel code)
+5. Give it a group and description in `src/catalog.js` (plus `INT_PARAMS` for integer ranges)
+
+6. Record its hashes so the pre-commit hook guards it (`--save` merges into the file):
+   `npm run bench -- --split=train --renderer=myRenderer --save=bench/baseline-train.json`
+   and the same with `--split=test` / `bench/baseline-test.json`
