@@ -9,7 +9,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "render": "node scripts/render.js"
+    "render": "node scripts/render.js",
+    "bench": "node scripts/bench.js"
   },
   "dependencies": {
     "feather-icons-react": "^1.0.0",

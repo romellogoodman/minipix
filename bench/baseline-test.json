@@ -1,0 +1,530 @@
+{
+  "angularBlur|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 823.8,
+    "hash": "674f81d2cf858f02b6ee804444bef23c"
+  },
+  "angularBlur|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 861.3,
+    "hash": "d318d89829e9e5b1d30e6b46b7780742"
+  },
+  "arrowField|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 134.1,
+    "hash": "4ab421cd6b1eb9190aa3269151b2b6b4"
+  },
+  "arrowField|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 128,
+    "hash": "9ef16fabbe9d13fa1113fb4a00c4ee75"
+  },
+  "asciiMosaic|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 118.5,
+    "hash": "9a4df7f4bab55f1a13df166cc5812ebd"
+  },
+  "asciiMosaic|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 108.1,
+    "hash": "9a4df7f4bab55f1a13df166cc5812ebd"
+  },
+  "barShift|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 210.3,
+    "hash": "47c92e766bbe3c1137a76d515b8ca102"
+  },
+  "barShift|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 420.8,
+    "hash": "5c19c3110240718f18231502fea29806"
+  },
+  "barSwap|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 140.3,
+    "hash": "8f704cefcba187bdc66971573803734e"
+  },
+  "barSwap|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 140,
+    "hash": "ec531116d447d99b8765283664216fea"
+  },
+  "bokehBlur|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 481.8,
+    "hash": "e167d61bb6ebe67386334fa90d60b8b4"
+  },
+  "bokehBlur|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 449.9,
+    "hash": "d716f5cf58503263c46add04f613e3b0"
+  },
+  "bulge|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 245.1,
+    "hash": "b13b9232261de454eb8ab8c322752842"
+  },
+  "bulge|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 252.4,
+    "hash": "1201c6db58b0102171693bb6a1e9eb00"
+  },
+  "chalkboard|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 1042.9,
+    "hash": "c44ffe1ce7a96fd5ae55af61175e3319"
+  },
+  "chalkboard|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 1151.1,
+    "hash": "abe1e94e2dc39e1c9f31a6620c5a8eb4"
+  },
+  "channelBlur|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 605.5,
+    "hash": "095ee13be28bcd30483c4197cd1cb4d2"
+  },
+  "channelBlur|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 413.7,
+    "hash": "19aecf25182097879475cb609090a799"
+  },
+  "chromaticAberration|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 290.4,
+    "hash": "adb00484ce78e5f5ecc31963a8a69516"
+  },
+  "chromaticAberration|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 1498.6,
+    "hash": "de791af415a99d9bf0c4ceae37a8871b"
+  },
+  "circlePacking|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 87.9,
+    "hash": "73f2a69cd99aad44cb31723e32841e07"
+  },
+  "circlePacking|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 86.2,
+    "hash": "047c38f1c43550fe12165b004f66397c"
+  },
+  "compression|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 158.9,
+    "hash": "723d0e650a83452daac386f587d366ff"
+  },
+  "compression|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 148.6,
+    "hash": "672235cafed164af727622a3708d34e9"
+  },
+  "concentricSpin|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 272.3,
+    "hash": "fca06ad15125bd4ee487cce3838d2ef3"
+  },
+  "concentricSpin|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 268.5,
+    "hash": "52b5f63be671ee152309fac0f6073d2a"
+  },
+  "contourLines|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 499,
+    "hash": "59922762ae8b744909e1c0c6904814de"
+  },
+  "contourLines|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 490.7,
+    "hash": "ef532bf24d43e295957a55c5bfa3f38d"
+  },
+  "crosshatch|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 281.8,
+    "hash": "a3bbb6d34ab243ce556f1a5435f881ef"
+  },
+  "crosshatch|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 199.4,
+    "hash": "95de373c7175b94ef9cad9996c1ea2b2"
+  },
+  "crt|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 1700.7,
+    "hash": "6365a430a1f544c653234660a77deb5d"
+  },
+  "crt|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 1827.3,
+    "hash": "5646a396f30d6c25203b9ae4334f24b3"
+  },
+  "dataMosh|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 289.3,
+    "hash": "f5eace3c4402bf82c36856b3f7507f9c"
+  },
+  "dataMosh|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 1768.6,
+    "hash": "afd0aa43c0201a4938fa5ab9cc35277f"
+  },
+  "diffuseBlur|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 425.4,
+    "hash": "8b43ed699a9b49eae9d04a8d1bfcc9fb"
+  },
+  "diffuseBlur|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 362.4,
+    "hash": "d74cdebfe38351eb30e4532527347e31"
+  },
+  "dither|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 410.9,
+    "hash": "f33d06b5501a3d51fa9cff6a4e7b8f4d"
+  },
+  "dither|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 432.7,
+    "hash": "8e6ba7eaa3a5b5d52db8fc7504f156db"
+  },
+  "duotone|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 64.8,
+    "hash": "a2d90b26054b56dc237736f8b5103b23"
+  },
+  "duotone|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 69.9,
+    "hash": "6dc428962747233dcd921dec1d92cb84"
+  },
+  "echo|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 167.1,
+    "hash": "f70d2a157669c31568195f6fd951cf9a"
+  },
+  "echo|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 314.2,
+    "hash": "dfc88d5ead858fb45fb5013c4c87e539"
+  },
+  "emboss|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 1051,
+    "hash": "d902b4d49666b3f6ad5a4b8493af0bf2"
+  },
+  "emboss|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 998.7,
+    "hash": "af769841eb21f0e975b8d321848b4950"
+  },
+  "engraving|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 2450.7,
+    "hash": "a3c12908fdf1238c878caf84785cf04e"
+  },
+  "engraving|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 3332.5,
+    "hash": "7edca20a17260d757281fd6e4b7d0105"
+  },
+  "filmGrain|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 168.8,
+    "hash": "69d4c5b044008dc467741541eca92c2a"
+  },
+  "filmGrain|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 175,
+    "hash": "20bf378b6be0c73577b8869e391f21c5"
+  },
+  "flutedGlass|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 1564.1,
+    "hash": "da3630b0ef242f07add3e381497a22ab"
+  },
+  "flutedGlass|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 1275.8,
+    "hash": "d07815f51d2326de58bce57c55318720"
+  },
+  "glassTiles|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 266.9,
+    "hash": "cb1bacc3f1d77762500eff36dfa8fa08"
+  },
+  "glassTiles|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 294.5,
+    "hash": "0816062dceb63699ee7a1c828b14768e"
+  },
+  "glitch|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 21.3,
+    "hash": "76d5028d2a85c96f9872b933e62ba939"
+  },
+  "glitch|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 20.4,
+    "hash": "8f7230803c4b17bd996cdc51f062aded"
+  },
+  "glow|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 263.9,
+    "hash": "befd350ad5bcece1ff95c50a4a71c453"
+  },
+  "glow|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 426.5,
+    "hash": "4396c312cc8f2a785e54b0263af55e3d"
+  },
+  "gradientMap|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 108.7,
+    "hash": "1596b631bb8d33ad19c9fc1c8f12a6c1"
+  },
+  "gradientMap|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 113.4,
+    "hash": "a82cc2b9520adea90fa5d924cc4a4dc3"
+  },
+  "gridSwap|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 33.3,
+    "hash": "76d04e32f1ac20653996033860ec9cde"
+  },
+  "gridSwap|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 29.4,
+    "hash": "47ffd3176495bc0b49ff3494a57b2c3b"
+  },
+  "halftone|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 74.1,
+    "hash": "421ce12f3e03f52012a3e45c8b49709f"
+  },
+  "halftone|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 83.9,
+    "hash": "348f1d5256f02f01371bebaaab7894c7"
+  },
+  "halftoneBayer|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 210,
+    "hash": "e1ed181cce6b9753a70993aa78d090a2"
+  },
+  "halftoneBayer|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 211.2,
+    "hash": "e1ed181cce6b9753a70993aa78d090a2"
+  },
+  "halftoneClassicDots|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 61.6,
+    "hash": "afac18a3f1cc94b05720c1193e7d8f6d"
+  },
+  "halftoneClassicDots|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 73.8,
+    "hash": "f14d8d14a087174fb57f6fb8de804329"
+  },
+  "halftoneFloydSteinberg|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 388,
+    "hash": "121bea1131b65d4cc3458c6cb1f57199"
+  },
+  "halftoneFloydSteinberg|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 376.5,
+    "hash": "121bea1131b65d4cc3458c6cb1f57199"
+  },
+  "halftoneLines|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 65.8,
+    "hash": "421ce12f3e03f52012a3e45c8b49709f"
+  },
+  "halftoneLines|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 65.2,
+    "hash": "4d2c04ab6c151155023de94e8d608eb5"
+  },
+  "kaleidoscope|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 418.8,
+    "hash": "03e70026da131c0a17bf313541659a7a"
+  },
+  "kaleidoscope|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 391.5,
+    "hash": "ead23e193747b6ac59b6af4cdecbd797"
+  },
+  "lensDistortion|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 3343,
+    "hash": "b70a91645ba55ef75fea5cef7be50f67"
+  },
+  "lensDistortion|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 3071.5,
+    "hash": "aa6c2b50d36a50893a1d7a75fdeaff4f"
+  },
+  "lightLeak|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 110.6,
+    "hash": "2d81f7edaa6d77f6f317da47883cb2ea"
+  },
+  "lightLeak|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 106.9,
+    "hash": "37795ff9d0fbe40c6fe5a28d1d156e6a"
+  },
+  "lowPoly|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 45.3,
+    "hash": "8bed7b5c9d1120a676e9669ba147d8d4"
+  },
+  "lowPoly|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 43.2,
+    "hash": "38b11eb7a07fb5209c31feb9e44b8397"
+  },
+  "melt|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 1076.5,
+    "hash": "be1ea1fb62bc3b5218f4dc6abc5325cb"
+  },
+  "melt|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 1047.4,
+    "hash": "974c27e2c60c3f70c441dad2320368f4"
+  },
+  "mirror|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 222,
+    "hash": "ac57ce21a733ccc0ca55af371dbfdbcd"
+  },
+  "mirror|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 234.7,
+    "hash": "ea46936ecae3138dff53d29d7f1e768b"
+  },
+  "motionMask|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 223.1,
+    "hash": "334611be5a912d5843b5cbe66c447df6"
+  },
+  "motionMask|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 240.3,
+    "hash": "1c7c171c30902bca4f9a98a6300ab24a"
+  },
+  "neonEdge|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 812.8,
+    "hash": "13d101a197f306c33a90e0c9d465c565"
+  },
+  "neonEdge|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 541.3,
+    "hash": "762583c1b082ae757c8f39b69bb5984b"
+  },
+  "oilPaint|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 1190,
+    "hash": "36782c60c848952f12974729ba123465"
+  },
+  "oilPaint|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 1173.1,
+    "hash": "41bb75d54747ff6fd4c6fca98bc27e4c"
+  },
+  "paperPrint|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 478.7,
+    "hash": "f23842752602b5739152abb85bb99bf1"
+  },
+  "paperPrint|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 532.1,
+    "hash": "63ee7621f2437e441b4dd28e0dae84c2"
+  },
+  "photocopy|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 330.9,
+    "hash": "ae1efb2729e17ea2201d0c23c3df964e"
+  },
+  "photocopy|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 307.1,
+    "hash": "a0ab1d2ea5d5ba719c4a9cfbb775e404"
+  },
+  "pixelSort|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 1465.8,
+    "hash": "96132190b224334de15c9931fc4847da"
+  },
+  "pixelSort|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 1686.7,
+    "hash": "6e5bebb8f7759800ca0374f425933c67"
+  },
+  "pixelated|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 761.1,
+    "hash": "ccbb4e7e76956e0ff39d29dde1c9d9b7"
+  },
+  "pixelated|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 753.4,
+    "hash": "671952d84b875ca5daa2f2a772667767"
+  },
+  "polar|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 1446.3,
+    "hash": "a193cf64ae578769d483792c074157d5"
+  },
+  "polar|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 1875.9,
+    "hash": "f75fc436a3adb2ee3f716c0665d21405"
+  },
+  "posterize|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 56.1,
+    "hash": "be31eb5acf1ea38055607cbfa630eaff"
+  },
+  "posterize|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 61.4,
+    "hash": "be31eb5acf1ea38055607cbfa630eaff"
+  },
+  "radialBlur|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 516.4,
+    "hash": "32d6397b85dd58fa8ac18433d03be6d5"
+  },
+  "radialBlur|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 513.1,
+    "hash": "87f0b8e9252dd76c2a39339717a0876d"
+  },
+  "ripple|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 531.7,
+    "hash": "21dc7bc26fe5eb8fd24846e9432e4fc7"
+  },
+  "ripple|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 520.7,
+    "hash": "aa8f223eb1940322624420cc5b378454"
+  },
+  "risograph|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 361.1,
+    "hash": "eed41fc5f77baf5141fb129ab7dd9f1b"
+  },
+  "risograph|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 363.7,
+    "hash": "48c07918477cb9e4ea24cc7f4a523b5a"
+  },
+  "scooch|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 13.9,
+    "hash": "370f884ce2d73e5b95facd02bee74b5f"
+  },
+  "scooch|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 7.6,
+    "hash": "f6e8ea8a39d4ac85ceeb98c11bfaa4f9"
+  },
+  "sketch|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 344.4,
+    "hash": "ea6bb134c667bc9f94aea636060836a6"
+  },
+  "sketch|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 328.9,
+    "hash": "a9af086b239a8a504e3b21a4a22ce6eb"
+  },
+  "smear|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 574.9,
+    "hash": "cff5bc85e6fcd2a63b708fb361943a18"
+  },
+  "smear|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 560.7,
+    "hash": "44ac844be30f712f1da5dc6aa35944f2"
+  },
+  "solarize|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 118.6,
+    "hash": "8ba3f145025e7dd7f3678625bd4e39de"
+  },
+  "solarize|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 115.1,
+    "hash": "b594acfe6cb4a7b2c1f1c199b7834d85"
+  },
+  "spiral|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 381.5,
+    "hash": "4fd7764f0043fbde4bb971ebda3cff30"
+  },
+  "spiral|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 397.6,
+    "hash": "e16c1dbdb671499cab7581d7bf1c4956"
+  },
+  "stacked|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 203.1,
+    "hash": "ea850f4feaf944fa10a70293a830397d"
+  },
+  "stacked|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 217,
+    "hash": "8483746e54b909e9f86d95793e3e3577"
+  },
+  "stackedCircle|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 250,
+    "hash": "e1e0d6f701cfd038f1b38c0cdd97552a"
+  },
+  "stackedCircle|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 308.1,
+    "hash": "7244646fa76c1e28b390a24e43bcd8de"
+  },
+  "subdivision|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 99.2,
+    "hash": "66265102d04c88ab3bcb23a9a511ef03"
+  },
+  "subdivision|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 89.5,
+    "hash": "21e008cb26191ad7ea599bc5fe0f8587"
+  },
+  "tiltShift|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 567.6,
+    "hash": "029f51e5234eb1acd61b2a612f632ddd"
+  },
+  "tiltShift|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 701.4,
+    "hash": "be052092b7de9b62132d294112171e4d"
+  },
+  "velocityBlur|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 719.2,
+    "hash": "fc48fc87254a02e1af56e3f56142a675"
+  },
+  "velocityBlur|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 1028.9,
+    "hash": "705fdcac27c3536f2f5e6bf49707aa4a"
+  },
+  "vhs|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 256,
+    "hash": "f9f00a91db657fc4d6abd28141732d20"
+  },
+  "vhs|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 246.5,
+    "hash": "a53de5b506a469c1dec64b367caefd02"
+  },
+  "watercolor|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 860.9,
+    "hash": "4084711e7e9f22b2b7746cdf751059ec"
+  },
+  "watercolor|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 843.9,
+    "hash": "47d9056845efb785164ca856a46d73a5"
+  },
+  "waves|Tree-Peony-Kazumasa-Ogawa.jpg|101": {
+    "ms": 85.6,
+    "hash": "60d001d3abaaf0ad895ccfff50f7fe45"
+  },
+  "waves|Tree-Peony-Kazumasa-Ogawa.jpg|202": {
+    "ms": 72.6,
+    "hash": "fc87a36e3fc38ff9ca094522eb0b03e4"
+  }
+}

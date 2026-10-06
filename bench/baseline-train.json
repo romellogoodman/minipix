@@ -1,0 +1,1586 @@
+{
+  "angularBlur|Earth-Infrared-ESA.jpg|1": {
+    "ms": 122.7,
+    "hash": "ae66fa5974cc745ab0eab5a3562fee8e"
+  },
+  "angularBlur|Earth-Infrared-ESA.jpg|2": {
+    "ms": 123.6,
+    "hash": "8386cf1d95511068f1f02e8e2c1c4185"
+  },
+  "angularBlur|Earth-Infrared-ESA.jpg|3": {
+    "ms": 118,
+    "hash": "1c973b4a66d0c2c297581ab9e9c2c32a"
+  },
+  "angularBlur|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 92.4,
+    "hash": "64b70ba225dcc9713e3e0b94e4b68782"
+  },
+  "angularBlur|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 81.4,
+    "hash": "eb7444e2aa0a4818c6ad1248accf386e"
+  },
+  "angularBlur|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 91,
+    "hash": "fc5ce87693a36fe618fd8c3107f4c591"
+  },
+  "arrowField|Earth-Infrared-ESA.jpg|1": {
+    "ms": 40.4,
+    "hash": "c8ff586e16fcf7f598b2a58b5a0ca6e0"
+  },
+  "arrowField|Earth-Infrared-ESA.jpg|2": {
+    "ms": 43.4,
+    "hash": "0059c28802d25dbb0e2e717fc8896a59"
+  },
+  "arrowField|Earth-Infrared-ESA.jpg|3": {
+    "ms": 41.4,
+    "hash": "4933e0ef84f077a374a43f1656c69550"
+  },
+  "arrowField|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 21.3,
+    "hash": "f85fedf827740efe7a4fe5212da1f88d"
+  },
+  "arrowField|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 24.2,
+    "hash": "af0c7dd854f1e6c87e6e7e46fe18351c"
+  },
+  "arrowField|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 23.5,
+    "hash": "d7c82ce32878f035420d364716dc188b"
+  },
+  "asciiMosaic|Earth-Infrared-ESA.jpg|1": {
+    "ms": 73.4,
+    "hash": "9a49cf7bfa8e809307a7789623567ecb"
+  },
+  "asciiMosaic|Earth-Infrared-ESA.jpg|2": {
+    "ms": 99.3,
+    "hash": "c67268563537cb414ec72df293aaa277"
+  },
+  "asciiMosaic|Earth-Infrared-ESA.jpg|3": {
+    "ms": 85,
+    "hash": "ea0d61305b16e4e703256ccb32ddc03f"
+  },
+  "asciiMosaic|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 109.9,
+    "hash": "68d9bd17bd77712550a325e358d95050"
+  },
+  "asciiMosaic|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 132.9,
+    "hash": "bf499ac24b7b2ede0aff357787610bfa"
+  },
+  "asciiMosaic|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 109.3,
+    "hash": "68d9bd17bd77712550a325e358d95050"
+  },
+  "barShift|Earth-Infrared-ESA.jpg|1": {
+    "ms": 53.5,
+    "hash": "9a2dcf97ae7a0cbd8f1d9027a666fbdd"
+  },
+  "barShift|Earth-Infrared-ESA.jpg|2": {
+    "ms": 43.7,
+    "hash": "e3d7bf9227b476c3657e50bc150b722a"
+  },
+  "barShift|Earth-Infrared-ESA.jpg|3": {
+    "ms": 31.6,
+    "hash": "e3eccf0e2a4f45fb25a2201d63e33557"
+  },
+  "barShift|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 33.8,
+    "hash": "dafd43fb33cc2b0c3c828d6d0700c949"
+  },
+  "barShift|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 16.5,
+    "hash": "0f1f2fc579aed37aa6fd8bf79283e515"
+  },
+  "barShift|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 15.8,
+    "hash": "f9d47b942e167ba1528ff83ca20e0a05"
+  },
+  "barSwap|Earth-Infrared-ESA.jpg|1": {
+    "ms": 11.4,
+    "hash": "5778f644a9e69896ce5d662e7bd87ce6"
+  },
+  "barSwap|Earth-Infrared-ESA.jpg|2": {
+    "ms": 14.3,
+    "hash": "db48d43129041a0874baf2cda8bc5d13"
+  },
+  "barSwap|Earth-Infrared-ESA.jpg|3": {
+    "ms": 12.6,
+    "hash": "747539379b29fef12a7096d76e4853c8"
+  },
+  "barSwap|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 4.5,
+    "hash": "aeecc9df44ad3ce8558f1c6a154613c5"
+  },
+  "barSwap|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 8,
+    "hash": "fa7355f26fbc1fd93f7fae514d65d0c6"
+  },
+  "barSwap|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 0.8,
+    "hash": "42bc63ffbe748f46eed048ccd922da1c"
+  },
+  "bokehBlur|Earth-Infrared-ESA.jpg|1": {
+    "ms": 235.2,
+    "hash": "553c2f55d70493751d8830de01298a62"
+  },
+  "bokehBlur|Earth-Infrared-ESA.jpg|2": {
+    "ms": 221.4,
+    "hash": "dc54074a7bf34badcd0881d8442658bb"
+  },
+  "bokehBlur|Earth-Infrared-ESA.jpg|3": {
+    "ms": 215.3,
+    "hash": "d40dc6a4aa84dd32960369ca26a42ec6"
+  },
+  "bokehBlur|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 90,
+    "hash": "08d78c705ffa1e219ecbf1d6fc7a47f0"
+  },
+  "bokehBlur|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 92.4,
+    "hash": "0f9c00182c19a5604629badac6d449e9"
+  },
+  "bokehBlur|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 90.5,
+    "hash": "885c37f8e52cf76b88e74d891ec60a61"
+  },
+  "bulge|Earth-Infrared-ESA.jpg|1": {
+    "ms": 36.3,
+    "hash": "5f6cb32e3308b68f918a08af7260dc01"
+  },
+  "bulge|Earth-Infrared-ESA.jpg|2": {
+    "ms": 65.5,
+    "hash": "5d0530975771edc002baddf38ddaeeab"
+  },
+  "bulge|Earth-Infrared-ESA.jpg|3": {
+    "ms": 46.7,
+    "hash": "19de6cc192688e49b7718778bfb01a76"
+  },
+  "bulge|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 18.4,
+    "hash": "abb1c9d3b3dd6d2af4fc961ea2a94570"
+  },
+  "bulge|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 25.9,
+    "hash": "259b60d175f4a853dd56c3d4f75a9b0e"
+  },
+  "bulge|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 19.5,
+    "hash": "e51d7f8b8e54dfba3795631529d2cfac"
+  },
+  "chalkboard|Earth-Infrared-ESA.jpg|1": {
+    "ms": 224.8,
+    "hash": "4ef3655a1500e3a9f30405c143428a69"
+  },
+  "chalkboard|Earth-Infrared-ESA.jpg|2": {
+    "ms": 229.2,
+    "hash": "6bb9d036b2a8b7053ed1c9ee63bf268a"
+  },
+  "chalkboard|Earth-Infrared-ESA.jpg|3": {
+    "ms": 227.1,
+    "hash": "2cc9941ffe8e6cb10d994ecc5870f7c2"
+  },
+  "chalkboard|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 142.8,
+    "hash": "c3f094c03159ae2fde3bf87762eddecc"
+  },
+  "chalkboard|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 145.9,
+    "hash": "3299ca2dbd3bd4e63cb6ab18c3f4e87f"
+  },
+  "chalkboard|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 140.1,
+    "hash": "52e3116b52f40c5f1e78062b24660d0d"
+  },
+  "channelBlur|Earth-Infrared-ESA.jpg|1": {
+    "ms": 74.1,
+    "hash": "3fe8f0ab196ddc039b4ad0235fdb66a4"
+  },
+  "channelBlur|Earth-Infrared-ESA.jpg|2": {
+    "ms": 72.6,
+    "hash": "3efc3e2d8814127f429336e16bbd038b"
+  },
+  "channelBlur|Earth-Infrared-ESA.jpg|3": {
+    "ms": 55.2,
+    "hash": "ff160b919b930e0d8052a81a776cc5fc"
+  },
+  "channelBlur|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 31,
+    "hash": "5f5006fe052233c6c2a0ce89f277e561"
+  },
+  "channelBlur|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 45,
+    "hash": "b8eb7af832d16813281818129e429fe3"
+  },
+  "channelBlur|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 34,
+    "hash": "cf569f91e92ec8bc98da1d374b76a593"
+  },
+  "chromaticAberration|Earth-Infrared-ESA.jpg|1": {
+    "ms": 82.3,
+    "hash": "b0499d6ea8e92e9c68701f9586fed4fe"
+  },
+  "chromaticAberration|Earth-Infrared-ESA.jpg|2": {
+    "ms": 268.8,
+    "hash": "4ffa637e52cd7d5b4e026fc5ba1ce9c0"
+  },
+  "chromaticAberration|Earth-Infrared-ESA.jpg|3": {
+    "ms": 81.4,
+    "hash": "836abdf181df3721c30d9ea977bcade4"
+  },
+  "chromaticAberration|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 45.8,
+    "hash": "28ef980b11f781be219c06e012dca15c"
+  },
+  "chromaticAberration|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 152.2,
+    "hash": "00734d904f942be773b7ca5cf6905b3e"
+  },
+  "chromaticAberration|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 46,
+    "hash": "e69f3645b44183a4c12dc04ffbaa6211"
+  },
+  "circlePacking|Earth-Infrared-ESA.jpg|1": {
+    "ms": 20.5,
+    "hash": "c2dba3e6fb24a31b5fd59b283d5a40c9"
+  },
+  "circlePacking|Earth-Infrared-ESA.jpg|2": {
+    "ms": 20.3,
+    "hash": "d43a8b0235d8ddcf877cf24562f90f2f"
+  },
+  "circlePacking|Earth-Infrared-ESA.jpg|3": {
+    "ms": 20.1,
+    "hash": "bb75d6d5bbbf4ab776dba3b2d796ae9f"
+  },
+  "circlePacking|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 16,
+    "hash": "08e4a4cfbf19cfef5cc5fe988d472486"
+  },
+  "circlePacking|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 16.4,
+    "hash": "413c96d3bf9550892253c93ea804c5bd"
+  },
+  "circlePacking|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 16.2,
+    "hash": "088bef1d6a1dd5767e9335d6f68140d9"
+  },
+  "compression|Earth-Infrared-ESA.jpg|1": {
+    "ms": 24.7,
+    "hash": "da487825b640bd71e04f6fc2f0e37e5e"
+  },
+  "compression|Earth-Infrared-ESA.jpg|2": {
+    "ms": 25,
+    "hash": "907ea83e07d276d2af4b1e7e8fe0b3a2"
+  },
+  "compression|Earth-Infrared-ESA.jpg|3": {
+    "ms": 31.4,
+    "hash": "1554ddeb3befee1c4659eb75b7189fbe"
+  },
+  "compression|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 21.7,
+    "hash": "daefa2ca591315081a0b5248aba4c0c2"
+  },
+  "compression|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 25,
+    "hash": "05f3429b784397d6fc4608aafe14cd13"
+  },
+  "compression|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 32.8,
+    "hash": "ecec34f9f9d4977be91d560caa80f4e1"
+  },
+  "concentricSpin|Earth-Infrared-ESA.jpg|1": {
+    "ms": 34.9,
+    "hash": "144798e9a81f834dffc5e388a21a134f"
+  },
+  "concentricSpin|Earth-Infrared-ESA.jpg|2": {
+    "ms": 36.4,
+    "hash": "46fd87e856860b77f82969c264e5a06a"
+  },
+  "concentricSpin|Earth-Infrared-ESA.jpg|3": {
+    "ms": 35.2,
+    "hash": "638dc2e48a0bb60efdd3ae441a175010"
+  },
+  "concentricSpin|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 19,
+    "hash": "052ecbb1ac3854901d94b601d1cd8f5c"
+  },
+  "concentricSpin|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 20.1,
+    "hash": "21b4b30a8f3efd2befbdf80a9c4aa64a"
+  },
+  "concentricSpin|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 19.8,
+    "hash": "533dfa62bdce8d0d91f253504ae18cc5"
+  },
+  "contourLines|Earth-Infrared-ESA.jpg|1": {
+    "ms": 72.7,
+    "hash": "9cd8a8ad50a05bc7cd2d95261307a62d"
+  },
+  "contourLines|Earth-Infrared-ESA.jpg|2": {
+    "ms": 65.6,
+    "hash": "aac6e91f510d84514dd6fd1bfde19004"
+  },
+  "contourLines|Earth-Infrared-ESA.jpg|3": {
+    "ms": 63.1,
+    "hash": "9bbea6040b1d7987ca63445701dd82e6"
+  },
+  "contourLines|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 40.3,
+    "hash": "adae52eb5ab048e8826266a38c5ded55"
+  },
+  "contourLines|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 40.5,
+    "hash": "9760b2adaf1379d1811475ebcc07025a"
+  },
+  "contourLines|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 35,
+    "hash": "0a5c8e7104b119df069f4838c13bfa13"
+  },
+  "crosshatch|Earth-Infrared-ESA.jpg|1": {
+    "ms": 852.1,
+    "hash": "68bc045c24a5d26b5ed2db5f31d645f9"
+  },
+  "crosshatch|Earth-Infrared-ESA.jpg|2": {
+    "ms": 198.3,
+    "hash": "9ed644d851f861487393493c166fc246"
+  },
+  "crosshatch|Earth-Infrared-ESA.jpg|3": {
+    "ms": 551.4,
+    "hash": "071473a20798960901d943bc81239d0b"
+  },
+  "crosshatch|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 933.9,
+    "hash": "5ce31385eabd0d9221eeaa2bab0607d7"
+  },
+  "crosshatch|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 200.2,
+    "hash": "c3c6be5554a91f1c8ea60781167c8952"
+  },
+  "crosshatch|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 880.2,
+    "hash": "94ba28d81129aa129540bf3fd584e7a7"
+  },
+  "crt|Earth-Infrared-ESA.jpg|1": {
+    "ms": 142.1,
+    "hash": "ff9b0fd6a7480f939779fc7847e24707"
+  },
+  "crt|Earth-Infrared-ESA.jpg|2": {
+    "ms": 116.8,
+    "hash": "ee21a22abb2dec3c7696ab1686cbc845"
+  },
+  "crt|Earth-Infrared-ESA.jpg|3": {
+    "ms": 111.8,
+    "hash": "7114dd706dbbc3182dacdcd09c943612"
+  },
+  "crt|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 50.7,
+    "hash": "9ffcf090b136bc392e7892676689c0b2"
+  },
+  "crt|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 45.4,
+    "hash": "138bd825032f1b133680ca82e7568c5e"
+  },
+  "crt|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 45.2,
+    "hash": "a634a32cba80891a5db21e276af7ca35"
+  },
+  "dataMosh|Earth-Infrared-ESA.jpg|1": {
+    "ms": 574.4,
+    "hash": "3993fe7253bd00f6de4eeea49329715a"
+  },
+  "dataMosh|Earth-Infrared-ESA.jpg|2": {
+    "ms": 272.4,
+    "hash": "637c69cc97c970478a9425d342de08f4"
+  },
+  "dataMosh|Earth-Infrared-ESA.jpg|3": {
+    "ms": 260.3,
+    "hash": "030068769cbe6e598bce6cd4889fdb1f"
+  },
+  "dataMosh|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 300.4,
+    "hash": "7a95e85e340b67607eab933b7be131ed"
+  },
+  "dataMosh|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 200.6,
+    "hash": "51432859ddbe8e9b444eb66ea38cd431"
+  },
+  "dataMosh|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 111,
+    "hash": "325696de642f899b233f7b5f6f184e32"
+  },
+  "diffuseBlur|Earth-Infrared-ESA.jpg|1": {
+    "ms": 70,
+    "hash": "caa08ecf903dc6ba55788b72096aa62e"
+  },
+  "diffuseBlur|Earth-Infrared-ESA.jpg|2": {
+    "ms": 67.2,
+    "hash": "802bd254d0b3de3fd84aeb43e6854c80"
+  },
+  "diffuseBlur|Earth-Infrared-ESA.jpg|3": {
+    "ms": 70.6,
+    "hash": "82a408c9741518de4462c1d63f709f4d"
+  },
+  "diffuseBlur|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 38.2,
+    "hash": "4255ee7aacb2d5635896445a78d51bc4"
+  },
+  "diffuseBlur|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 39.8,
+    "hash": "619b00243ba4910dd20dd83ed1009593"
+  },
+  "diffuseBlur|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 39.8,
+    "hash": "9f2da89412afdda4cd8d1c174a1a0022"
+  },
+  "dither|Earth-Infrared-ESA.jpg|1": {
+    "ms": 76.6,
+    "hash": "b21204922d297cef37ec3347d79b42b0"
+  },
+  "dither|Earth-Infrared-ESA.jpg|2": {
+    "ms": 73.8,
+    "hash": "b21204922d297cef37ec3347d79b42b0"
+  },
+  "dither|Earth-Infrared-ESA.jpg|3": {
+    "ms": 70.8,
+    "hash": "b21204922d297cef37ec3347d79b42b0"
+  },
+  "dither|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 40.6,
+    "hash": "d2eb1096e4cef8e6890287d88c87cc6d"
+  },
+  "dither|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 39.7,
+    "hash": "d2eb1096e4cef8e6890287d88c87cc6d"
+  },
+  "dither|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 39.7,
+    "hash": "d2eb1096e4cef8e6890287d88c87cc6d"
+  },
+  "duotone|Earth-Infrared-ESA.jpg|1": {
+    "ms": 10,
+    "hash": "84bfc098da9f1a198bf8008c4fb956d8"
+  },
+  "duotone|Earth-Infrared-ESA.jpg|2": {
+    "ms": 8.7,
+    "hash": "1dba1afbf00215d251cf624f840a1b57"
+  },
+  "duotone|Earth-Infrared-ESA.jpg|3": {
+    "ms": 8.7,
+    "hash": "34892d9d990d4fd0689d17d526490817"
+  },
+  "duotone|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 4.8,
+    "hash": "cf489d975b30981369335422985743e2"
+  },
+  "duotone|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 5,
+    "hash": "adeba367b79fbad2f4fca319e63160e8"
+  },
+  "duotone|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 5.3,
+    "hash": "b2cd5034b22065484f637e71f1809f45"
+  },
+  "echo|Earth-Infrared-ESA.jpg|1": {
+    "ms": 49.6,
+    "hash": "3ea9f46470bb7b8c3cffaf95c148513e"
+  },
+  "echo|Earth-Infrared-ESA.jpg|2": {
+    "ms": 40.3,
+    "hash": "42d8ac580b303851249d4c46845cb76f"
+  },
+  "echo|Earth-Infrared-ESA.jpg|3": {
+    "ms": 126.2,
+    "hash": "1b4fccc97a41cadc9d3d7d99177b3d46"
+  },
+  "echo|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 28.5,
+    "hash": "87de7571668d6952fad6ec433aa2761d"
+  },
+  "echo|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 22.9,
+    "hash": "cfdbc7a309ab4696da25091e3f274628"
+  },
+  "echo|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 64.6,
+    "hash": "d3cbc1e9561bc3f9d8001a74675ecb40"
+  },
+  "emboss|Earth-Infrared-ESA.jpg|1": {
+    "ms": 69.3,
+    "hash": "3792cac2d89efde3f0e7a8bf872c761a"
+  },
+  "emboss|Earth-Infrared-ESA.jpg|2": {
+    "ms": 64.9,
+    "hash": "4c6a32d768908fd9470cd981bf369713"
+  },
+  "emboss|Earth-Infrared-ESA.jpg|3": {
+    "ms": 224.9,
+    "hash": "535f03421537b55c44577715fbf9057f"
+  },
+  "emboss|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 32.6,
+    "hash": "3399010ce923d55189d67aee4378a674"
+  },
+  "emboss|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 32.4,
+    "hash": "95e55827fd263b4b7b10a550ea8fc168"
+  },
+  "emboss|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 133.6,
+    "hash": "b1b63ded44b3f8afdfbebab02e2fef6e"
+  },
+  "engraving|Earth-Infrared-ESA.jpg|1": {
+    "ms": 354.1,
+    "hash": "7fab076712dd2340f30c6dac99cfb246"
+  },
+  "engraving|Earth-Infrared-ESA.jpg|2": {
+    "ms": 77.1,
+    "hash": "19bab17ee8046af42524afdb18c1cb3d"
+  },
+  "engraving|Earth-Infrared-ESA.jpg|3": {
+    "ms": 367.4,
+    "hash": "a86810cbeb89caa24a123c1b74d0862c"
+  },
+  "engraving|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 204.8,
+    "hash": "5f9758f904607d70dd9d437d221ac70c"
+  },
+  "engraving|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 41.7,
+    "hash": "710cbb92d598a9cfcf8d19c263e1d211"
+  },
+  "engraving|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 207.4,
+    "hash": "3d1ad5c63f37f53ed64c6b7274ba03ec"
+  },
+  "filmGrain|Earth-Infrared-ESA.jpg|1": {
+    "ms": 33.5,
+    "hash": "ccaaa1869e4d6e2268a53dfd3585c057"
+  },
+  "filmGrain|Earth-Infrared-ESA.jpg|2": {
+    "ms": 34.9,
+    "hash": "754368835c74953b20119b4b8d34a7a6"
+  },
+  "filmGrain|Earth-Infrared-ESA.jpg|3": {
+    "ms": 36.1,
+    "hash": "6a640abef3a292ef9ed11ea480106ed9"
+  },
+  "filmGrain|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 18.4,
+    "hash": "8b0769a83dc9b5d8a072c99d7809ea51"
+  },
+  "filmGrain|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 18.8,
+    "hash": "976c858052eb839a8618d8378babbd7c"
+  },
+  "filmGrain|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 19.8,
+    "hash": "44b4d38f4398cbaf4a75d7f954983355"
+  },
+  "flutedGlass|Earth-Infrared-ESA.jpg|1": {
+    "ms": 235.6,
+    "hash": "dcee829bd08608aed87a8640de9b3d6b"
+  },
+  "flutedGlass|Earth-Infrared-ESA.jpg|2": {
+    "ms": 111,
+    "hash": "aa2ae00eb4e22aae0979a760603dbbd8"
+  },
+  "flutedGlass|Earth-Infrared-ESA.jpg|3": {
+    "ms": 134.1,
+    "hash": "36749496777c87ad488e591ed088189b"
+  },
+  "flutedGlass|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 93.1,
+    "hash": "092f7205e8c7424f57c9c0bcda416c69"
+  },
+  "flutedGlass|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 63.9,
+    "hash": "aa83a0715b466e477f007ca5c09322c0"
+  },
+  "flutedGlass|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 66,
+    "hash": "d6167ab5dbaa6d0e3ae20c5021876c3d"
+  },
+  "glassTiles|Earth-Infrared-ESA.jpg|1": {
+    "ms": 33.6,
+    "hash": "dc0dec28209709702b6c4094fd612c9f"
+  },
+  "glassTiles|Earth-Infrared-ESA.jpg|2": {
+    "ms": 40.4,
+    "hash": "437ba90a1a68f49da754b8afe32b9704"
+  },
+  "glassTiles|Earth-Infrared-ESA.jpg|3": {
+    "ms": 42.7,
+    "hash": "5fb770fe13a01738108a69ff1068d00b"
+  },
+  "glassTiles|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 15.6,
+    "hash": "8036c348f9efa79db75ebab71c994d6f"
+  },
+  "glassTiles|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 19.2,
+    "hash": "b0018e7548bdad94cacfad4c0ad0ea69"
+  },
+  "glassTiles|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 19.9,
+    "hash": "f3c8f3f9a61bb95ae7db098ff8d04638"
+  },
+  "glitch|Earth-Infrared-ESA.jpg|1": {
+    "ms": 4.1,
+    "hash": "c27e5534937584ba96f30187a4663a50"
+  },
+  "glitch|Earth-Infrared-ESA.jpg|2": {
+    "ms": 6.6,
+    "hash": "188378fb21715b9322223bf29c650d47"
+  },
+  "glitch|Earth-Infrared-ESA.jpg|3": {
+    "ms": 6,
+    "hash": "7213e1a1546e5d29b77bd25cb73ec576"
+  },
+  "glitch|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 2.3,
+    "hash": "314cf5fae59a72be74cf5b6a812e7b1a"
+  },
+  "glitch|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 3.4,
+    "hash": "3f4b6189c23b06b099614f75910dc169"
+  },
+  "glitch|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 3.4,
+    "hash": "c13357e4b455c97750a65548ac78a7df"
+  },
+  "glow|Earth-Infrared-ESA.jpg|1": {
+    "ms": 82.1,
+    "hash": "60bc35fc1e26c65083a331f6963c0a2c"
+  },
+  "glow|Earth-Infrared-ESA.jpg|2": {
+    "ms": 122.9,
+    "hash": "90345efc277fe841635e2d29c8685938"
+  },
+  "glow|Earth-Infrared-ESA.jpg|3": {
+    "ms": 129.9,
+    "hash": "6284aa13ce9919d97befceebc30542c6"
+  },
+  "glow|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 156.2,
+    "hash": "4e3204ddbc4ccf01621d50c419c7f45d"
+  },
+  "glow|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 162.8,
+    "hash": "0455ab37c736d7ccc930410eb783550d"
+  },
+  "glow|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 182.4,
+    "hash": "23325d8ae2bdd5313108e7dc3753ad7a"
+  },
+  "gradientMap|Earth-Infrared-ESA.jpg|1": {
+    "ms": 15.1,
+    "hash": "d61af3445e5fe82bd8db8298599adeef"
+  },
+  "gradientMap|Earth-Infrared-ESA.jpg|2": {
+    "ms": 14.2,
+    "hash": "55d46957b9a46483fe8eb975491b7750"
+  },
+  "gradientMap|Earth-Infrared-ESA.jpg|3": {
+    "ms": 14,
+    "hash": "496b1c7519febe4b21ee7adb361150f4"
+  },
+  "gradientMap|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 8,
+    "hash": "256a343a53f9290a72dba33a7dce9df9"
+  },
+  "gradientMap|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 7.9,
+    "hash": "1788a72792831c4bcb358ce5efa52c01"
+  },
+  "gradientMap|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 7.8,
+    "hash": "e4a048749e9509766fa186ff2c94b652"
+  },
+  "gridSwap|Earth-Infrared-ESA.jpg|1": {
+    "ms": 6.4,
+    "hash": "9df37164323d4ad4c48b5ed5b405f64c"
+  },
+  "gridSwap|Earth-Infrared-ESA.jpg|2": {
+    "ms": 6.4,
+    "hash": "0497a9dd13a6b002b3c6b0eb22fd5cda"
+  },
+  "gridSwap|Earth-Infrared-ESA.jpg|3": {
+    "ms": 6.6,
+    "hash": "5c7d3518c82ff5c1bbe1a6300d4473bc"
+  },
+  "gridSwap|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 3.2,
+    "hash": "0f1c37046036773fa60c61deae42eac7"
+  },
+  "gridSwap|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 3.1,
+    "hash": "1c47fb9c294285a40a9ce03122c4aa3e"
+  },
+  "gridSwap|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 3.2,
+    "hash": "2f7bc4214fb05a4666679402aafba798"
+  },
+  "halftone|Earth-Infrared-ESA.jpg|1": {
+    "ms": 44.3,
+    "hash": "a7bdde65b7f3bc20ca10a1aec3a15fef"
+  },
+  "halftone|Earth-Infrared-ESA.jpg|2": {
+    "ms": 67.3,
+    "hash": "e6d8ef97230a4f034f3effd0fcc74b39"
+  },
+  "halftone|Earth-Infrared-ESA.jpg|3": {
+    "ms": 40,
+    "hash": "a7bdde65b7f3bc20ca10a1aec3a15fef"
+  },
+  "halftone|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 23.5,
+    "hash": "2584bc09a38a10956c89c057d1a13f6a"
+  },
+  "halftone|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 37.5,
+    "hash": "c195557d02016119e1745792f5b1752a"
+  },
+  "halftone|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 24.3,
+    "hash": "2584bc09a38a10956c89c057d1a13f6a"
+  },
+  "halftoneBayer|Earth-Infrared-ESA.jpg|1": {
+    "ms": 40.2,
+    "hash": "a7bdde65b7f3bc20ca10a1aec3a15fef"
+  },
+  "halftoneBayer|Earth-Infrared-ESA.jpg|2": {
+    "ms": 41.2,
+    "hash": "a7bdde65b7f3bc20ca10a1aec3a15fef"
+  },
+  "halftoneBayer|Earth-Infrared-ESA.jpg|3": {
+    "ms": 40,
+    "hash": "a7bdde65b7f3bc20ca10a1aec3a15fef"
+  },
+  "halftoneBayer|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 24.5,
+    "hash": "2584bc09a38a10956c89c057d1a13f6a"
+  },
+  "halftoneBayer|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 24.2,
+    "hash": "2584bc09a38a10956c89c057d1a13f6a"
+  },
+  "halftoneBayer|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 23.4,
+    "hash": "2584bc09a38a10956c89c057d1a13f6a"
+  },
+  "halftoneClassicDots|Earth-Infrared-ESA.jpg|1": {
+    "ms": 29.8,
+    "hash": "d2c3998818a7d81574afe94ddf1ae2c3"
+  },
+  "halftoneClassicDots|Earth-Infrared-ESA.jpg|2": {
+    "ms": 16,
+    "hash": "7a55be75696e83513672a9d0e457fa49"
+  },
+  "halftoneClassicDots|Earth-Infrared-ESA.jpg|3": {
+    "ms": 20.9,
+    "hash": "1bb135ef8b2eb984573f7904e8d63625"
+  },
+  "halftoneClassicDots|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 35.7,
+    "hash": "553334062c44f16307589efdfa10cf91"
+  },
+  "halftoneClassicDots|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 12.2,
+    "hash": "f2f7b2b14ae271ab1bcb2f01d65784b8"
+  },
+  "halftoneClassicDots|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 22.7,
+    "hash": "cabaa9612e26f39cc7cfd098020cf3c2"
+  },
+  "halftoneFloydSteinberg|Earth-Infrared-ESA.jpg|1": {
+    "ms": 66.4,
+    "hash": "e6d8ef97230a4f034f3effd0fcc74b39"
+  },
+  "halftoneFloydSteinberg|Earth-Infrared-ESA.jpg|2": {
+    "ms": 64.7,
+    "hash": "e6d8ef97230a4f034f3effd0fcc74b39"
+  },
+  "halftoneFloydSteinberg|Earth-Infrared-ESA.jpg|3": {
+    "ms": 64.9,
+    "hash": "e6d8ef97230a4f034f3effd0fcc74b39"
+  },
+  "halftoneFloydSteinberg|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 36,
+    "hash": "c195557d02016119e1745792f5b1752a"
+  },
+  "halftoneFloydSteinberg|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 37.1,
+    "hash": "c195557d02016119e1745792f5b1752a"
+  },
+  "halftoneFloydSteinberg|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 38.4,
+    "hash": "c195557d02016119e1745792f5b1752a"
+  },
+  "halftoneLines|Earth-Infrared-ESA.jpg|1": {
+    "ms": 29.3,
+    "hash": "21485447dfeb30b6adb2638682c77c4b"
+  },
+  "halftoneLines|Earth-Infrared-ESA.jpg|2": {
+    "ms": 11.6,
+    "hash": "c4d7cd81fab4012cdcea59da5280dd10"
+  },
+  "halftoneLines|Earth-Infrared-ESA.jpg|3": {
+    "ms": 19.3,
+    "hash": "e62e496a70db177590b3a6f7f31e358f"
+  },
+  "halftoneLines|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 31.9,
+    "hash": "714917fd04eacdc1a60b741af4b01a7c"
+  },
+  "halftoneLines|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 7.1,
+    "hash": "f5ca0b21c7be4fd57008eb2efa83f1b1"
+  },
+  "halftoneLines|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 20.3,
+    "hash": "59f4f742bf4668265a9b9c216dd4ca95"
+  },
+  "kaleidoscope|Earth-Infrared-ESA.jpg|1": {
+    "ms": 60.9,
+    "hash": "804e99592eb4b55c60c38a95d2abd0bf"
+  },
+  "kaleidoscope|Earth-Infrared-ESA.jpg|2": {
+    "ms": 57.9,
+    "hash": "fba095afc10a58081455704ea420db99"
+  },
+  "kaleidoscope|Earth-Infrared-ESA.jpg|3": {
+    "ms": 60.4,
+    "hash": "f282ef6a7b69c9ba6407828085036866"
+  },
+  "kaleidoscope|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 16.2,
+    "hash": "d4cdb7448d4a2be375d02bf659641f8f"
+  },
+  "kaleidoscope|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 22.2,
+    "hash": "b4ee6e76967b9fc7bb699fb8fe16bae0"
+  },
+  "kaleidoscope|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 5.8,
+    "hash": "8c9138410773c1d6b72191c89daa9c03"
+  },
+  "lensDistortion|Earth-Infrared-ESA.jpg|1": {
+    "ms": 509.7,
+    "hash": "dcbe6917a2a5e1442ca9c711f3030895"
+  },
+  "lensDistortion|Earth-Infrared-ESA.jpg|2": {
+    "ms": 459.2,
+    "hash": "71d611924b854b1ec33b17890bfd963f"
+  },
+  "lensDistortion|Earth-Infrared-ESA.jpg|3": {
+    "ms": 458.4,
+    "hash": "4103b0628393d7bf0b7993e0e10edfd9"
+  },
+  "lensDistortion|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 267.4,
+    "hash": "b2ed1fb09a97fc537c91c2e898e8cb64"
+  },
+  "lensDistortion|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 263.7,
+    "hash": "caa7bbc4a91473f58be474ec83f5f591"
+  },
+  "lensDistortion|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 252.1,
+    "hash": "cf157e84e305991d9197830851065484"
+  },
+  "lightLeak|Earth-Infrared-ESA.jpg|1": {
+    "ms": 44.6,
+    "hash": "ecd1a0cf0f765601262b815bad40728b"
+  },
+  "lightLeak|Earth-Infrared-ESA.jpg|2": {
+    "ms": 42.9,
+    "hash": "3d0a1d3ca071128907abcc865eb44aba"
+  },
+  "lightLeak|Earth-Infrared-ESA.jpg|3": {
+    "ms": 43.2,
+    "hash": "3ee240d401686c7475c723ca48809bf2"
+  },
+  "lightLeak|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 24.1,
+    "hash": "918eec88a2d90e03a3efbecb6f04b619"
+  },
+  "lightLeak|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 24.8,
+    "hash": "10da46b5c8d6bf49f36ef8e3f75ec43e"
+  },
+  "lightLeak|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 25,
+    "hash": "89ce6f6b2b2d82967118e6efe2791191"
+  },
+  "lowPoly|Earth-Infrared-ESA.jpg|1": {
+    "ms": 33.5,
+    "hash": "1b54c4eb7a094b1afea2d918dbb4197f"
+  },
+  "lowPoly|Earth-Infrared-ESA.jpg|2": {
+    "ms": 38.5,
+    "hash": "f43609330ea18a4b5acac1505134b15e"
+  },
+  "lowPoly|Earth-Infrared-ESA.jpg|3": {
+    "ms": 37.5,
+    "hash": "95293bcd66e4b1442d399ada52eadb03"
+  },
+  "lowPoly|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 26.3,
+    "hash": "39742bc346e76c606dd1e133a84326ed"
+  },
+  "lowPoly|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 32.2,
+    "hash": "53413201b62196a031020d727b230013"
+  },
+  "lowPoly|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 30.7,
+    "hash": "088c5691084b0a3873f7b89c5e6278d9"
+  },
+  "melt|Earth-Infrared-ESA.jpg|1": {
+    "ms": 165.3,
+    "hash": "02ceb72154c307a11811fc6b1f241550"
+  },
+  "melt|Earth-Infrared-ESA.jpg|2": {
+    "ms": 151.5,
+    "hash": "6e88359d3648b0f20510a511269e0e12"
+  },
+  "melt|Earth-Infrared-ESA.jpg|3": {
+    "ms": 200.1,
+    "hash": "5fccca695a6237194af93619d1f15c5f"
+  },
+  "melt|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 108.3,
+    "hash": "bbad899ba9da2fe79e3fe559435b40d3"
+  },
+  "melt|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 83.7,
+    "hash": "06f6020af379bb4467e9016bf011f646"
+  },
+  "melt|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 109.8,
+    "hash": "209e8a32ccf38c428f649e57b8d91195"
+  },
+  "mirror|Earth-Infrared-ESA.jpg|1": {
+    "ms": 33.4,
+    "hash": "31260b36449e2f0ad9397d006fc509fe"
+  },
+  "mirror|Earth-Infrared-ESA.jpg|2": {
+    "ms": 28.2,
+    "hash": "46f1652fc91ce178801669e1a50415cf"
+  },
+  "mirror|Earth-Infrared-ESA.jpg|3": {
+    "ms": 27.6,
+    "hash": "65da1950ec733a0db8112de38c9fd0e3"
+  },
+  "mirror|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 17.9,
+    "hash": "b508d53c3461621c5c19fb5ca676e09d"
+  },
+  "mirror|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 16.3,
+    "hash": "6990ed47ed819326bdfb0d1fdedecd05"
+  },
+  "mirror|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 15.5,
+    "hash": "bc04877d437d96f87e1a4550106d073f"
+  },
+  "motionMask|Earth-Infrared-ESA.jpg|1": {
+    "ms": 74.5,
+    "hash": "a5fbfaf0adb05677e59293ead897037f"
+  },
+  "motionMask|Earth-Infrared-ESA.jpg|2": {
+    "ms": 70,
+    "hash": "d535a44e93657cfc16ba0d6b3e7f84d2"
+  },
+  "motionMask|Earth-Infrared-ESA.jpg|3": {
+    "ms": 66.8,
+    "hash": "0198956c285db07bc9ae682a90658809"
+  },
+  "motionMask|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 38.6,
+    "hash": "b533ad33be9252cfc969ccc6c2acb1b9"
+  },
+  "motionMask|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 41,
+    "hash": "833e6e57dd173532f56843b3464d6e25"
+  },
+  "motionMask|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 38.2,
+    "hash": "886d992516017b1c687a05932ec6204b"
+  },
+  "neonEdge|Earth-Infrared-ESA.jpg|1": {
+    "ms": 114.5,
+    "hash": "9d027887134f93b776fb3a11f3cee32a"
+  },
+  "neonEdge|Earth-Infrared-ESA.jpg|2": {
+    "ms": 97.1,
+    "hash": "525772352b130d4ef959d57a143b62b0"
+  },
+  "neonEdge|Earth-Infrared-ESA.jpg|3": {
+    "ms": 98.8,
+    "hash": "962ee4d273fbe8e9b7d9c9304dd14f3d"
+  },
+  "neonEdge|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 63.6,
+    "hash": "2302176cd3e34ee5acdbd6c1d81ce246"
+  },
+  "neonEdge|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 109.8,
+    "hash": "c0a614eeba929d39cf81fb898a52c625"
+  },
+  "neonEdge|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 53.2,
+    "hash": "cd4784fb254e6df325d0f25b4bdd65d9"
+  },
+  "oilPaint|Earth-Infrared-ESA.jpg|1": {
+    "ms": 172.2,
+    "hash": "5ce45f3f050557a80e299ce77231d074"
+  },
+  "oilPaint|Earth-Infrared-ESA.jpg|2": {
+    "ms": 168.7,
+    "hash": "5aaeae4f561671161bbcc87903ffb57e"
+  },
+  "oilPaint|Earth-Infrared-ESA.jpg|3": {
+    "ms": 163.3,
+    "hash": "5afe5532a1a793a65cf609fcfc93b28e"
+  },
+  "oilPaint|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 99.3,
+    "hash": "ae003a89db28128981c6fd5bf9c24fe1"
+  },
+  "oilPaint|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 102.8,
+    "hash": "4d12d545f91bd32e1dfe8075fe29a381"
+  },
+  "oilPaint|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 98.5,
+    "hash": "2b9cb48d320068b6a5b24f586072952a"
+  },
+  "paperPrint|Earth-Infrared-ESA.jpg|1": {
+    "ms": 146.6,
+    "hash": "d119bbcf08bf995b6ed5644aa68a6799"
+  },
+  "paperPrint|Earth-Infrared-ESA.jpg|2": {
+    "ms": 136.7,
+    "hash": "e12ba93ab6e9f8f1346d921edc516517"
+  },
+  "paperPrint|Earth-Infrared-ESA.jpg|3": {
+    "ms": 133.7,
+    "hash": "61f533f65addf9bd120a1a1a3481e409"
+  },
+  "paperPrint|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 83.3,
+    "hash": "83681afbd2825b1acce1fc4357c5093c"
+  },
+  "paperPrint|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 83.8,
+    "hash": "9211ea5bc580561a3148748735454101"
+  },
+  "paperPrint|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 81.6,
+    "hash": "57d8ea23aa4ef03bfd60fcab2ed71ad5"
+  },
+  "photocopy|Earth-Infrared-ESA.jpg|1": {
+    "ms": 41.6,
+    "hash": "a0011bdef706e0671bd47ac0c2c4cec7"
+  },
+  "photocopy|Earth-Infrared-ESA.jpg|2": {
+    "ms": 38.1,
+    "hash": "d93020ea849bbd1052ce76c4ca688356"
+  },
+  "photocopy|Earth-Infrared-ESA.jpg|3": {
+    "ms": 26.6,
+    "hash": "4b0da9c82bebacefa4b5783673828840"
+  },
+  "photocopy|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 21,
+    "hash": "5883897bf427ca1db823aa09171e99c4"
+  },
+  "photocopy|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 20.7,
+    "hash": "9bde4a5abd7f0aa02aeeb232b562204f"
+  },
+  "photocopy|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 14.6,
+    "hash": "15c87d675a368da86bda18686e957318"
+  },
+  "pixelSort|Earth-Infrared-ESA.jpg|1": {
+    "ms": 83.5,
+    "hash": "bbef684fc92fa2805d2942d806f0a65d"
+  },
+  "pixelSort|Earth-Infrared-ESA.jpg|2": {
+    "ms": 98.9,
+    "hash": "0d754788bfb00002db82233c79cd5e26"
+  },
+  "pixelSort|Earth-Infrared-ESA.jpg|3": {
+    "ms": 80.5,
+    "hash": "8bd4a78d7897cbee93b39ae3dab40d34"
+  },
+  "pixelSort|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 47.5,
+    "hash": "27cb4c6f17b8ea5abba4f02a139caf96"
+  },
+  "pixelSort|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 55,
+    "hash": "88b7acbc4a5370a53c6f1314b68dee0f"
+  },
+  "pixelSort|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 45.2,
+    "hash": "ff475c22faf42b36a78ceea8c114368d"
+  },
+  "pixelated|Earth-Infrared-ESA.jpg|1": {
+    "ms": 104.2,
+    "hash": "0ad54682f29195cf0b34c58b74e71086"
+  },
+  "pixelated|Earth-Infrared-ESA.jpg|2": {
+    "ms": 104.2,
+    "hash": "2c1ed0a8731dfdd4eb90690111de81d6"
+  },
+  "pixelated|Earth-Infrared-ESA.jpg|3": {
+    "ms": 103.5,
+    "hash": "bb923d6aed10294afc1468710dfeada9"
+  },
+  "pixelated|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 58.8,
+    "hash": "7909ae8249e682506f2cb67377ee9f1d"
+  },
+  "pixelated|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 58.6,
+    "hash": "3ea11ba4f275b3cda4d3edea80cdf6e5"
+  },
+  "pixelated|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 58.4,
+    "hash": "ce702064ed1b256b51837d5b196a0a8a"
+  },
+  "polar|Earth-Infrared-ESA.jpg|1": {
+    "ms": 215.3,
+    "hash": "b5d377f95a0f5cbfd0ad2ec284d5935c"
+  },
+  "polar|Earth-Infrared-ESA.jpg|2": {
+    "ms": 490.9,
+    "hash": "0456f93bbfe83c8b887ec65486cb837a"
+  },
+  "polar|Earth-Infrared-ESA.jpg|3": {
+    "ms": 576.7,
+    "hash": "cede178978cc705f2291739a189268dd"
+  },
+  "polar|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 156.3,
+    "hash": "e4651f3c6dd29415f4e77bc774cab981"
+  },
+  "polar|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 319.3,
+    "hash": "f45f50b74fa8c47c3b763b50954fceff"
+  },
+  "polar|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 328.5,
+    "hash": "481b0d196df2bb91c5a54285b247fe48"
+  },
+  "posterize|Earth-Infrared-ESA.jpg|1": {
+    "ms": 6.7,
+    "hash": "bcaffe007cbb215659d6731c09af3f21"
+  },
+  "posterize|Earth-Infrared-ESA.jpg|2": {
+    "ms": 6.7,
+    "hash": "4a7e8d947d0ad78058ef5f950be297bc"
+  },
+  "posterize|Earth-Infrared-ESA.jpg|3": {
+    "ms": 6.8,
+    "hash": "4a7e8d947d0ad78058ef5f950be297bc"
+  },
+  "posterize|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 3.8,
+    "hash": "091341ecef75985fa9e972f6c6a11ad5"
+  },
+  "posterize|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 4,
+    "hash": "1991c0e1f26101fe0a458c504118e178"
+  },
+  "posterize|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 3.9,
+    "hash": "1991c0e1f26101fe0a458c504118e178"
+  },
+  "radialBlur|Earth-Infrared-ESA.jpg|1": {
+    "ms": 199.2,
+    "hash": "b0d37986d83240787f7c3dfacd9cb0e2"
+  },
+  "radialBlur|Earth-Infrared-ESA.jpg|2": {
+    "ms": 224.4,
+    "hash": "436b2818aece5b6bf0b0f81d7957caf7"
+  },
+  "radialBlur|Earth-Infrared-ESA.jpg|3": {
+    "ms": 224.1,
+    "hash": "886e7122867b4d4ad03370cbbd5f14a4"
+  },
+  "radialBlur|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 112.2,
+    "hash": "813aa061f942dbb1918518c6ec51b241"
+  },
+  "radialBlur|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 126.7,
+    "hash": "651fd73a8e502bf2d72bb1f141b8e0e9"
+  },
+  "radialBlur|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 125.9,
+    "hash": "830b35f9c4677b97eeda6deef43d58a6"
+  },
+  "ripple|Earth-Infrared-ESA.jpg|1": {
+    "ms": 108.9,
+    "hash": "f758982684ba30f45d55158f90d263f5"
+  },
+  "ripple|Earth-Infrared-ESA.jpg|2": {
+    "ms": 140.8,
+    "hash": "fa310b6939f2090931e675d6e12d8f69"
+  },
+  "ripple|Earth-Infrared-ESA.jpg|3": {
+    "ms": 107.1,
+    "hash": "bd90bd091711887b6fffd9486188ea81"
+  },
+  "ripple|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 35.4,
+    "hash": "ae22b9a533e56c3c6a8731b5c908d887"
+  },
+  "ripple|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 66,
+    "hash": "c6acfd0b9e380d8fcf9c177ba9a4b910"
+  },
+  "ripple|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 36.3,
+    "hash": "458ebbb1c13996adeaa57606434fe886"
+  },
+  "risograph|Earth-Infrared-ESA.jpg|1": {
+    "ms": 68.7,
+    "hash": "ac4030f087750aec55dde3ccedd4e6f9"
+  },
+  "risograph|Earth-Infrared-ESA.jpg|2": {
+    "ms": 80.6,
+    "hash": "45715717a600e0f859d1313d6bd9794c"
+  },
+  "risograph|Earth-Infrared-ESA.jpg|3": {
+    "ms": 78.8,
+    "hash": "7fe1daf56ba3bf2eb5709439a9f1e623"
+  },
+  "risograph|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 34.6,
+    "hash": "fca359563ab265b6188510ae39155ada"
+  },
+  "risograph|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 44.3,
+    "hash": "5828f109292746788f64f898376ae4d1"
+  },
+  "risograph|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 43.8,
+    "hash": "a556dec1d3396b7ba82083282457760d"
+  },
+  "scooch|Earth-Infrared-ESA.jpg|1": {
+    "ms": 0.8,
+    "hash": "4f52a47cb5e9e9636f8e432ec36c9995"
+  },
+  "scooch|Earth-Infrared-ESA.jpg|2": {
+    "ms": 1.7,
+    "hash": "515fe199840aed463f8db69be046b1e8"
+  },
+  "scooch|Earth-Infrared-ESA.jpg|3": {
+    "ms": 1.1,
+    "hash": "0b8cb2feda542affac1e5e104ad325d6"
+  },
+  "scooch|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 0.4,
+    "hash": "5bf0a921a42a8b542ccc60aefcac932c"
+  },
+  "scooch|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 0.9,
+    "hash": "2d411ca3deb2a632ecfe88845a93932f"
+  },
+  "scooch|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 0.9,
+    "hash": "5d5f1f2bd6b95976742c7480dca3bea0"
+  },
+  "sketch|Earth-Infrared-ESA.jpg|1": {
+    "ms": 78.4,
+    "hash": "b39beb5537049639d9569b400cf8f4ce"
+  },
+  "sketch|Earth-Infrared-ESA.jpg|2": {
+    "ms": 63.7,
+    "hash": "7841da3233413cacff34ddf87baf4534"
+  },
+  "sketch|Earth-Infrared-ESA.jpg|3": {
+    "ms": 75.4,
+    "hash": "1da5cc689395ec2f2792ade069e716ac"
+  },
+  "sketch|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 45.4,
+    "hash": "699a40580bb660bf415604d7c163cedd"
+  },
+  "sketch|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 37.4,
+    "hash": "7b780b94f28b1a4e5ca07f71d1e229e8"
+  },
+  "sketch|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 44.7,
+    "hash": "5f3bd90f85d2e06b215ce4dc1104b033"
+  },
+  "smear|Earth-Infrared-ESA.jpg|1": {
+    "ms": 166.9,
+    "hash": "2ba496457339e5bae0453785357c3f6f"
+  },
+  "smear|Earth-Infrared-ESA.jpg|2": {
+    "ms": 170.5,
+    "hash": "e08220a1ba4a97b6bd66a877e1b328bd"
+  },
+  "smear|Earth-Infrared-ESA.jpg|3": {
+    "ms": 235.9,
+    "hash": "96e1a00316919420b6f523bcb16e5b0b"
+  },
+  "smear|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 94.4,
+    "hash": "7d171cf3157ecf96f609134c105ca993"
+  },
+  "smear|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 96.2,
+    "hash": "0125270f7912c543ae2516f10daae5cf"
+  },
+  "smear|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 128,
+    "hash": "0616d2f18c422027956e287861dac4a1"
+  },
+  "solarize|Earth-Infrared-ESA.jpg|1": {
+    "ms": 23.2,
+    "hash": "a78207df88f7dabead963203994a90a6"
+  },
+  "solarize|Earth-Infrared-ESA.jpg|2": {
+    "ms": 14.5,
+    "hash": "93c6701366c72458fe89fadad54a6147"
+  },
+  "solarize|Earth-Infrared-ESA.jpg|3": {
+    "ms": 14.5,
+    "hash": "e9a2d95012d82027ab75754f55653a80"
+  },
+  "solarize|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 12.9,
+    "hash": "676d60900e5d1f826689230e85c7fec5"
+  },
+  "solarize|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 8.9,
+    "hash": "5a1050cd294564926c555e07e0cd76d9"
+  },
+  "solarize|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 7.6,
+    "hash": "7164a5f95dcb5bd67aa158d9761839a3"
+  },
+  "spiral|Earth-Infrared-ESA.jpg|1": {
+    "ms": 77,
+    "hash": "9c7ddecf9aacde1df316605f5c39a1e7"
+  },
+  "spiral|Earth-Infrared-ESA.jpg|2": {
+    "ms": 75.7,
+    "hash": "ba03d82e0075a2d1cdc8038d130764e5"
+  },
+  "spiral|Earth-Infrared-ESA.jpg|3": {
+    "ms": 69.2,
+    "hash": "f9c00b59dd88639f3f7e7ce42418454b"
+  },
+  "spiral|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 43.6,
+    "hash": "c1fdc566ceb7cc100e1f0e423834c592"
+  },
+  "spiral|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 43.3,
+    "hash": "776aa4f0020306ff94a97e6ba6682c82"
+  },
+  "spiral|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 39,
+    "hash": "61f931bffb17351c9a6eae1caff4623d"
+  },
+  "stacked|Earth-Infrared-ESA.jpg|1": {
+    "ms": 115.5,
+    "hash": "a65b0ed9abf6942232ea3304580a6c39"
+  },
+  "stacked|Earth-Infrared-ESA.jpg|2": {
+    "ms": 159.9,
+    "hash": "add0aa09bbb9a9936ba154e18d32da57"
+  },
+  "stacked|Earth-Infrared-ESA.jpg|3": {
+    "ms": 157.1,
+    "hash": "40fba8e4d3f803cda0ff6668203c21fc"
+  },
+  "stacked|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 75.1,
+    "hash": "30b05ed74ea832af12bac0c1742f796f"
+  },
+  "stacked|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 90,
+    "hash": "8f5f5dbbb0f823ede2f92da3be32b023"
+  },
+  "stacked|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 88.6,
+    "hash": "106d2bf0d1c2472e184124f59b263878"
+  },
+  "stackedCircle|Earth-Infrared-ESA.jpg|1": {
+    "ms": 48.4,
+    "hash": "842c295cc825feca231613acfe66d88f"
+  },
+  "stackedCircle|Earth-Infrared-ESA.jpg|2": {
+    "ms": 86.9,
+    "hash": "d57739f9d21d12a884e1c4d9fabf1da7"
+  },
+  "stackedCircle|Earth-Infrared-ESA.jpg|3": {
+    "ms": 49.3,
+    "hash": "b39a25b8bfac31c5270e56b2f67a3428"
+  },
+  "stackedCircle|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 25.9,
+    "hash": "381df7b48a4ab6b1123e8a65093b463b"
+  },
+  "stackedCircle|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 47.9,
+    "hash": "fe934b2ba1db27cb5113a746700c5a28"
+  },
+  "stackedCircle|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 26.2,
+    "hash": "3a76cfc70fcd650e93362e8218068b9f"
+  },
+  "subdivision|Earth-Infrared-ESA.jpg|1": {
+    "ms": 13.5,
+    "hash": "8312f60fc293e9ccd5b4e04af1930ca9"
+  },
+  "subdivision|Earth-Infrared-ESA.jpg|2": {
+    "ms": 13.3,
+    "hash": "352132559d902b29a596554e1fe97163"
+  },
+  "subdivision|Earth-Infrared-ESA.jpg|3": {
+    "ms": 9.6,
+    "hash": "a0cb594fa1040997fbd17b498f921816"
+  },
+  "subdivision|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 8.8,
+    "hash": "b1b73310f2f4d45c0ff2db8bcd47e56b"
+  },
+  "subdivision|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 7.4,
+    "hash": "4418682b971bfbcff8961f2bba3dcc77"
+  },
+  "subdivision|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 4.7,
+    "hash": "a688d1a2f4d24c0a6612b2c237c3944d"
+  },
+  "tiltShift|Earth-Infrared-ESA.jpg|1": {
+    "ms": 103.7,
+    "hash": "ae5846137ebfa1dc060bf0d1b29ae078"
+  },
+  "tiltShift|Earth-Infrared-ESA.jpg|2": {
+    "ms": 100.6,
+    "hash": "aa0803d64ff3bbbcfe59c95850a6a16f"
+  },
+  "tiltShift|Earth-Infrared-ESA.jpg|3": {
+    "ms": 90.3,
+    "hash": "b2b0e584d88fc3b550db3d4e64126d95"
+  },
+  "tiltShift|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 54.9,
+    "hash": "7540a58e3bed8f3b1e4c36e3655dd570"
+  },
+  "tiltShift|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 57,
+    "hash": "c0062f01120e0cb90e595d9cad723d07"
+  },
+  "tiltShift|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 48.2,
+    "hash": "ddbea9594551aebeb1eb3f9f47826ced"
+  },
+  "velocityBlur|Earth-Infrared-ESA.jpg|1": {
+    "ms": 159.9,
+    "hash": "1c4488f8f3319cfe76f827fb1ce8d83d"
+  },
+  "velocityBlur|Earth-Infrared-ESA.jpg|2": {
+    "ms": 123.5,
+    "hash": "8e961450560b85cc3ecfa2c0dab03b59"
+  },
+  "velocityBlur|Earth-Infrared-ESA.jpg|3": {
+    "ms": 120.5,
+    "hash": "773df8f7e87ee23481e99202e1bb7980"
+  },
+  "velocityBlur|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 56.6,
+    "hash": "4e24509e06e9b4eabd1c2b568442bc76"
+  },
+  "velocityBlur|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 67.1,
+    "hash": "0c99acc38f7670587fc6354130b130b8"
+  },
+  "velocityBlur|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 67.4,
+    "hash": "f55c31d8437cbb2d6901e7d280f5c080"
+  },
+  "vhs|Earth-Infrared-ESA.jpg|1": {
+    "ms": 34.3,
+    "hash": "93c60b89a2387f83db9d20acf9ff4d20"
+  },
+  "vhs|Earth-Infrared-ESA.jpg|2": {
+    "ms": 44.7,
+    "hash": "52263ab2f4e43a126ea06d2ef053f079"
+  },
+  "vhs|Earth-Infrared-ESA.jpg|3": {
+    "ms": 44.5,
+    "hash": "b1de4887b851cf8b2773b89f0e3d0256"
+  },
+  "vhs|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 25,
+    "hash": "618412c6ebc6e950683daa856f584cbd"
+  },
+  "vhs|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 24.5,
+    "hash": "228670ac0ff95b04ab3fd8c86fd9a005"
+  },
+  "vhs|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 24.9,
+    "hash": "00a32ca67e8489f8c0d24bc4faf88701"
+  },
+  "watercolor|Earth-Infrared-ESA.jpg|1": {
+    "ms": 249.2,
+    "hash": "ee7d084a600f21b37cfb8bc89227a083"
+  },
+  "watercolor|Earth-Infrared-ESA.jpg|2": {
+    "ms": 225.7,
+    "hash": "5d2a20be57222d3868c41860efb82204"
+  },
+  "watercolor|Earth-Infrared-ESA.jpg|3": {
+    "ms": 212.5,
+    "hash": "24f19035a323e7d08943223192c4af34"
+  },
+  "watercolor|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 124.2,
+    "hash": "decb6d49e8e053a805b10f4ae30e8679"
+  },
+  "watercolor|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 133.1,
+    "hash": "d3f696c24c07e3cc32d8ac50f1aa9d8e"
+  },
+  "watercolor|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 128.4,
+    "hash": "a6f70976199f861302732f848ecdab31"
+  },
+  "waves|Earth-Infrared-ESA.jpg|1": {
+    "ms": 14,
+    "hash": "bcdf232c7e9a700e7bbaacd33b2b3fc7"
+  },
+  "waves|Earth-Infrared-ESA.jpg|2": {
+    "ms": 10.5,
+    "hash": "723b32679371c1899611324044ab8775"
+  },
+  "waves|Earth-Infrared-ESA.jpg|3": {
+    "ms": 13,
+    "hash": "309644e7b9d998b940eba2db0cc7c480"
+  },
+  "waves|Earth-Infrared-ESA.jpg@1333x750|1": {
+    "ms": 8.1,
+    "hash": "a7864a3df1a515c254e95db4d280f7ae"
+  },
+  "waves|Earth-Infrared-ESA.jpg@1333x750|2": {
+    "ms": 7.3,
+    "hash": "ece6d2ff906664f1030b00d097e40fc5"
+  },
+  "waves|Earth-Infrared-ESA.jpg@1333x750|3": {
+    "ms": 7.2,
+    "hash": "9258e334174f72b41704ae7e9fce9148"
+  }
+}
