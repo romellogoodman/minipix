@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { generateSeedHash, parseSeed } from "../utils/download.js";
 
 export function Field({ label, aside, hint, children }) {
   return (
@@ -14,31 +13,33 @@ export function Field({ label, aside, hint, children }) {
   );
 }
 
-// Seed text field: shows the base36 hash, commits on Enter or blur. Key it by
-// hash in the parent so it resets whenever the seed changes elsewhere.
-export function SeedInput({ hash, onCommit }) {
-  const [text, setText] = useState(hash);
-  const valid = parseSeed(text) !== null;
+// Variation code field: shows the current code; pasting or typing one and
+// pressing Enter (or leaving the field) loads it. `parse` returns null for text
+// that isn't a code. Key it by code in the parent so it resets on outside changes.
+export function CodeInput({ code, parse, onCommit }) {
+  const [text, setText] = useState(code);
+  const valid = parse(text) !== null;
 
   const commit = () => {
-    const seed = parseSeed(text);
-    if (seed === null) setText(hash);
-    else if (generateSeedHash(seed) !== hash) onCommit(seed);
+    if (!valid) setText(code);
+    else if (text.trim().toLowerCase() !== code) onCommit(parse(text));
   };
 
   return (
     <input
-      className={`input${valid ? "" : " input--invalid"}`}
-      aria-label="Seed"
+      className={`input input--code${valid ? "" : " input--invalid"}`}
+      aria-label="Variation code"
+      title="The code for this exact image. Paste one here to load it."
       value={text}
       spellCheck={false}
       autoComplete="off"
       onChange={(e) => setText(e.target.value)}
+      onFocus={(e) => e.currentTarget.select()}
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.blur();
         if (e.key === "Escape") {
-          setText(hash);
+          setText(code);
           e.currentTarget.blur();
         }
       }}

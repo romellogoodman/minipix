@@ -6,13 +6,14 @@ Try it at [minipix.romellogoodman.com](https://minipix.romellogoodman.com).
 
 ## Features
 
-- Single-canvas studio: pick a source, a renderer, and a seed, and see one large output
+- Single-canvas studio: pick a source and a renderer, reroll until you like it, and see one large output
 - 62 rendering algorithms, grouped and described in the renderer picker
-- Seeded randomness for reproducible artwork, with a "lock seed" toggle
-- Per-renderer parameter sliders: leave a parameter on auto or pin it to a value
+- Reproducible artwork: every image has a short code that recreates it exactly
+- Per-renderer parameter sliders that show what the current image uses; pin any of them
+  and Reroll keeps it while everything else changes
 - A filmstrip of your 12 most recent variations to step back through
-- Download or copy the output with a descriptive filename including the seed hash;
-  save and load settings as JSON
+- Download or copy the output with a descriptive filename including its code, or copy a
+  link that reproduces it
 - Upload your own images (PNG/JPEG) via drag-and-drop or file selection
 - Pixel-heavy renderers run in a pool of Web Workers to keep the UI responsive
 - **CLI rendering** with node-canvas for batch processing
@@ -43,9 +44,9 @@ npm run render -- --file=image.jpg --count=5
 ### Web Interface
 
 1. **Source**: Click an example thumbnail, or upload your own with the upload tile (or drop it anywhere on the page)
-2. **Renderer**: Choose a renderer; its description appears below the picker
-3. **Variation**: Type a seed or press **R** to reroll (a new seed, with every parameter back to auto). Turn on *Lock seed* to keep the seed while changing renderer. Drag a parameter slider to pin it; untouched ones stay on auto (their random range)
-4. **Export**: Press **D** or *Download* to save `{imagename}-minipix-{renderer}-{hash}.{ext}` (JPEG sources save as `.jpg`, everything else as `.png`), copy the image or a link, or save the settings as JSON
+2. **Renderer**: Choose a renderer, or press the dice button for a random one; its description appears below the picker
+3. **Variation**: Press *Reroll* (or **R**) for a new variation. Each slider shows the value the current image uses; drag it (or press its dice button) to pin it, and Reroll keeps pinned settings while changing everything else. Chances (e.g. *Color chalk*) are Auto / On / Off. *Reset pinned* puts everything back on auto
+4. **Export**: Press **D** or *Download* to save `{imagename}-minipix-{renderer}-{code}.{ext}` (JPEG sources save as `.jpg`, everything else as `.png`), or copy the image or a link. The code next to the heading recreates this exact image (pins included); paste a code there to load it
 
 Use **←/→** to step through the filmstrip of recent variations.
 
@@ -54,7 +55,7 @@ Use **←/→** to step through the filmstrip of recent variations.
 | Parameter | Description | Example |
 |-----------|-------------|---------|
 | `renderer` | Start on this renderer (the first valid name of a comma-separated list). | `?renderer=spiral` |
-| `seed` | Start on this seed. Accepts the base36 hash from a filename or a decimal seed. | `?renderer=spiral&seed=00009ix` |
+| `seed` | Start on this variation: the code from a filename or a copied link (pins included), or a decimal seed. | `?renderer=spiral&seed=00009ix-2.k` |
 
 ### CLI Rendering
 
@@ -202,9 +203,10 @@ When `--count` is greater than 1 with a fixed `--seed`, each image uses
 
 ## Seeded Randomness
 
-Each canvas uses a unique random seed that controls all randomization within the renderer. This means:
-- Same seed = identical visual output
-- Filenames include the seed as a 7-character base36 hash
+Each variation uses a random seed that controls all randomization within the renderer. This means:
+- Same renderer + code = identical visual output
+- The code is the seed as a 7-character base36 hash, plus a suffix for any pinned
+  settings (e.g. `00009ix-2.k`); filenames and links include it
 - Easy to share and recreate specific variations
 
 ## Development

@@ -1,4 +1,4 @@
-import { createSeededRandom } from "./utils.js";
+import { createSeededRandom, recordDraws } from "./utils.js";
 import renderers from "./renderers/index.js";
 
 self.onmessage = function (e) {
@@ -14,8 +14,10 @@ self.onmessage = function (e) {
   try {
     const random = createSeededRandom(seed);
     const outputData = new Uint8ClampedArray(imageData.length);
-    renderer({ imageData, width, height, config, random, outputData });
-    self.postMessage({ id, result: outputData.buffer, width, height }, [outputData.buffer]);
+    const draws = recordDraws(config, () =>
+      renderer({ imageData, width, height, config, random, outputData })
+    );
+    self.postMessage({ id, result: outputData.buffer, width, height, draws }, [outputData.buffer]);
   } catch (err) {
     self.postMessage({ id, error: String(err?.message || err) });
   }

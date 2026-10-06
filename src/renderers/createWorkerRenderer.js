@@ -48,8 +48,10 @@ const createWorkerRenderer = (name) => {
       config
     );
 
+    // Resolves with the parameter values the render drew (see recordDraws).
     const wrapped = promise.then((result) => {
       ctx.putImageData(new ImageData(result.data, result.width, result.height), 0, 0);
+      return result.draws;
     });
     wrapped.cancel = promise.cancel;
     return wrapped;

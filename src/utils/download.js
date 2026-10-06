@@ -23,7 +23,7 @@ export function buildFilename(image, rendererName, hash) {
 }
 
 // Saves a blob under `filename` via a temporary link.
-export function downloadBlob(blob, filename) {
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;

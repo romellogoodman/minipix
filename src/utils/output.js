@@ -1,5 +1,6 @@
 import { rendererConfig } from "../renderers";
-import { generateSeedHash, buildFilename, parseSeed } from "./download.js";
+import { buildFilename } from "./download.js";
+import { variationCode } from "../catalog.js";
 
 // Every renderer, in config order.
 export const ALL_RENDERERS = Object.keys(rendererConfig);
@@ -15,25 +16,26 @@ export const rendererFromUrl = () =>
     .map((name) => name.trim())
     .find((name) => ALL_RENDERERS.includes(name)) ?? null;
 
-// ?seed= from a shared link: the base36 hash from a filename or a decimal seed.
-export const seedFromUrl = () => parseSeed(param("seed"));
+// ?seed= from a shared link: a variation code (see catalog.js), a filename's
+// hash, or a decimal seed. Parsed by the caller once the renderer is known.
+export const codeFromUrl = () => param("seed");
 
 // Everything the stage canvas and the export buttons need for one output.
-export function describe({ image, renderer, seed }) {
-  const hash = generateSeedHash(seed);
+export function describe({ image, renderer, seed, overrides }) {
+  const code = variationCode(seed, renderer.displayName, overrides);
   return {
     image,
     seed,
     renderer,
     rendererName: renderer.displayName,
-    hash,
-    filename: buildFilename(image, renderer.displayName, hash),
+    code,
+    filename: buildFilename(image, renderer.displayName, code),
   };
 }
 
-// Link that reproduces one output: ?renderer= and ?seed=.
-export function shareLink(rendererName, hash) {
+// Link that reproduces one output, pinned parameters included.
+export function shareLink(rendererName, code) {
   const url = new URL(window.location.href);
-  url.search = new URLSearchParams({ renderer: rendererName, seed: hash }).toString();
+  url.search = new URLSearchParams({ renderer: rendererName, seed: code }).toString();
   return url.toString();
 }

@@ -176,57 +176,18 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* ---------- lock toggle ---------- */
+  /* ---------- variation ---------- */
 
-  &__toggle {
-    display: flex;
+  &__actions {
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: var(--spacing-unit);
-    font-weight: 500;
-    cursor: pointer;
-    user-select: none;
-
-    input {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-    }
+    gap: var(--spacing-2x);
   }
 
-  &__switch {
-    position: relative;
-    flex: none;
-    width: 26px;
-    height: 16px;
-    border-radius: 8px;
-    background: var(--color-line-strong);
-    transition: background 120ms var(--ease);
-
-    &::after {
-      content: "";
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: var(--color-bg);
-      transition: transform 120ms var(--ease);
-    }
-  }
-
-  &__toggle input:checked + &__switch {
-    background: var(--color-accent);
-
-    &::after {
-      transform: translateX(10px);
-    }
-  }
-
-  &__toggle input:focus-visible + &__switch {
-    outline: 1.5px solid var(--color-focus);
-    outline-offset: 2px;
+  // Same square dice button as the renderer row, sized for a field heading.
+  &__reroll {
+    width: 32px;
+    color: var(--color-text);
   }
 
   /* ---------- parameters ---------- */
@@ -236,8 +197,6 @@
     flex-direction: column;
     gap: 10px;
     margin-top: var(--spacing-unit);
-    padding-top: var(--spacing-2x);
-    border-top: 1px solid var(--color-line);
   }
 
   &__param {
@@ -287,7 +246,6 @@
     color: var(--color-text);
   }
 
-  &__param-auto,
   &__param-reset {
     flex: none;
     width: 36px;
@@ -297,14 +255,55 @@
     letter-spacing: 0.04em;
   }
 
-  &__param-auto {
-    color: var(--color-text-3);
-  }
 
   &__param-reset {
     color: var(--color-text);
     text-decoration: underline;
     text-underline-offset: 2px;
+  }
+
+  // Shown on hover / keyboard focus of its row (always on touch screens).
+  &__param-reroll {
+    flex: none;
+    align-self: center;
+    display: inline-flex;
+    padding: 2px;
+    border-radius: 4px;
+    color: var(--color-text-3);
+    opacity: 0;
+    transition: opacity 120ms var(--ease), color 120ms var(--ease), background 120ms var(--ease);
+
+    &:hover {
+      color: var(--color-text);
+      background: var(--color-field-hi);
+    }
+
+    @media (hover: none) {
+      opacity: 1;
+    }
+  }
+
+  &__param:hover &__param-reroll,
+  &__param:focus-within &__param-reroll {
+    opacity: 1;
+  }
+
+  // On auto before a render reports what the seed drew: no thumb to mislead.
+  &__param--unknown .slider__input {
+    &::-webkit-slider-thumb {
+      opacity: 0;
+    }
+
+    &::-moz-range-thumb {
+      opacity: 0;
+    }
+  }
+
+  &__param--choice {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-unit);
   }
 
   &__span {

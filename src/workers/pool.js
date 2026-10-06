@@ -35,7 +35,7 @@ class WorkerPool {
       );
 
       worker.onmessage = (e) => {
-        const { id, result, width, height, error } = e.data;
+        const { id, result, width, height, draws, error } = e.data;
         const callback = this.callbacks.get(id);
 
         if (callback) {
@@ -43,7 +43,7 @@ class WorkerPool {
           if (error) {
             callback.reject(new Error(error));
           } else {
-            callback.resolve({ data: new Uint8ClampedArray(result), width, height });
+            callback.resolve({ data: new Uint8ClampedArray(result), width, height, draws });
           }
         }
 

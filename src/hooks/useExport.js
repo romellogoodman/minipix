@@ -37,7 +37,7 @@ export default function useExport() {
   const copyLink = useCallback(
     async (output) => {
       if (!output) return;
-      const url = shareLink(output.rendererName, output.hash);
+      const url = shareLink(output.rendererName, output.code);
       try {
         await navigator.clipboard.writeText(url);
         flash("Link copied");
@@ -48,5 +48,5 @@ export default function useExport() {
     [flash]
   );
 
-  return { status, flash, download, copyImage, copyLink };
+  return { status, download, copyImage, copyLink };
 }

@@ -14,7 +14,6 @@
     "prepare": "git config core.hooksPath .githooks"
   },
   "dependencies": {
-    "feather-icons-react": "^1.0.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

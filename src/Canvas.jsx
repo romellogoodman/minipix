@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, memo } from "react";
+import { recordDraws } from "./utils/math.js";
 
 const requestIdle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
 const cancelIdle = window.cancelIdleCallback || clearTimeout;
@@ -17,6 +18,8 @@ function Canvas({ image, renderFn, seed, config, label, maxWidth, maxHeight, onR
   const canvasRef = useRef(null);
   // "pending" | "done" | "error"
   const [renderState, setRenderState] = useState("pending");
+  // Parameter values the render drew from its config ranges (see recordDraws).
+  const drawsRef = useRef({});
 
   useEffect(() => {
     let cancelled = false;
@@ -24,10 +27,12 @@ function Canvas({ image, renderFn, seed, config, label, maxWidth, maxHeight, onR
 
     const render = async () => {
       try {
-        const result = renderFn({ canvas: canvasRef.current, image, seed, config });
-        if (result instanceof Promise) {
-          workerPromise = result;
-          await result;
+        const args = { canvas: canvasRef.current, image, seed, config };
+        if (renderFn.isAsync) {
+          workerPromise = renderFn(args);
+          drawsRef.current = (await workerPromise) ?? {};
+        } else {
+          drawsRef.current = recordDraws(config ?? {}, () => renderFn(args));
         }
         if (!cancelled) setRenderState("done");
       } catch (error) {
@@ -50,9 +55,9 @@ function Canvas({ image, renderFn, seed, config, label, maxWidth, maxHeight, onR
     };
   }, [renderFn, image, seed, config]);
 
-  // Hands the finished canvas to the parent for export and thumbnails.
+  // Hands the finished canvas (and its drawn parameter values) to the parent.
   useEffect(() => {
-    if (renderState === "done") onRendered?.(canvasRef.current);
+    if (renderState === "done") onRendered?.(canvasRef.current, drawsRef.current);
   }, [onRendered, renderState]);
 
   const { width, height } = fitDisplaySize(image, maxWidth, maxHeight);

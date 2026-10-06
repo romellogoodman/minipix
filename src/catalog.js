@@ -1,4 +1,5 @@
 import { rendererConfig } from "./renderers";
+import { generateSeedHash, parseSeed } from "./utils/download.js";
 
 // Renderer groups for the renderer picker. Anything missing from these
 // lists (e.g. a renderer added later) lands in "Other".
@@ -235,6 +236,13 @@ const SPAN_PARAMS = new Set(["stacked.sizeFactor", "stackedCircle.sizeFactor"]);
 // Power-of-ten step giving roughly 100 slider positions across `span`.
 const floatStep = (span) => 10 ** Math.floor(Math.log10(span / 100));
 
+// "hatchLightsProbability" → "Hatch lights": the key in words, minus the suffix
+// that only says how the value is stored.
+const labelFor = (key) => {
+  const words = key.replace(/(Probability|Percent)$/, "").replace(/([A-Z])/g, " $1").toLowerCase().trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
 /**
  * One control spec per config key of a renderer:
  * - range: { min, max } sampled range; pinning sets min = max = value
@@ -243,28 +251,52 @@ const floatStep = (span) => 10 ** Math.floor(Math.log10(span / 100));
  * - number: other plain constant
  */
 export function paramSpecs(name) {
-  return Object.entries(rendererConfig[name]).map(([key, value]) => {
-    const id = `${name}.${key}`;
-    if (value && typeof value === "object") {
-      if (SPAN_PARAMS.has(id)) {
-        return { key, kind: "span", min: 0.05, max: 1.5, step: 0.01, int: false, auto: value };
-      }
-      const int = INT_PARAMS.has(id);
-      const step = int ? 1 : floatStep(value.max - value.min);
-      return { key, kind: "range", min: value.min, max: value.max, step, int, auto: value };
+  return Object.entries(rendererConfig[name]).map(([key, value]) => ({
+    label: labelFor(key),
+    // *Percent values are fractions of the image size; shown as percentages.
+    percent: key.endsWith("Percent"),
+    ...baseSpec(name, key, value),
+  }));
+}
+
+function baseSpec(name, key, value) {
+  const id = `${name}.${key}`;
+  if (value && typeof value === "object") {
+    if (SPAN_PARAMS.has(id)) {
+      return { key, kind: "span", min: 0.05, max: 1.5, step: 0.01, int: false, auto: value };
     }
-    if (key.endsWith("Probability")) {
-      return { key, kind: "probability", min: 0, max: 1, step: 0.01, int: false, auto: value };
-    }
-    const int = Number.isInteger(value);
-    const max = int ? Math.max(value * 2, value + 4) : value * 2 || 1;
-    const step = int ? 1 : floatStep(max);
-    return { key, kind: "number", min: 0, max, step, int, auto: value };
-  });
+    const int = INT_PARAMS.has(id);
+    const step = int ? 1 : floatStep(value.max - value.min);
+    return { key, kind: "range", min: value.min, max: value.max, step, int, auto: value };
+  }
+  if (key.endsWith("Probability")) {
+    return { key, kind: "probability", min: 0, max: 1, step: 0.01, int: false, auto: value };
+  }
+  const int = Number.isInteger(value);
+  const max = int ? Math.max(value * 2, value + 4) : value * 2 || 1;
+  const step = int ? 1 : floatStep(max);
+  return { key, kind: "number", min: 0, max, step, int, auto: value };
 }
 
 // Renderer config with pins applied. Only ranges change, so the
 // renderer's RNG call order (and therefore the rest of the image) is intact.
+// Nearest slider position to `raw`, without float noise (0.30000000000000004).
+function snapToStep(spec, raw) {
+  const decimals = Math.max(0, -Math.floor(Math.log10(spec.step)));
+  return Number((Math.round(raw / spec.step) * spec.step).toFixed(decimals));
+}
+
+// A random pinned value for one parameter: anywhere on its slider, snapped to
+// the slider's step. (UI-only, so Math.random rather than the render seed.)
+export function randomParamValue(spec) {
+  const pick = () => snapToStep(spec, spec.min + Math.random() * (spec.max - spec.min));
+  if (spec.kind === "span") {
+    const [a, b] = [pick(), pick()];
+    return { min: Math.min(a, b), max: Math.max(a, b) };
+  }
+  return pick();
+}
+
 export function buildConfig(name, overrides) {
   const config = { ...rendererConfig[name] };
   for (const spec of paramSpecs(name)) {
@@ -278,5 +310,45 @@ export function buildConfig(name, overrides) {
 export function formatValue(value, spec) {
   if (spec.int) return String(Math.round(value));
   const decimals = Math.max(0, Math.min(4, -Math.floor(Math.log10(spec.step))));
+  if (spec.percent) return `${(value * 100).toFixed(Math.max(0, decimals - 2))}%`;
   return Number(value).toFixed(decimals);
+}
+
+/**
+ * The code for one variation: the seed hash, then one "-" entry per pinned
+ * parameter as base36 `index.step` (spans: `index.minStep.maxStep`), where
+ * index is the parameter's position in paramSpecs and step its slider position.
+ * "1hfj1o6" has nothing pinned; "1hfj1o6-3.k-7.1a" pins two parameters.
+ */
+export function variationCode(seed, name, overrides) {
+  const steps = (spec, v) => Math.max(0, Math.round((v - spec.min) / spec.step)).toString(36);
+  const entries = paramSpecs(name).flatMap((spec, i) => {
+    if (!(spec.key in overrides)) return [];
+    const v = overrides[spec.key];
+    const parts = spec.kind === "span" ? [steps(spec, v.min), steps(spec, v.max)] : [steps(spec, v)];
+    return [[i.toString(36), ...parts].join(".")];
+  });
+  return [generateSeedHash(seed), ...entries].join("-");
+}
+
+// Inverse of variationCode for `name`: { seed, overrides }, or null if the seed
+// part doesn't parse. Entries that don't fit this renderer are ignored.
+export function parseVariationCode(text, name) {
+  const [head, ...entries] = String(text ?? "").trim().toLowerCase().split("-");
+  const seed = parseSeed(head);
+  if (seed === null) return null;
+  const specs = paramSpecs(name);
+  const overrides = {};
+  for (const entry of entries) {
+    const [i, ...parts] = entry.split(".").map((n) => parseInt(n, 36));
+    const spec = specs[i];
+    if (!spec || parts.some(Number.isNaN)) continue;
+    const value = (s) => snapToStep(spec, Math.min(spec.max, spec.min + s * spec.step));
+    if (spec.kind === "span" && parts.length === 2) {
+      overrides[spec.key] = { min: value(parts[0]), max: value(parts[1]) };
+    } else if (spec.kind !== "span" && parts.length === 1) {
+      overrides[spec.key] = value(parts[0]);
+    }
+  }
+  return { seed, overrides };
 }

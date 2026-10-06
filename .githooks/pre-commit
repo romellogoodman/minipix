@@ -3,10 +3,13 @@
 # once and compares pixel hashes with bench/baseline-train.json. Only runs when
 # staged files can affect rendering. Skip with `git commit --no-verify`.
 #
+# It checks the staged snapshot (exported to a temp dir), not the working tree,
+# so unstaged edits can neither fail nor pass the commit.
+#
 # An intentional visual change: re-record the baseline in the same commit with
 #   npm run bench -- --split=train --save=bench/baseline-train.json
 
-if ! git diff --cached --name-only | grep -qE '^(src/renderers/|src/workers/|src/utils/(math|image|noise|field|canvas|index)\.js|scripts/(bench|cli-renderers)\.js|bench/)'; then
+if ! git diff --cached --name-only | grep -qE '^(src/renderers/|src/workers/|src/utils/(math|image|noise|field|canvas|blur|index)\.js|scripts/(bench|cli-renderers)\.js|bench/)'; then
   exit 0
 fi
 
@@ -15,10 +18,17 @@ if ! node -e "import('canvas')" 2>/dev/null; then
   exit 0
 fi
 
-echo "pre-commit: renderer files changed, checking output hashes (~35s)..."
-if ! node scripts/bench.js --split=train --reps=1 --check=bench/baseline-train.json > /tmp/minipix-precommit.log 2>&1; then
-  grep -E "MISMATCH|Error" /tmp/minipix-precommit.log
-  echo "pre-commit: renderer output changed (full log: /tmp/minipix-precommit.log)"
+root=$(git rev-parse --show-toplevel)
+snapshot=$(mktemp -d)
+log="$snapshot.log"
+trap 'rm -rf "$snapshot"' EXIT
+git checkout-index -a --prefix="$snapshot/"
+ln -s "$root/node_modules" "$snapshot/node_modules"
+
+echo "pre-commit: renderer files changed, checking the staged output hashes (~40s)..."
+if ! (cd "$snapshot" && node scripts/bench.js --split=train --reps=1 --check=bench/baseline-train.json) > "$log" 2>&1; then
+  grep -E "MISMATCH|Error" "$log"
+  echo "pre-commit: renderer output changed (full log: $log)"
   exit 1
 fi
 echo "pre-commit: all renderer hashes match"

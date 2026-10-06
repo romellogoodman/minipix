@@ -5,10 +5,10 @@ Minipix is a generative art tool that:
 - Accepts multiple image uploads (PNG/JPEG) via file picker or drag-and-drop
 - Presents a single-canvas studio (after the brand-shader study in ~/code/research-monorepo):
   one large output on a stage, a filmstrip of recent variations, and a stepped control panel
-- Lets users pick source, renderer, and seed, and pin individual renderer parameters
+- Lets users pick source and renderer, reroll variations, and pin individual renderer parameters
 - Uses seeded randomness for reproducible artwork
-- Supports downloading/copying the output with descriptive filenames including seed hash,
-  plus saving/loading settings as JSON
+- Supports downloading/copying the output with descriptive filenames including its variation code,
+  and copying a link that reproduces it
 - Includes a Node CLI (`npm run render`) for batch rendering with node-canvas
 
 ## Project Structure
@@ -22,7 +22,8 @@ src/
 ├── Canvas.jsx                     # Canvas component - render lifecycle, fit sizing
 ├── ErrorBoundary.jsx              # Top-level error boundary
 ├── components/
-│   └── controls.jsx               # Field, SeedInput
+│   ├── controls.jsx               # Field, CodeInput
+│   └── icons.jsx                  # The few Lucide icons the app uses, copied in (ISC)
 ├── hooks/
 │   ├── useImageLoader.js          # Example images + uploads, in a stable order
 │   ├── useDragAndDrop.js          # Window-level drag-and-drop upload
@@ -41,7 +42,7 @@ src/
 │       └── <name>.js              # One file per worker (pixel-loop) renderer
 ├── utils/
 │   ├── index.js                   # Barrel for renderer utilities
-│   ├── math.js                    # createSeededRandom (Mulberry32), randInt, randFloat, map
+│   ├── math.js                    # createSeededRandom (Mulberry32), randInt, randFloat, recordDraws, map
 │   ├── canvas.js                  # setupRenderer, calculateAdaptivePixelSize, drawHalftoneDot
 │   ├── image.js                   # Color extraction, luminance, dithering, block averaging, color ramps
 │   ├── noise.js                   # Seeded 2D gradient noise (shared with workers and CLI)
@@ -68,25 +69,35 @@ bench/baseline-{train,test}.json   # Recorded pixel hashes + timings per (render
 
 - Layout: `.studio__stage` (the well with one fitted `<Canvas>`, the filmstrip, a hint line)
   and `.studio__panel` with numbered steps: Source (thumbnail row + upload tile), Renderer,
-  Variation (seed + parameters), Export
+  Variation (Reroll + parameters), Export (with the variation code)
 - The edited variation is a draft `{ imageId, renderer, seed, overrides }`; the stage renders
   it after a short debounce, and it joins the 12-slot filmstrip history once it settles.
   Filmstrip thumbnails are downscaled snapshots of the finished stage canvas
-- Variation step: seed, Reroll (new seed + clears all pins), Lock seed (when off, changing
-  renderer rolls a new seed; when on, the seed is kept), then the parameter sliders
+- Seeds are plumbing: the UI never says "seed". Users see a variation *code*
+  (`variationCode` / `parseVariationCode` in catalog.js): the seed hash plus one `-index.step`
+  entry per pinned parameter. Filenames, Copy link (`?seed=<code>`) and the Export field's
+  `CodeInput` all use it, so the code always describes the exact image, pins included
+- Renderer step: grouped picker (alphabetical within each group) plus a dice button for a
+  random different renderer. Changing renderer always rolls a new seed
+- Variation step: Reroll (new seed; pinned parameters stay), then the parameter rows. Rows
+  show what the current seed drew (`drawn`, from `recordDraws`) with a dimmed thumb; on auto
+  before a render reports back, the range and no thumb. Each row has a dice button (shown
+  on hover/focus) that pins it to `randomParamValue(spec)` (UI-only Math.random).
+  Probability params are an Auto / On / Off switch (pins 1 or 0). Labels and % formatting
+  come from the spec (`label`, `percent` for *Percent keys, which are fractions of image size)
+- Icons are Lucide SVGs copied into `components/icons.jsx` (ISC; no icon package)
 - Parameters: `catalog.js` turns each `rendererConfig` entry into slider specs. Untouched
   params stay "auto" (original random range); moving a slider pins it as `{ min: v, max: v }`,
   which is passed to the renderer via `<Canvas config>`. Pins are remembered per renderer.
   Pinning only narrows ranges — the RNG call order is unchanged, so unpinned output matches
-- Save/Load settings: JSON with renderer, seed, image filename, and pins
 - Keyboard: R reroll, D download, ←/→ step through the filmstrip
 - Download filenames built with `buildFilename` from `utils/download.js`:
-  `{originalname}-minipix-{renderer}-{hash}.{ext}`
+  `{originalname}-minipix-{renderer}-{code}.{ext}`
 
 **Query Parameters:**
 - `renderer`: Initial renderer (first valid name of a comma-separated list); otherwise random.
-- `seed`: Initial seed. Accepts the base36 hash from a filename or a decimal seed.
-  Copy link produces `?renderer=<name>&seed=<hash>` (pinned parameters are not included).
+- `seed`: Initial variation: a code (seed hash + pins) from a filename or link, or a decimal
+  seed. Copy link produces `?renderer=<name>&seed=<code>`.
 
 ### Canvas.jsx
 
@@ -95,7 +106,9 @@ bench/baseline-{train,test}.json   # Recorded pixel hashes + timings per (render
 - Sync renderers start inside `requestIdleCallback` (cancelled if settings change first);
   worker renderers start immediately and cancel via the pool's `cancel()`
 - Tracks `pending | done | error` render state for skeleton/error UI
-- `onRendered(canvasEl)` hands the finished canvas to App for export and filmstrip snapshots
+- `onRendered(canvasEl, draws)` hands the finished canvas to App for export and filmstrip
+  snapshots, plus the parameter values the render drew: sync renderers run inside
+  `recordDraws`; worker renderers record in the worker and resolve with them
 
 ### Renderers
 
@@ -160,7 +173,10 @@ renders of the same image copy a buffer instead of re-running `drawImage` +
 ### utils/
 
 - `math.js`: `createSeededRandom` (Mulberry32), `randomNumber(min, max, randomFn)`,
-  `randInt(range, randomFn)`, `randFloat(range, randomFn)`, `map(...)` — shared with workers and CLI
+  `randInt(range, randomFn)`, `randFloat(range, randomFn)`, `map(...)` — shared with workers and CLI.
+  `recordDraws(config, render)` reports what `randInt`/`randFloat` drew from each config range
+  (null if drawn more than once); observing only, so output is unchanged. Use
+  `randInt(config.x, random)` rather than `randomNumber(config.x.min, ...)` so draws are recorded
 - `image.js`: `extractDominantColors` (median cut), `getLuminance`, `findNearestColor`,
   `getAverageColorInBlock`, `shuffleArray`, Bayer and Floyd-Steinberg dithering,
   `COLOR_RAMPS` / `buildRampLUT` for heat-map style colouring
@@ -173,7 +189,7 @@ renders of the same image copy a buffer instead of re-running `drawImage` +
   (edges/bright/dark/saturation/detail), `findBlobs` (mean-shift blob tracking on a weight
   map; consumes 3 RNG calls per blob), `fitSize`
 - `canvas.js`: `setupRenderer`, `calculateAdaptivePixelSize`, `drawHalftoneDot`
-- `download.js`: `generateSeedHash`, `parseSeed`, `buildFilename`, `downloadBlob`, `downloadCanvas`,
+- `download.js`: `generateSeedHash`, `parseSeed`, `buildFilename`, `downloadCanvas`,
   `copyCanvas` — the first three are pure (the CLI uses them); the rest touch the DOM, so
   never import this file from worker code
 - All randomness helpers accept an optional `randomFn` (defaults to `Math.random`)
@@ -209,7 +225,7 @@ Minipix uses seeded randomness to make artwork reproducible:
   files can affect rendering (`src/renderers/`, `src/workers/`, the render utils in
   `src/utils/`, `scripts/bench.js`, `scripts/cli-renderers.js`, `bench/`), and does nothing
   for other commits. It skips if the optional `canvas` package is missing. It renders the
-  working tree, not the staged snapshot
+  staged snapshot (exported to a temp dir), so unstaged edits don't affect the result
 - Intentional visual change: re-record in the same commit with
   `npm run bench -- --split=train --save=bench/baseline-train.json` (and `--split=test`
   with `bench/baseline-test.json`). After upgrading `canvas`, sync-renderer hashes may shift

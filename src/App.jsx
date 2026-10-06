@@ -7,20 +7,22 @@ import useDragAndDrop from "./hooks/useDragAndDrop";
 import useExport from "./hooks/useExport.js";
 import {
   ALL_RENDERERS,
+  codeFromUrl,
   describe,
   randomSeed,
   rendererFromUrl,
-  seedFromUrl,
 } from "./utils/output.js";
-import { Upload } from "feather-icons-react";
-import { Field, SeedInput } from "./components/controls.jsx";
-import { downloadBlob, generateSeedHash, parseSeed } from "./utils/download.js";
+import { Dices, Upload } from "./components/icons.jsx";
+import { CodeInput, Field } from "./components/controls.jsx";
 import {
   DESCRIPTIONS,
   buildConfig,
   formatValue,
   paramSpecs,
+  parseVariationCode,
+  randomParamValue,
   rendererGroups,
+  variationCode,
 } from "./catalog.js";
 
 const HISTORY_SIZE = 12;
@@ -46,11 +48,10 @@ function useDebounced(value, delay) {
 export default function App() {
   const { images, loadFiles } = useImageLoader();
   const { isDragging } = useDragAndDrop(loadFiles);
-  const { status, flash, download, copyImage, copyLink } = useExport();
+  const { status, download, copyImage, copyLink } = useExport();
 
   const [wellEl, setWellEl] = useState(null);
   const [wellSize, setWellSize] = useState({ width: 0, height: 0 });
-  const settingsInputRef = useRef(null);
   // Remembers each renderer's pins so switching away and back restores them.
   const pinsByRenderer = useRef({});
 
@@ -58,7 +59,10 @@ export default function App() {
   const [initialRenderer] = useState(
     () => rendererFromUrl() ?? ALL_RENDERERS[Math.floor(Math.random() * ALL_RENDERERS.length)]
   );
-  const [initialSeed] = useState(() => seedFromUrl() ?? randomSeed());
+  // Initial seed and pins: ?seed= (a variation code) if present, else a fresh seed.
+  const [initialVariation] = useState(
+    () => parseVariationCode(codeFromUrl(), initialRenderer) ?? { seed: randomSeed(), overrides: {} }
+  );
 
   // The variation being edited. Until the user changes something it is derived
   // from the first image and the URL params.
@@ -68,16 +72,17 @@ export default function App() {
     () =>
       firstImageId === undefined
         ? null
-        : { imageId: firstImageId, renderer: initialRenderer, seed: initialSeed, overrides: {} },
-    [firstImageId, initialRenderer, initialSeed]
+        : { imageId: firstImageId, renderer: initialRenderer, ...initialVariation },
+    [firstImageId, initialRenderer, initialVariation]
   );
   const draft = draftState ?? initialDraft;
 
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [thumbs, setThumbs] = useState({});
-  const [lockSeed, setLockSeed] = useState(false);
   const [exported, setExported] = useState({ key: null, canvas: null });
+  // Parameter values the last finished render drew, for the sliders to show.
+  const [drawn, setDrawn] = useState({ renderer: null, seed: null, values: {} });
 
   const updateDraft = useCallback(
     (fn) => setDraftState((prev) => fn(prev ?? draft)),
@@ -126,7 +131,12 @@ export default function App() {
   const output = useMemo(
     () =>
       rendered && renderedImage
-        ? describe({ image: renderedImage, renderer: renderers[rendered.renderer], seed: rendered.seed })
+        ? describe({
+            image: renderedImage,
+            renderer: renderers[rendered.renderer],
+            seed: rendered.seed,
+            overrides: rendered.overrides,
+          })
         : null,
     [rendered, renderedImage]
   );
@@ -142,8 +152,9 @@ export default function App() {
   // Keep the finished canvas for export and snapshot a small thumbnail of it
   // for the filmstrip, instead of rendering every history entry again.
   const handleRendered = useCallback(
-    (canvas) => {
+    (canvas, values) => {
       setExported({ key: renderKey, canvas });
+      setDrawn({ renderer: rendered.renderer, seed: rendered.seed, values });
       const scale = THUMB_SIZE / Math.max(canvas.width, canvas.height);
       const thumb = document.createElement("canvas");
       thumb.width = Math.max(1, Math.round(canvas.width * scale));
@@ -152,7 +163,7 @@ export default function App() {
       const url = thumb.toDataURL("image/jpeg", 0.8);
       setThumbs((prev) => ({ ...prev, [renderKey]: url }));
     },
-    [renderKey]
+    [renderKey, rendered]
   );
 
   const selectRenderer = (name) => {
@@ -161,16 +172,20 @@ export default function App() {
     setDraftState({
       ...draft,
       renderer: name,
-      seed: lockSeed ? draft.seed : randomSeed(),
+      seed: randomSeed(),
       overrides: pinsByRenderer.current[name] || {},
     });
   };
 
-  // New seed and every parameter back to auto, so the whole variation changes.
-  const reroll = useCallback(
-    () => updateDraft((d) => ({ ...d, seed: randomSeed(), overrides: {} })),
-    [updateDraft]
-  );
+  // A different renderer at random.
+  const rerollRenderer = () => {
+    if (!draft) return;
+    const others = ALL_RENDERERS.filter((name) => name !== draft.renderer);
+    selectRenderer(others[Math.floor(Math.random() * others.length)]);
+  };
+
+  // New seed: everything that isn't pinned changes; pinned parameters stay.
+  const reroll = useCallback(() => updateDraft((d) => ({ ...d, seed: randomSeed() })), [updateDraft]);
 
   const setPin = (key, value) =>
     updateDraft((d) => ({ ...d, overrides: { ...d.overrides, [key]: value } }));
@@ -192,48 +207,6 @@ export default function App() {
     [history]
   );
 
-  const saveSettings = () => {
-    if (!draft) return;
-    const image = images.find((img) => img.id === draft.imageId);
-    const settings = {
-      renderer: draft.renderer,
-      seed: draft.seed,
-      hash: output?.hash,
-      image: image?.filename ?? null,
-      overrides: draft.overrides,
-    };
-    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: "application/json" });
-    downloadBlob(blob, (output?.filename ?? "minipix").replace(/\.\w+$/, "") + ".json");
-  };
-
-  const loadSettings = async (file) => {
-    try {
-      const settings = JSON.parse(await file.text());
-      if (!ALL_RENDERERS.includes(settings.renderer)) throw new Error("unknown renderer");
-      const seed =
-        typeof settings.seed === "number" ? settings.seed >>> 0 : parseSeed(settings.seed ?? settings.hash);
-      if (seed === null) throw new Error("bad seed");
-      const known = new Set(paramSpecs(settings.renderer).map((s) => s.key));
-      const overrides = Object.fromEntries(
-        Object.entries(settings.overrides || {}).filter(([key]) => known.has(key))
-      );
-      const image = images.find((img) => img.filename === settings.image);
-      updateDraft((d) => ({
-        imageId: image ? image.id : d.imageId,
-        renderer: settings.renderer,
-        seed,
-        overrides,
-      }));
-      flash(
-        image || !settings.image
-          ? "Settings loaded"
-          : `Settings loaded · ${settings.image} not found, kept current source`
-      );
-    } catch {
-      flash("Couldn't read that settings file");
-    }
-  };
-
   // Keyboard: R reroll, D download, ←/→ step through the filmstrip.
   useEffect(() => {
     const onKeyDown = (e) => {
@@ -254,6 +227,9 @@ export default function App() {
   }, [reroll, download, exportCanvas, output, restore, historyIndex, history.length]);
 
   const specs = draft ? paramSpecs(draft.renderer) : [];
+  // What the current seed drew, once a render of this renderer + seed has finished.
+  const drawnValues =
+    draft && drawn.renderer === draft.renderer && drawn.seed === draft.seed ? drawn.values : {};
   const pinnedCount = draft ? Object.keys(draft.overrides).length : 0;
   const sourceMime = output?.image.mimeType === "image/jpeg" ? "JPG" : "PNG";
 
@@ -274,7 +250,7 @@ export default function App() {
                 renderFn={output.renderer}
                 seed={output.seed}
                 config={renderConfig}
-                label={`${output.rendererName} rendering, seed ${output.hash}`}
+                label={`${output.rendererName} rendering, variation ${output.code}`}
                 maxWidth={Math.max(wellSize.width, 100)}
                 maxHeight={Math.max(wellSize.height, 100)}
                 onRendered={handleRendered}
@@ -295,7 +271,7 @@ export default function App() {
                     type="button"
                     className={`studio__thumb${i === historyIndex ? " studio__thumb--current" : ""}`}
                     onClick={() => restore(i)}
-                    title={`${entry.renderer} · ${generateSeedHash(entry.seed)}`}
+                    title={`${entry.renderer} · ${variationCode(entry.seed, entry.renderer, entry.overrides)}`}
                     aria-label={`Restore ${entry.renderer} variation ${i + 1}`}
                     aria-current={i === historyIndex ? "true" : undefined}
                     style={thumbs[key] ? { backgroundImage: `url(${thumbs[key]})` } : undefined}
@@ -324,39 +300,49 @@ export default function App() {
           </Field>
 
           <Field label={<Step n={2}>Renderer</Step>} hint={draft && DESCRIPTIONS[draft.renderer]}>
-            {draft && <GroupedSelect value={draft.renderer} groups={GROUPS} onChange={selectRenderer} />}
+            {draft && (
+              <div className="row row--trailing">
+                <GroupedSelect value={draft.renderer} groups={GROUPS} onChange={selectRenderer} />
+                <button
+                  type="button"
+                  className="btn btn--icon btn--square"
+                  onClick={rerollRenderer}
+                  title="Random renderer"
+                  aria-label="Random renderer"
+                >
+                  <Dices size={18} />
+                </button>
+              </div>
+            )}
           </Field>
 
           <Field
             label={<Step n={3}>Variation</Step>}
-            aside={pinnedCount > 0 ? `${pinnedCount} pinned` : null}
+            aside={
+              <span className="studio__actions">
+                {pinnedCount > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn--text"
+                    onClick={() => updateDraft((d) => ({ ...d, overrides: {} }))}
+                  >
+                    Reset {pinnedCount} pinned
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn--icon btn--square studio__reroll"
+                  onClick={reroll}
+                  disabled={!draft}
+                  title="Reroll (R)"
+                  aria-label="Reroll"
+                >
+                  <Dices size={18} />
+                </button>
+              </span>
+            }
+            hint={pinnedCount > 0 ? "Reroll changes everything except pinned settings." : null}
           >
-            {draft && (
-              <SeedInput
-                key={output?.hash ?? draft.seed}
-                hash={output?.hash ?? ""}
-                onCommit={(seed) => updateDraft((d) => ({ ...d, seed }))}
-              />
-            )}
-            <div className="row">
-              <button type="button" className="btn" onClick={reroll} disabled={!draft}>
-                Reroll
-              </button>
-              <label className="studio__toggle">
-                <input
-                  type="checkbox"
-                  checked={lockSeed}
-                  onChange={(e) => setLockSeed(e.target.checked)}
-                />
-                <span className="studio__switch" aria-hidden="true" />
-                Lock seed
-              </label>
-            </div>
-            <span className="field__hint">
-              {lockSeed
-                ? "Changing renderer keeps this seed."
-                : "Changing renderer rolls a new seed."}
-            </span>
             {specs.length > 0 && (
               <div className="studio__params">
                 {specs.map((spec) => (
@@ -364,26 +350,29 @@ export default function App() {
                     key={`${draft.renderer}-${spec.key}`}
                     spec={spec}
                     value={draft.overrides[spec.key]}
+                    drawn={drawnValues[spec.key]}
                     onChange={(v) => setPin(spec.key, v)}
+                    onReroll={() => setPin(spec.key, randomParamValue(spec))}
                     onReset={() => clearPin(spec.key)}
                   />
                 ))}
               </div>
             )}
-            {pinnedCount > 0 && (
-              <div className="links">
-                <button
-                  type="button"
-                  className="btn btn--text"
-                  onClick={() => updateDraft((d) => ({ ...d, overrides: {} }))}
-                >
-                  Reset parameters
-                </button>
-              </div>
-            )}
           </Field>
 
-          <Field label={<Step n={4}>Export</Step>}>
+          <Field
+            label={<Step n={4}>Export</Step>}
+            aside={
+              output && (
+                <CodeInput
+                  key={output.code}
+                  code={output.code}
+                  parse={(text) => parseVariationCode(text, draft.renderer)}
+                  onCommit={({ seed, overrides }) => updateDraft((d) => ({ ...d, seed, overrides }))}
+                />
+              )
+            }
+          >
             <button
               type="button"
               className="btn btn--primary"
@@ -405,30 +394,6 @@ export default function App() {
                 Copy link
               </button>
             </div>
-            <div className="row">
-              <button type="button" className="btn" onClick={saveSettings} disabled={!draft}>
-                Save settings
-              </button>
-              <button type="button" className="btn" onClick={() => settingsInputRef.current?.click()}>
-                Load settings
-              </button>
-            </div>
-            <input
-              ref={settingsInputRef}
-              type="file"
-              accept="application/json,.json"
-              hidden
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (file) loadSettings(file);
-                e.target.value = "";
-              }}
-            />
-            {pinnedCount > 0 && (
-              <span className="field__hint">
-                Links carry renderer + seed only; save settings to keep pinned parameters.
-              </span>
-            )}
             <span className="field__status" role="status">
               {status}
             </span>
@@ -509,39 +474,78 @@ function GroupedSelect({ value, groups, onChange }) {
   );
 }
 
-// One parameter. Untouched ("auto") it shows the renderer's own random range;
-// moving the slider pins it.
-function ParamControl({ spec, value, onChange, onReset }) {
+// One parameter. On auto it shows what the current seed picked (a dimmed
+// thumb), or the range it picks from until a render reports back. Dragging,
+// rerolling or choosing On / Off pins it.
+function ParamControl({ spec, value, drawn, onChange, onReroll, onReset }) {
   const pinned = value !== undefined;
-  const label = (
+  const reset = pinned && (
+    <button type="button" className="studio__param-reset" onClick={onReset} title="Back to auto">
+      reset
+    </button>
+  );
+
+  // A chance only ever plays out as yes or no in one image, so it's a switch.
+  if (spec.kind === "probability") {
+    const choice = !pinned ? "auto" : value >= 0.5 ? "on" : "off";
+    const pick = (option) => (option === "auto" ? onReset() : onChange(option === "on" ? 1 : 0));
+    return (
+      <div className="studio__param studio__param--choice">
+        <span className="studio__param-name" id={`param-${spec.key}`}>
+          {spec.label}
+        </span>
+        <span className="segmented" role="radiogroup" aria-labelledby={`param-${spec.key}`}>
+          {["auto", "on", "off"].map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={choice === option}
+              className={`segmented__option${choice === option ? " segmented__option--current" : ""}`}
+              onClick={() => pick(option)}
+            >
+              {option === "auto" ? "Auto" : option === "on" ? "On" : "Off"}
+            </button>
+          ))}
+        </span>
+      </div>
+    );
+  }
+
+  const head = (
     <span className="studio__param-head">
-      <span className="studio__param-name">{spec.key}</span>
-      <span className="studio__param-value">{describeValue(spec, value)}</span>
-      {pinned ? (
-        <button type="button" className="studio__param-reset" onClick={onReset} title="Back to auto">
-          reset
-        </button>
-      ) : (
-        <span className="studio__param-auto">auto</span>
-      )}
+      <span className="studio__param-name">{spec.label}</span>
+      <span className="studio__param-value">{describeValue(spec, value, drawn)}</span>
+      <button
+        type="button"
+        className="studio__param-reroll"
+        onClick={onReroll}
+        title={`Random ${spec.label.toLowerCase()}`}
+        aria-label={`Random ${spec.label.toLowerCase()}`}
+      >
+        <Dices size={14} />
+      </button>
+      {reset}
     </span>
   );
+  const className = `studio__param${pinned ? " studio__param--pinned" : ""}`;
 
   if (spec.kind === "span") {
     const span = value ?? spec.auto;
     return (
-      <div className={`studio__param${pinned ? " studio__param--pinned" : ""}`}>
-        {label}
+      <div className={className}>
+        {head}
         <SpanSlider spec={spec} label="outer" value={span.max} onChange={(v) => onChange({ ...span, max: v })} />
         <SpanSlider spec={spec} label="inner" value={span.min} onChange={(v) => onChange({ ...span, min: v })} />
       </div>
     );
   }
 
-  const shown = pinned ? value : autoMidpoint(spec);
+  const known = pinned || typeof drawn === "number" || spec.kind === "number";
+  const shown = pinned ? value : typeof drawn === "number" ? drawn : autoMidpoint(spec);
   return (
-    <label className={`studio__param${pinned ? " studio__param--pinned" : ""}`}>
-      {label}
+    <label className={`${className}${known ? "" : " studio__param--unknown"}`}>
+      {head}
       <input
         className="slider__input"
         type="range"
@@ -549,7 +553,7 @@ function ParamControl({ spec, value, onChange, onReset }) {
         max={spec.max}
         step={spec.step}
         value={shown}
-        aria-label={spec.key}
+        aria-label={spec.label}
         onChange={(e) => onChange(Number(e.target.value))}
       />
     </label>
@@ -567,7 +571,7 @@ function SpanSlider({ spec, label, value, onChange }) {
         max={spec.max}
         step={spec.step}
         value={value}
-        aria-label={`${spec.key} ${label}`}
+        aria-label={`${spec.label} ${label}`}
         onChange={(e) => onChange(Number(e.target.value))}
       />
     </span>
@@ -582,12 +586,13 @@ function autoMidpoint(spec) {
   return spec.auto;
 }
 
-function describeValue(spec, value) {
+function describeValue(spec, value, drawn) {
   if (spec.kind === "span") {
     const span = value ?? spec.auto;
     return `${formatValue(span.max, spec)} → ${formatValue(span.min, spec)}`;
   }
   if (value !== undefined) return formatValue(value, spec);
+  if (typeof drawn === "number") return formatValue(drawn, spec);
   if (spec.kind === "range") {
     return `${formatValue(spec.auto.min, spec)}–${formatValue(spec.auto.max, spec)}`;
   }
