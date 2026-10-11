@@ -284,7 +284,10 @@ export default function App() {
           </ol>
 
           <p className="studio__hint">
-            R reroll · D download · ← → step through history · Drop images anywhere
+            R reroll · D download · ← → step through history · Drop images anywhere ·{" "}
+            <a className="studio__hint-link" href="https://github.com/romellogoodman/minipix">
+              GitHub
+            </a>
           </p>
         </div>
 

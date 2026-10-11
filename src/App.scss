@@ -145,6 +145,15 @@
     font-size: var(--font-size-sm);
   }
 
+  &__hint-link {
+    color: inherit;
+    text-underline-offset: 2px;
+
+    &:hover {
+      color: var(--color-text);
+    }
+  }
+
   /* ---------- panel ---------- */
 
   &__panel {
