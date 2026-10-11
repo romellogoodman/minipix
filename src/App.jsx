@@ -32,9 +32,30 @@ const THUMB_SIZE = 160;
 
 const GROUPS = rendererGroups(ALL_RENDERERS);
 
+// Phone layout (see the max-width: 640px block in App.scss): the stage fills the
+// screen and each step opens as a sheet from a bottom tab bar.
+const PHONE_QUERY = "(max-width: 640px)";
+const SHEETS = [
+  ["source", "Source"],
+  ["renderer", "Renderer"],
+  ["variation", "Tweak"],
+  ["export", "Share"],
+];
+
 // Stable identity for a variation: used for history dedupe and thumbnail lookup.
 const variationKey = (v) =>
   v ? JSON.stringify([v.imageId, v.renderer, v.seed, v.overrides]) : "";
+
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const list = window.matchMedia(query);
+    const onChange = () => setMatches(list.matches);
+    list.addEventListener("change", onChange);
+    return () => list.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
+}
 
 function useDebounced(value, delay) {
   const [debounced, setDebounced] = useState(value);
@@ -48,7 +69,11 @@ function useDebounced(value, delay) {
 export default function App() {
   const { images, loadFiles } = useImageLoader();
   const { isDragging } = useDragAndDrop(loadFiles);
-  const { status, download, copyImage, copyLink } = useExport();
+  const { status, download, save, copyImage, copyLink } = useExport();
+  const phone = useMediaQuery(PHONE_QUERY);
+  // Phone layout: which step's sheet is open.
+  const [sheet, setSheet] = useState(null);
+  const swipe = useRef(null);
 
   const [wellEl, setWellEl] = useState(null);
   const [wellSize, setWellSize] = useState({ width: 0, height: 0 });
@@ -233,8 +258,22 @@ export default function App() {
   const pinnedCount = draft ? Object.keys(draft.overrides).length : 0;
   const sourceMime = output?.image.mimeType === "image/jpeg" ? "JPG" : "PNG";
 
+  // A horizontal swipe on the stage steps through the filmstrip.
+  const swipeHandlers = {
+    onTouchStart: (e) => (swipe.current = e.touches[0].clientX),
+    onTouchEnd: (e) => {
+      const dx = e.changedTouches[0].clientX - (swipe.current ?? 0);
+      if (Math.abs(dx) < 50) return;
+      restore(dx > 0 ? Math.max(historyIndex - 1, 0) : Math.min(historyIndex + 1, history.length - 1));
+    },
+  };
+  // Each step is a section so the phone layout can show one at a time as a sheet.
+  const step = (name, field) => (
+    <section className={`studio__section${sheet === name ? " studio__section--open" : ""}`}>{field}</section>
+  );
+
   return (
-    <div className="app">
+    <div className={`app${sheet ? " app--sheet" : ""}`}>
       {isDragging && (
         <div className="dropzone-overlay">
           <div className="dropzone-overlay__content">Drop images to add them</div>
@@ -242,7 +281,7 @@ export default function App() {
       )}
       <main className="studio">
         <div className="studio__stage">
-          <div ref={setWellEl} className="studio__well">
+          <div ref={setWellEl} className="studio__well" {...swipeHandlers}>
             {output ? (
               <Canvas
                 key={renderKey}
@@ -284,15 +323,22 @@ export default function App() {
           </ol>
 
           <p className="studio__hint">
-            R reroll · D download · ← → step through history · Drop images anywhere ·{" "}
+            <a className="studio__hint-link" href="https://www.romellogoodman.com/writing/minipix">
+              Minipix
+            </a>{" "}
+            ·{" "}
             <a className="studio__hint-link" href="https://github.com/romellogoodman/minipix">
               GitHub
             </a>
+            <span className="studio__hint-keys">
+              {" "}
+              · R reroll · D download · ← → step through history · Drop images anywhere
+            </span>
           </p>
         </div>
 
         <aside className="studio__panel">
-          <Field label={<Step n={1}>Source</Step>}>
+          {step("source", <Field label={<Step n={1}>Source</Step>}>
             <SourcePicker
               images={images}
               selectedId={draft?.imageId}
@@ -300,9 +346,9 @@ export default function App() {
               onSelect={(imageId) => updateDraft((d) => ({ ...d, imageId }))}
               onFiles={loadFiles}
             />
-          </Field>
+          </Field>)}
 
-          <Field label={<Step n={2}>Renderer</Step>} hint={draft && DESCRIPTIONS[draft.renderer]}>
+          {step("renderer", <Field label={<Step n={2}>Renderer</Step>} hint={draft && DESCRIPTIONS[draft.renderer]}>
             {draft && (
               <div className="row row--trailing">
                 <GroupedSelect value={draft.renderer} groups={GROUPS} onChange={selectRenderer} />
@@ -317,9 +363,9 @@ export default function App() {
                 </button>
               </div>
             )}
-          </Field>
+          </Field>)}
 
-          <Field
+          {step("variation", <Field
             label={<Step n={3}>Variation</Step>}
             aside={
               <span className="studio__actions">
@@ -361,9 +407,9 @@ export default function App() {
                 ))}
               </div>
             )}
-          </Field>
+          </Field>)}
 
-          <Field
+          {step("export", <Field
             label={<Step n={4}>Export</Step>}
             aside={
               output && (
@@ -379,10 +425,10 @@ export default function App() {
             <button
               type="button"
               className="btn btn--primary"
-              onClick={() => download(exportCanvas, output)}
+              onClick={() => (phone ? save : download)(exportCanvas, output)}
               disabled={!exportCanvas}
             >
-              Download {sourceMime}
+              {phone ? "Save image" : `Download ${sourceMime}`}
             </button>
             <div className="row">
               <button
@@ -400,10 +446,37 @@ export default function App() {
             <span className="field__status" role="status">
               {status}
             </span>
-          </Field>
+          </Field>)}
         </aside>
+
+        {phone && (
+          <nav className="studio__tabs" aria-label="Steps">
+            {SHEETS.slice(0, 2).map(([name, label]) => (
+              <TabButton key={name} name={name} label={label} sheet={sheet} setSheet={setSheet} />
+            ))}
+            <button type="button" className="studio__tab studio__tab--reroll" onClick={reroll} aria-label="Reroll">
+              <Dices size={22} />
+            </button>
+            {SHEETS.slice(2).map(([name, label]) => (
+              <TabButton key={name} name={name} label={label} sheet={sheet} setSheet={setSheet} />
+            ))}
+          </nav>
+        )}
       </main>
     </div>
+  );
+}
+
+function TabButton({ name, label, sheet, setSheet }) {
+  return (
+    <button
+      type="button"
+      className={`studio__tab${sheet === name ? " studio__tab--current" : ""}`}
+      aria-expanded={sheet === name}
+      onClick={() => setSheet(sheet === name ? null : name)}
+    >
+      {label}
+    </button>
   );
 }
 

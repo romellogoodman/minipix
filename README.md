@@ -14,6 +14,8 @@ Try it at [minipix.romellogoodman.com](https://minipix.romellogoodman.com).
 - A filmstrip of your 12 most recent variations to step back through
 - Download or copy the output with a descriptive filename including its code, or copy a
   link that reproduces it
+- A phone layout: the image fills the screen, steps open as sheets from a bottom tab bar,
+  swipe the image to step through history, and Save image uses the share sheet
 - Upload your own images (PNG/JPEG) via drag-and-drop or file selection
 - Pixel-heavy renderers run in a pool of Web Workers to keep the UI responsive
 - **CLI rendering** with node-canvas for batch processing

@@ -91,6 +91,11 @@ bench/baseline-{train,test}.json   # Recorded pixel hashes + timings per (render
   which is passed to the renderer via `<Canvas config>`. Pins are remembered per renderer.
   Pinning only narrows ranges — the RNG call order is unchanged, so unpinned output matches
 - Keyboard: R reroll, D download, ←/→ step through the filmstrip
+- Phones (≤640px): the stage fills the screen with no well plate, above a bottom tab bar
+  (Source · Renderer · Reroll · Tweak · Share). Each tab opens its step as a sheet (each step
+  is a `.studio__section`; only the open one shows) and the image shrinks to fit. Swiping the
+  stage steps through history; Download becomes "Save image" (`save` in useExport: the share
+  sheet when it takes files, else a download)
 - Download filenames built with `buildFilename` from `utils/download.js`:
   `{originalname}-minipix-{renderer}-{code}.{ext}`
 
