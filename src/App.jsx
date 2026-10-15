@@ -454,7 +454,7 @@ export default function App() {
             {SHEETS.slice(0, 2).map(([name, label]) => (
               <TabButton key={name} name={name} label={label} sheet={sheet} setSheet={setSheet} />
             ))}
-            <button type="button" className="studio__tab studio__tab--reroll" onClick={reroll} aria-label="Reroll">
+            <button type="button" className="studio__tab studio__tab--reroll" onClick={rerollRenderer} aria-label="Random renderer">
               <Dices size={22} />
             </button>
             {SHEETS.slice(2).map(([name, label]) => (

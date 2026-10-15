@@ -92,7 +92,8 @@ bench/baseline-{train,test}.json   # Recorded pixel hashes + timings per (render
   Pinning only narrows ranges — the RNG call order is unchanged, so unpinned output matches
 - Keyboard: R reroll, D download, ←/→ step through the filmstrip
 - Phones (≤640px): the stage fills the screen with no well plate, above a bottom tab bar
-  (Source · Renderer · Reroll · Tweak · Share). Each tab opens its step as a sheet (each step
+  (Source · Renderer · random renderer · Tweak · Share; the centre dice
+  picks a different renderer, since a first-time visitor will just keep tapping it). Each tab opens its step as a sheet (each step
   is a `.studio__section`; only the open one shows) and the image shrinks to fit. Swiping the
   stage steps through history; Download becomes "Save image" (`save` in useExport: the share
   sheet when it takes files, else a download)
